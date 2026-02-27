@@ -1,0 +1,36 @@
+import { chromium } from 'playwright';
+import { PlaywrightAgent } from '@midscene/web/playwright';
+{{#if needsChildProcess}}
+import { execSync } from 'child_process';
+{{/if}}
+{{#if needsFetch}}
+import fetch from 'node-fetch';
+{{/if}}
+{{#if needsFs}}
+import * as fs from 'fs';
+{{/if}}
+
+async function main() {
+  const browser = await chromium.launch({
+    headless: {{headless}},
+    args: [{{{chromeArgs}}}]
+  });
+  const context = await browser.newContext({
+    viewport: { width: {{viewportWidth}}, height: {{viewportHeight}} }
+  });
+  const page = await context.newPage();
+
+  try {
+    await page.goto('{{{url}}}');
+    const agent = new PlaywrightAgent(page);
+
+    // === Generated code start ===
+{{{generatedCode}}}
+    // === Generated code end ===
+
+  } finally {
+    await browser.close();
+  }
+}
+
+main().catch(console.error);

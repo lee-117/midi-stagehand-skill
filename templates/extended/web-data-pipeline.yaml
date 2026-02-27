@@ -1,0 +1,29 @@
+engine: extended
+features:
+  - variables
+  - data_transform
+
+web:
+  url: "https://example.com/products"
+  headless: false
+
+tasks:
+  - name: "数据处理流水线"
+    flow:
+      - variables:
+          minPrice: 50
+          category: "electronics"
+
+      - aiQuery: "提取所有商品的名称、价格和分类，返回对象数组"
+        name: allProducts
+
+      - data_transform:
+          input: "${allProducts}"
+          operations:
+            - filter: "price > ${minPrice}"
+            - sort: "price asc"
+            - map: "{ name: item.name, price: item.price, discounted: item.price * 0.9 }"
+          output: processedProducts
+
+      - recordToReport: "数据处理结果"
+        content: "已完成数据过滤、排序和折扣计算"

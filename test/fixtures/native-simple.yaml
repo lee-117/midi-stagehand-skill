@@ -1,0 +1,10 @@
+engine: native
+
+web:
+  url: "https://example.com"
+
+tasks:
+  - name: "简单测试"
+    flow:
+      - aiTap: "点击链接"
+      - aiAssert: "页面包含内容"

@@ -1,0 +1,28 @@
+{
+  "name": "midscene-yaml-superset",
+  "version": "1.0.0",
+  "description": "Midscene YAML Superset Ecosystem - Low-code degradation architecture for browser automation",
+  "main": "scripts/midscene-run.js",
+  "bin": {
+    "midscene-run": "./scripts/midscene-run.js"
+  },
+  "scripts": {
+    "run": "node scripts/midscene-run.js",
+    "test": "node --test test/*.test.js",
+    "validate": "node -e \"const v = require('./src/validator/yaml-validator'); console.log(v.validate(process.argv[1]))\"",
+    "detect": "node -e \"const d = require('./src/detector/mode-detector'); console.log(d.detect(process.argv[1]))\""
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "handlebars": "^4.7.8",
+    "js-yaml": "^4.1.1"
+  },
+  "devDependencies": {
+    "@midscene/web": "^1.0.0",
+    "tsx": "^4.19.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT"
+}

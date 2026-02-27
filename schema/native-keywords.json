@@ -1,0 +1,28 @@
+{
+  "description": "Midscene native YAML keywords - directly executable",
+  "platform": ["web", "android", "ios", "computer"],
+  "agent": ["agent"],
+  "agentOptions": ["testId", "groupName", "cache", "groupDescription"],
+  "taskStructure": ["tasks", "name", "flow", "continueOnError"],
+  "aiPlanning": ["ai", "aiAct"],
+  "aiActions": ["aiTap", "aiHover", "aiInput", "aiKeyboardPress", "aiScroll"],
+  "aiData": ["aiQuery"],
+  "aiAssertions": ["aiAssert", "aiWaitFor"],
+  "tools": ["sleep", "javascript", "recordToReport"],
+  "platformSpecific": ["runAdbShell", "runWdaRequest", "launch"],
+  "actionOptions": ["value", "direction", "distance", "key", "deepThink", "xpath", "timeout", "name", "output"],
+  "allKeywords": [
+    "web", "android", "ios", "computer",
+    "agent", "testId", "groupName", "cache", "groupDescription",
+    "tasks", "name", "flow", "continueOnError",
+    "ai", "aiAct",
+    "aiTap", "aiHover", "aiInput", "aiKeyboardPress", "aiScroll",
+    "aiQuery",
+    "aiAssert", "aiWaitFor",
+    "sleep", "javascript", "recordToReport",
+    "runAdbShell", "runWdaRequest", "launch",
+    "value", "direction", "distance", "key", "deepThink", "xpath", "timeout", "name", "output",
+    "url", "headless", "viewportWidth", "viewportHeight", "userAgent", "waitForNetworkIdle",
+    "device", "pkg", "bundleId"
+  ]
+}

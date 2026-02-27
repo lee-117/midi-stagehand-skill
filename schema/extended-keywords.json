@@ -1,0 +1,47 @@
+{
+  "description": "Midscene YAML superset extended keywords - requires transpilation to TypeScript",
+  "features": {
+    "variables": {
+      "keywords": ["variables"],
+      "description": "Variable declaration and assignment"
+    },
+    "logic": {
+      "keywords": ["logic", "if", "then", "else"],
+      "description": "Conditional branching (if/else)"
+    },
+    "loop": {
+      "keywords": ["loop", "type", "items", "as", "condition", "maxIterations", "count"],
+      "description": "Loop control (for/while/repeat)"
+    },
+    "import": {
+      "keywords": ["import", "with", "as"],
+      "description": "External file import"
+    },
+    "data_transform": {
+      "keywords": ["data_transform", "input", "operations", "filter", "sort", "map", "output"],
+      "description": "In-process data transformation"
+    },
+    "try_catch": {
+      "keywords": ["try", "catch", "finally"],
+      "description": "Exception handling"
+    },
+    "external_call": {
+      "keywords": ["external_call", "method", "url", "headers", "body", "response_as", "command"],
+      "description": "External HTTP/system calls"
+    },
+    "parallel": {
+      "keywords": ["parallel", "merge_results"],
+      "description": "Parallel task execution"
+    }
+  },
+  "templateSyntax": "\\$\\{[^}]+\\}",
+  "allExtendedKeywords": [
+    "variables", "logic", "if", "then", "else",
+    "loop", "items", "as", "condition", "maxIterations", "count",
+    "import", "with",
+    "data_transform", "input", "operations", "filter", "sort", "map",
+    "try", "catch", "finally",
+    "external_call", "method", "headers", "body", "response_as", "command",
+    "parallel", "merge_results"
+  ]
+}

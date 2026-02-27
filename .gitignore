@@ -1,0 +1,5 @@
+node_modules/
+.midscene-tmp/
+midscene-report/
+midscene-output/
+*.log

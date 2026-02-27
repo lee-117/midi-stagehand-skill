@@ -1,0 +1,30 @@
+engine: extended
+features:
+  - logic
+  - variables
+
+web:
+  url: "https://example.com"
+
+tasks:
+  - name: "条件分支测试"
+    flow:
+      - variables:
+          username: "testuser"
+          role: "admin"
+
+      - logic:
+          if: "页面上有登录表单"
+          then:
+            - aiInput: "用户名输入框"
+              value: "${username}"
+            - aiTap: "登录按钮"
+          else:
+            - ai: "已经登录，继续操作"
+
+      - logic:
+          if: "显示了管理员菜单"
+          then:
+            - aiTap: "管理面板"
+          else:
+            - aiTap: "个人中心"

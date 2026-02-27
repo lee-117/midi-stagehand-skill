@@ -1,0 +1,15 @@
+engine: native
+
+web:
+  url: "https://example.com"
+  headless: false
+  viewportWidth: 1280
+  viewportHeight: 720
+
+tasks:
+  - name: "基础网页浏览"
+    flow:
+      - ai: "向下滚动页面查看内容"
+      - aiAssert: "页面包含 'Example Domain' 文字"
+      - recordToReport: "基础测试完成"
+        content: "成功访问并验证页面内容"

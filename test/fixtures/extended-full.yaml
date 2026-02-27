@@ -1,0 +1,83 @@
+engine: extended
+features:
+  - variables
+  - logic
+  - loop
+  - try_catch
+  - external_call
+  - data_transform
+  - parallel
+
+web:
+  url: "https://example.com/app"
+  headless: false
+  viewportWidth: 1280
+  viewportHeight: 720
+
+tasks:
+  - name: "完整超集功能测试"
+    flow:
+      - variables:
+          apiBase: "https://api.example.com"
+          token: "${ENV.API_TOKEN}"
+          maxPages: 5
+
+      - external_call:
+          type: http
+          method: GET
+          url: "${apiBase}/config"
+          headers:
+            Authorization: "Bearer ${token}"
+          response_as: appConfig
+
+      - logic:
+          if: "页面上有同意按钮"
+          then:
+            - aiTap: "同意并继续"
+          else:
+            - ai: "直接进入应用"
+
+      - try:
+          flow:
+            - aiWaitFor: "应用主界面加载完成"
+              timeout: 15000
+            - parallel:
+                tasks:
+                  - flow:
+                      - aiQuery: "提取所有商品信息"
+                        name: products
+                  - flow:
+                      - aiQuery: "提取分类列表"
+                        name: categories
+                merge_results: true
+
+            - data_transform:
+                input: "${products}"
+                operations:
+                  - filter: "price > 0"
+                  - sort: "price desc"
+                  - map: "{ name: item.name, price: item.price }"
+                output: sortedProducts
+
+            - loop:
+                type: while
+                condition: "有更多数据需要加载"
+                maxIterations: "${maxPages}"
+                flow:
+                  - aiTap: "加载更多"
+                  - sleep: 2000
+        catch:
+          flow:
+            - recordToReport: "执行异常"
+              content: "主流程遇到错误"
+            - external_call:
+                type: http
+                method: POST
+                url: "${apiBase}/errors"
+                body:
+                  message: "Test execution failed"
+                response_as: errorReport
+        finally:
+          flow:
+            - recordToReport: "测试完成截图"
+              content: "完整超集测试执行结束"

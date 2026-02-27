@@ -1,0 +1,22 @@
+engine: native
+
+android:
+  device: "emulator-5554"
+  pkg: "com.example.app"
+  launch: true
+
+tasks:
+  - name: "Android 应用基础测试"
+    flow:
+      - aiWaitFor: "应用主界面加载完成"
+        timeout: 20000
+      - aiTap: "设置按钮"
+      - aiAssert: "进入了设置页面"
+      - aiScroll:
+          direction: "down"
+          distance: 300
+      - aiTap: "关于"
+      - aiQuery: "提取应用版本号"
+        name: appVersion
+      - recordToReport: "Android 测试"
+        content: "应用基础功能验证完成"

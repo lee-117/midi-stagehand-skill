@@ -1,0 +1,45 @@
+engine: extended
+features:
+  - try_catch
+  - logic
+  - variables
+
+web:
+  url: "https://example.com/checkout"
+  headless: false
+
+tasks:
+  - name: "带重试的多步骤流程"
+    flow:
+      - variables:
+          maxRetries: 3
+          submitSuccess: false
+
+      - try:
+          flow:
+            - aiWaitFor: "购物车页面加载完成"
+              timeout: 10000
+            - aiTap: "结账按钮"
+            - aiWaitFor: "订单确认页面"
+              timeout: 15000
+            - aiTap: "确认提交"
+            - aiWaitFor: "出现订单成功提示"
+              timeout: 20000
+        catch:
+          flow:
+            - recordToReport: "提交失败"
+              content: "首次提交遇到异常，尝试回退"
+            - ai: "点击返回按钮"
+            - try:
+                flow:
+                  - aiTap: "重新提交"
+                  - aiWaitFor: "出现订单成功提示"
+                    timeout: 20000
+              catch:
+                flow:
+                  - recordToReport: "重试也失败"
+                    content: "多次尝试均失败"
+        finally:
+          flow:
+            - recordToReport: "流程结束截图"
+              content: "提交流程执行完毕"

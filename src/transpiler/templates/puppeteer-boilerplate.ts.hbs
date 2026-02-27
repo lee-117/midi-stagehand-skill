@@ -1,0 +1,34 @@
+import puppeteer from 'puppeteer';
+import { PuppeteerAgent } from '@midscene/web/puppeteer';
+{{#if needsChildProcess}}
+import { execSync } from 'child_process';
+{{/if}}
+{{#if needsFetch}}
+import fetch from 'node-fetch';
+{{/if}}
+{{#if needsFs}}
+import * as fs from 'fs';
+{{/if}}
+
+async function main() {
+  const browser = await puppeteer.launch({
+    headless: {{headless}},
+    args: [{{{chromeArgs}}}]
+  });
+  const page = await browser.newPage();
+  await page.setViewport({ width: {{viewportWidth}}, height: {{viewportHeight}} });
+
+  try {
+    await page.goto('{{{url}}}');
+    const agent = new PuppeteerAgent(page);
+
+    // === Generated code start ===
+{{{generatedCode}}}
+    // === Generated code end ===
+
+  } finally {
+    await browser.close();
+  }
+}
+
+main().catch(console.error);

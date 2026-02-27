@@ -1,0 +1,30 @@
+engine: extended
+features:
+  - loop
+  - variables
+
+web:
+  url: "https://example.com/list"
+
+tasks:
+  - name: "循环测试"
+    flow:
+      - variables:
+          pages: 0
+
+      - loop:
+          type: repeat
+          count: 3
+          flow:
+            - ai: "刷新页面"
+            - sleep: 1000
+
+      - loop:
+          type: while
+          condition: "页面上有下一页按钮"
+          maxIterations: 5
+          flow:
+            - aiQuery: "提取当前页内容"
+              name: pageData
+            - aiTap: "下一页"
+            - sleep: 500

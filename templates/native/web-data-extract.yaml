@@ -1,0 +1,17 @@
+engine: native
+
+web:
+  url: "https://example.com/products"
+  headless: false
+
+tasks:
+  - name: "提取商品数据"
+    flow:
+      - aiWaitFor: "商品列表加载完成"
+      - aiQuery: "提取页面上所有商品的名称和价格，返回数组格式"
+        name: products
+      - aiQuery: "提取页面标题"
+        name: pageTitle
+      - aiAssert: "至少有一个商品显示在页面上"
+      - recordToReport: "数据提取结果"
+        content: "成功提取商品数据"

@@ -1,0 +1,47 @@
+engine: extended
+features:
+  - external_call
+  - variables
+  - logic
+  - parallel
+
+web:
+  url: "https://example.com"
+  headless: false
+
+tasks:
+  - name: "API 集成测试"
+    flow:
+      - variables:
+          apiBase: "https://jsonplaceholder.typicode.com"
+          testUserId: 1
+
+      - external_call:
+          type: http
+          method: GET
+          url: "${apiBase}/users/${testUserId}"
+          response_as: userData
+
+      - logic:
+          if: "页面上有搜索框"
+          then:
+            - aiInput: "搜索框"
+              value: "${userData.name}"
+            - aiTap: "搜索按钮"
+            - aiWaitFor: "搜索结果加载完成"
+
+      - parallel:
+          tasks:
+            - flow:
+                - aiQuery: "提取页面标题"
+                  name: pageTitle
+            - flow:
+                - external_call:
+                    type: http
+                    method: GET
+                    url: "${apiBase}/posts?userId=${testUserId}"
+                    response_as: userPosts
+          merge_results: true
+
+      - recordToReport: "API 集成测试结果"
+        content: "API 调用和页面交互联合测试完成"

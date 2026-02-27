@@ -1,0 +1,37 @@
+engine: extended
+features:
+  - logic
+  - variables
+
+web:
+  url: "https://example.com"
+  headless: false
+
+tasks:
+  - name: "条件分支测试"
+    flow:
+      - variables:
+          targetUser: "admin"
+          isLoggedIn: false
+
+      - logic:
+          if: "页面上有登录按钮"
+          then:
+            - aiTap: "登录按钮"
+            - aiInput: "用户名"
+              value: "${targetUser}"
+            - aiInput: "密码"
+              value: "test123"
+            - aiTap: "提交"
+          else:
+            - ai: "用户已登录，直接进入主页"
+
+      - logic:
+          if: "页面显示了管理员面板"
+          then:
+            - aiTap: "管理员面板"
+            - recordToReport: "管理员路径"
+              content: "以管理员身份访问"
+          else:
+            - recordToReport: "普通用户路径"
+              content: "以普通用户身份访问"

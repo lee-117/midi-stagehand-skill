@@ -1,0 +1,35 @@
+engine: extended
+features:
+  - loop
+  - variables
+
+web:
+  url: "https://example.com/list"
+  headless: false
+
+tasks:
+  - name: "分页数据采集"
+    flow:
+      - variables:
+          allItems: []
+          currentPage: 1
+
+      - loop:
+          type: while
+          condition: "页面上有'下一页'按钮"
+          maxIterations: 10
+          flow:
+            - aiQuery: "提取当前页面所有列表项的标题"
+              name: pageItems
+            - recordToReport: "第${currentPage}页"
+              content: "已提取当前页数据"
+            - ai: "点击下一页按钮"
+            - sleep: 2000
+
+      - loop:
+          type: repeat
+          count: 3
+          flow:
+            - ai: "回到第一页"
+            - recordToReport: "翻页验证"
+              content: "验证翻页功能正常"

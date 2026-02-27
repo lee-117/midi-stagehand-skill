@@ -1,0 +1,532 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://midscene.dev/yaml-superset-schema.json",
+  "title": "Midscene YAML Superset Schema",
+  "description": "JSON Schema for validating Midscene YAML files with both native and extended (superset) keywords",
+  "type": "object",
+  "required": ["tasks"],
+  "anyOf": [
+    { "required": ["web"] },
+    { "required": ["android"] },
+    { "required": ["ios"] },
+    { "required": ["computer"] }
+  ],
+  "properties": {
+    "web": { "$ref": "#/definitions/webPlatform" },
+    "android": { "$ref": "#/definitions/androidPlatform" },
+    "ios": { "$ref": "#/definitions/iosPlatform" },
+    "computer": { "$ref": "#/definitions/computerPlatform" },
+    "agent": { "$ref": "#/definitions/agentConfig" },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/task" }
+    },
+    "engine": {
+      "type": "string",
+      "enum": ["native", "extended"],
+      "description": "Processing engine: native (direct execution) or extended (requires transpilation)"
+    },
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "variables", "logic", "loop", "import",
+          "data_transform", "try_catch", "external_call", "parallel"
+        ]
+      },
+      "description": "List of extended features used in this file"
+    },
+    "variables": { "$ref": "#/definitions/variables" },
+    "import": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/importDirective" }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "webPlatform": {
+      "type": "object",
+      "properties": {
+        "url": { "type": "string", "format": "uri-reference" },
+        "headless": { "type": "boolean" },
+        "viewportWidth": { "type": "integer", "minimum": 1 },
+        "viewportHeight": { "type": "integer", "minimum": 1 },
+        "userAgent": { "type": "string" },
+        "waitForNetworkIdle": {
+          "type": "object",
+          "properties": {
+            "timeout": { "type": "integer" },
+            "continueOnNetworkReqeusts": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "androidPlatform": {
+      "type": "object",
+      "properties": {
+        "device": { "type": "string" },
+        "pkg": { "type": "string" },
+        "launch": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "iosPlatform": {
+      "type": "object",
+      "properties": {
+        "device": { "type": "string" },
+        "bundleId": { "type": "string" },
+        "launch": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "computerPlatform": {
+      "type": "object",
+      "properties": {
+        "launch": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "agentConfig": {
+      "type": "object",
+      "properties": {
+        "testId": { "type": "string" },
+        "groupName": { "type": "string" },
+        "groupDescription": { "type": "string" },
+        "cache": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "task": {
+      "type": "object",
+      "required": ["name", "flow"],
+      "properties": {
+        "name": { "type": "string" },
+        "flow": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/flowStep" }
+        },
+        "continueOnError": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "flowStep": {
+      "oneOf": [
+        { "$ref": "#/definitions/aiAction" },
+        { "$ref": "#/definitions/aiActAction" },
+        { "$ref": "#/definitions/aiTapAction" },
+        { "$ref": "#/definitions/aiHoverAction" },
+        { "$ref": "#/definitions/aiInputAction" },
+        { "$ref": "#/definitions/aiKeyboardPressAction" },
+        { "$ref": "#/definitions/aiScrollAction" },
+        { "$ref": "#/definitions/aiQueryAction" },
+        { "$ref": "#/definitions/aiAssertAction" },
+        { "$ref": "#/definitions/aiWaitForAction" },
+        { "$ref": "#/definitions/sleepAction" },
+        { "$ref": "#/definitions/javascriptAction" },
+        { "$ref": "#/definitions/recordToReportAction" },
+        { "$ref": "#/definitions/runAdbShellAction" },
+        { "$ref": "#/definitions/runWdaRequestAction" },
+        { "$ref": "#/definitions/launchAction" },
+        { "$ref": "#/definitions/variablesStep" },
+        { "$ref": "#/definitions/logicStep" },
+        { "$ref": "#/definitions/loopStep" },
+        { "$ref": "#/definitions/importStep" },
+        { "$ref": "#/definitions/dataTransformStep" },
+        { "$ref": "#/definitions/tryCatchStep" },
+        { "$ref": "#/definitions/externalCallStep" },
+        { "$ref": "#/definitions/parallelStep" }
+      ]
+    },
+    "aiAction": {
+      "type": "object",
+      "required": ["ai"],
+      "properties": {
+        "ai": { "type": "string", "description": "Natural language instruction for the AI to plan and execute" }
+      },
+      "additionalProperties": false
+    },
+    "aiActAction": {
+      "type": "object",
+      "required": ["aiAct"],
+      "properties": {
+        "aiAct": { "type": "string", "description": "Natural language action instruction" }
+      },
+      "additionalProperties": false
+    },
+    "aiTapAction": {
+      "type": "object",
+      "required": ["aiTap"],
+      "properties": {
+        "aiTap": { "type": "string", "description": "Element to tap/click" },
+        "deepThink": { "type": "boolean" },
+        "xpath": { "type": "string" },
+        "timeout": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "aiHoverAction": {
+      "type": "object",
+      "required": ["aiHover"],
+      "properties": {
+        "aiHover": { "type": "string", "description": "Element to hover over" },
+        "deepThink": { "type": "boolean" },
+        "xpath": { "type": "string" },
+        "timeout": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "aiInputAction": {
+      "type": "object",
+      "required": ["aiInput", "value"],
+      "properties": {
+        "aiInput": { "type": "string", "description": "Input field to target" },
+        "value": { "type": "string", "description": "Value to input" },
+        "deepThink": { "type": "boolean" },
+        "xpath": { "type": "string" },
+        "timeout": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "aiKeyboardPressAction": {
+      "type": "object",
+      "required": ["aiKeyboardPress"],
+      "properties": {
+        "aiKeyboardPress": { "type": "string", "description": "Key or key combination to press" },
+        "key": { "type": "string" },
+        "deepThink": { "type": "boolean" },
+        "timeout": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "aiScrollAction": {
+      "type": "object",
+      "required": ["aiScroll"],
+      "properties": {
+        "aiScroll": { "type": "string", "description": "Target or area to scroll" },
+        "direction": {
+          "type": "string",
+          "enum": ["up", "down", "left", "right"]
+        },
+        "distance": { "type": "integer" },
+        "deepThink": { "type": "boolean" },
+        "timeout": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "aiQueryAction": {
+      "type": "object",
+      "required": ["aiQuery"],
+      "properties": {
+        "aiQuery": { "type": "string", "description": "Data query in natural language" },
+        "output": { "type": "string", "description": "Variable name to store the query result" },
+        "name": { "type": "string" },
+        "timeout": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "aiAssertAction": {
+      "type": "object",
+      "required": ["aiAssert"],
+      "properties": {
+        "aiAssert": { "type": "string", "description": "Assertion condition in natural language" },
+        "timeout": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "aiWaitForAction": {
+      "type": "object",
+      "required": ["aiWaitFor"],
+      "properties": {
+        "aiWaitFor": { "type": "string", "description": "Condition to wait for" },
+        "timeout": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "sleepAction": {
+      "type": "object",
+      "required": ["sleep"],
+      "properties": {
+        "sleep": { "type": "integer", "minimum": 0, "description": "Duration to sleep in milliseconds" }
+      },
+      "additionalProperties": false
+    },
+    "javascriptAction": {
+      "type": "object",
+      "required": ["javascript"],
+      "properties": {
+        "javascript": { "type": "string", "description": "JavaScript code to execute" },
+        "output": { "type": "string", "description": "Variable name to store the result" }
+      },
+      "additionalProperties": false
+    },
+    "recordToReportAction": {
+      "type": "object",
+      "required": ["recordToReport"],
+      "properties": {
+        "recordToReport": { "type": "string", "description": "Description or data to record in the report" }
+      },
+      "additionalProperties": false
+    },
+    "runAdbShellAction": {
+      "type": "object",
+      "required": ["runAdbShell"],
+      "properties": {
+        "runAdbShell": { "type": "string", "description": "ADB shell command to execute (Android only)" }
+      },
+      "additionalProperties": false
+    },
+    "runWdaRequestAction": {
+      "type": "object",
+      "required": ["runWdaRequest"],
+      "properties": {
+        "runWdaRequest": {
+          "type": "object",
+          "description": "WebDriverAgent request (iOS only)",
+          "properties": {
+            "method": { "type": "string" },
+            "url": { "type": "string" },
+            "body": {}
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "launchAction": {
+      "type": "object",
+      "required": ["launch"],
+      "properties": {
+        "launch": { "type": "string", "description": "Application to launch" }
+      },
+      "additionalProperties": false
+    },
+    "variables": {
+      "type": "object",
+      "description": "Variable declarations with key-value pairs",
+      "additionalProperties": {
+        "oneOf": [
+          { "type": "string" },
+          { "type": "number" },
+          { "type": "boolean" },
+          { "type": "array" },
+          { "type": "object" }
+        ]
+      }
+    },
+    "variablesStep": {
+      "type": "object",
+      "required": ["variables"],
+      "properties": {
+        "variables": { "$ref": "#/definitions/variables" }
+      },
+      "additionalProperties": false
+    },
+    "logicStep": {
+      "type": "object",
+      "required": ["logic"],
+      "properties": {
+        "logic": {
+          "type": "object",
+          "required": ["if", "then"],
+          "properties": {
+            "if": { "type": "string", "description": "Condition expression to evaluate" },
+            "then": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/flowStep" },
+              "description": "Steps to execute if condition is true"
+            },
+            "else": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/flowStep" },
+              "description": "Steps to execute if condition is false"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "loopStep": {
+      "type": "object",
+      "required": ["loop"],
+      "properties": {
+        "loop": {
+          "type": "object",
+          "required": ["type", "flow"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["for", "while", "repeat"],
+              "description": "Type of loop"
+            },
+            "items": {
+              "oneOf": [
+                { "type": "array" },
+                { "type": "string" }
+              ],
+              "description": "Items to iterate over (for loops)"
+            },
+            "as": { "type": "string", "description": "Variable name for current item in iteration" },
+            "condition": { "type": "string", "description": "Loop condition (while loops)" },
+            "maxIterations": { "type": "integer", "minimum": 1, "description": "Maximum number of iterations (safety limit)" },
+            "count": { "type": "integer", "minimum": 1, "description": "Number of repetitions (repeat loops)" },
+            "flow": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/flowStep" },
+              "description": "Steps to execute in each iteration"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "importDirective": {
+      "type": "object",
+      "required": ["import"],
+      "properties": {
+        "import": { "type": "string", "description": "Path to the YAML file to import" },
+        "with": {
+          "type": "object",
+          "description": "Parameters to pass to the imported file",
+          "additionalProperties": true
+        },
+        "as": { "type": "string", "description": "Alias for the imported module" }
+      },
+      "additionalProperties": false
+    },
+    "importStep": {
+      "type": "object",
+      "required": ["import"],
+      "properties": {
+        "import": { "type": "string", "description": "Path to the YAML file to import" },
+        "with": {
+          "type": "object",
+          "description": "Parameters to pass to the imported file",
+          "additionalProperties": true
+        },
+        "as": { "type": "string", "description": "Alias for the imported module" }
+      },
+      "additionalProperties": false
+    },
+    "dataTransformStep": {
+      "type": "object",
+      "required": ["data_transform"],
+      "properties": {
+        "data_transform": {
+          "type": "object",
+          "required": ["input", "operations"],
+          "properties": {
+            "input": { "type": "string", "description": "Source variable or expression for transformation" },
+            "operations": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/dataOperation" },
+              "description": "Ordered list of transformation operations"
+            },
+            "output": { "type": "string", "description": "Variable name to store the result" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "dataOperation": {
+      "type": "object",
+      "properties": {
+        "filter": { "type": "string", "description": "Filter expression" },
+        "sort": {
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "properties": {
+                "by": { "type": "string" },
+                "order": { "type": "string", "enum": ["asc", "desc"] }
+              },
+              "additionalProperties": false
+            }
+          ],
+          "description": "Sort expression or configuration"
+        },
+        "map": { "type": "string", "description": "Map/transform expression" }
+      },
+      "additionalProperties": false
+    },
+    "tryCatchStep": {
+      "type": "object",
+      "required": ["try"],
+      "properties": {
+        "try": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/flowStep" },
+          "description": "Steps to attempt"
+        },
+        "catch": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/flowStep" },
+          "description": "Steps to execute if an error occurs"
+        },
+        "finally": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/flowStep" },
+          "description": "Steps to always execute regardless of success or failure"
+        }
+      },
+      "additionalProperties": false
+    },
+    "externalCallStep": {
+      "type": "object",
+      "required": ["external_call"],
+      "properties": {
+        "external_call": {
+          "type": "object",
+          "required": ["method"],
+          "properties": {
+            "method": {
+              "type": "string",
+              "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "shell"],
+              "description": "HTTP method or 'shell' for system commands"
+            },
+            "url": { "type": "string", "description": "URL for HTTP requests" },
+            "headers": {
+              "type": "object",
+              "description": "HTTP headers",
+              "additionalProperties": { "type": "string" }
+            },
+            "body": {
+              "description": "Request body for HTTP requests",
+              "oneOf": [
+                { "type": "string" },
+                { "type": "object" }
+              ]
+            },
+            "response_as": { "type": "string", "description": "Variable name to store the response" },
+            "command": { "type": "string", "description": "Shell command to execute (when method is 'shell')" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "parallelStep": {
+      "type": "object",
+      "required": ["parallel"],
+      "properties": {
+        "parallel": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/flowStep" }
+          },
+          "description": "Array of flow arrays to execute in parallel"
+        },
+        "merge_results": { "type": "string", "description": "Variable name to store merged results from all parallel branches" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

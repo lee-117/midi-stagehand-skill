@@ -1,0 +1,21 @@
+engine: native
+
+web:
+  url: "https://example.com/login"
+  headless: false
+
+tasks:
+  - name: "用户登录流程"
+    flow:
+      - aiWaitFor: "登录表单加载完成"
+        timeout: 10000
+      - aiInput: "用户名输入框"
+        value: "testuser@example.com"
+      - aiInput: "密码输入框"
+        value: "password123"
+      - aiTap: "登录按钮"
+      - aiWaitFor: "出现欢迎信息或仪表盘"
+        timeout: 15000
+      - aiAssert: "已成功登录"
+      - recordToReport: "登录测试"
+        content: "登录流程执行完成"

@@ -1,0 +1,39 @@
+engine: native
+
+web:
+  url: "https://example.com/dashboard"
+  headless: true
+  viewportWidth: 1920
+  viewportHeight: 1080
+
+agent:
+  testId: "complex-native-test"
+  groupName: "dashboard-tests"
+  cache: true
+
+tasks:
+  - name: "仪表盘完整测试"
+    flow:
+      - aiWaitFor: "仪表盘加载完成"
+        timeout: 15000
+      - aiQuery: "提取所有导航菜单项"
+        name: menuItems
+      - aiTap: "数据分析"
+      - aiWaitFor: "图表渲染完成"
+      - aiScroll:
+          direction: "down"
+          distance: 500
+      - aiHover: "最近7天的数据点"
+      - aiAssert: "悬停显示了数据详情"
+      - aiKeyboardPress: "Escape"
+      - javascript: "document.title"
+      - sleep: 1000
+      - recordToReport: "仪表盘测试完成"
+        content: "所有仪表盘功能验证通过"
+
+  - name: "导航测试"
+    continueOnError: true
+    flow:
+      - aiTap: "设置"
+      - aiAssert: "进入设置页面"
+      - ai: "检查所有设置项是否可点击"
