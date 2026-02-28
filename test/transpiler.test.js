@@ -433,6 +433,33 @@ tasks:
     });
   });
 
+  describe('extended: parallel waitAll alias', () => {
+    it('treats waitAll as alias for merge_results', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - parallel:
+          tasks:
+            - name: result1
+              flow:
+                - aiQuery: "提取A"
+                  name: dataA
+            - name: result2
+              flow:
+                - aiQuery: "提取B"
+                  name: dataB
+          waitAll: true
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('const [result1, result2] = await Promise.all'),
+        'waitAll should trigger destructured assignment like merge_results');
+    });
+  });
+
   describe('ENV colon syntax', () => {
     it('resolves ${ENV:XXX} colon syntax to process.env', () => {
       const yaml = `
@@ -628,6 +655,87 @@ tasks:
       assert.ok(result.code.includes('evaluateJavaScript'));
       // Should have escaped backticks
       assert.ok(!result.code.includes('`div`') || result.code.includes('\\`div\\`'));
+    });
+  });
+
+  describe('native action: aiHover', () => {
+    it('transpiles aiHover string form', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiHover: "用户头像"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiHover'));
+      assert.ok(result.code.includes('用户头像'));
+    });
+
+    it('transpiles aiHover with deepThink option', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiHover:
+          locator: "下拉菜单触发器"
+          deepThink: true
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiHover'));
+      assert.ok(result.code.includes('deepThink: true'));
+    });
+  });
+
+  describe('native action: aiKeyboardPress', () => {
+    it('transpiles aiKeyboardPress', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiKeyboardPress: "Enter"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiKeyboardPress'));
+      assert.ok(result.code.includes('Enter'));
+    });
+  });
+
+  describe('extended: try with finally only (no catch)', () => {
+    it('transpiles try + finally without catch block', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - try:
+          flow:
+            - aiTap: "开始操作"
+        finally:
+          flow:
+            - recordToReport: "清理完成"
+              content: "资源已释放"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('try {'));
+      assert.ok(result.code.includes('} finally {'));
+      // The inner try/finally should not have a catch block between them
+      // (the outer template has its own try/finally, so we check the inner one)
+      const codeLines = result.code.split('\n');
+      const innerTryIdx = codeLines.findIndex(l => l.includes("await agent.aiTap('开始操作')"));
+      const finallyIdx = codeLines.findIndex((l, i) => i > innerTryIdx && l.includes('} finally {'));
+      // No catch between inner try and finally
+      const between = codeLines.slice(innerTryIdx, finallyIdx).join('\n');
+      assert.ok(!between.includes('catch'),
+        'Should not have a catch block between try and finally');
+      assert.ok(result.code.includes('清理完成'));
     });
   });
 

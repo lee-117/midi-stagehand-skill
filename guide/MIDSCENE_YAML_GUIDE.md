@@ -596,6 +596,7 @@ flow:
 - loop:
     type: repeat
     count: 5
+    indexVar: "pageIdx"    # 可选，自定义索引变量名（默认 "i"）
     steps:
       - aiTap: "下一页"
       - aiWaitFor: "新的内容加载完成"
@@ -603,6 +604,8 @@ flow:
           query: "当前页面的商品列表"
           name: "currentPageProducts"
 ```
+
+`indexVar` 可选，指定循环索引变量名（默认为 `i`），在生成的代码中可用于引用当前迭代次数。
 
 #### `for` — 遍历列表
 
@@ -830,7 +833,7 @@ tasks:
           name: "finalProducts"
 ```
 
-支持的操作：
+支持的操作（平面格式）：
 
 | 操作 | 说明 | 关键参数 |
 |---|---|---|
@@ -838,8 +841,30 @@ tasks:
 | `sort` | 排序 | `by`、`order`（asc/desc） |
 | `map` | 映射/变换字段 | `template` |
 | `reduce` | 聚合计算 | `reducer`、`initial` |
-| `unique` | 去重 | `by`（去重依据的字段） |
+| `unique` / `distinct` | 去重 | `by`（去重依据的字段） |
 | `slice` | 截取子集 | `start`、`end` |
+
+#### 嵌套格式（链式操作）
+
+当需要对同一数据依次执行多个操作时，可使用嵌套格式：
+
+```yaml
+- data_transform:
+    input: "${rawData}"
+    operations:
+      - filter: "price > 10"
+      - sort: "price desc"
+      - flatten: 1
+      - groupBy: "category"
+    output: "processedData"
+```
+
+嵌套格式额外支持的操作：
+
+| 操作 | 说明 | 参数 |
+|---|---|---|
+| `flatten` | 展平嵌套数组 | 数字（展平深度，默认 1） |
+| `groupBy` | 按字段分组为对象 | 字段名字符串 |
 
 ### `external_call` — 外部调用
 
@@ -920,34 +945,25 @@ tasks:
 
 ### `parallel` — 并行执行
 
-同时执行多个独立的任务分支，提高效率。
+同时执行多个独立的任务分支，提高效率。`tasks` 和 `branches` 均可作为数组键名。
 
 ```yaml
 tasks:
   - name: 并行采集多个页面数据
     flow:
       - parallel:
-          branches:
-            - name: "采集商品数据"
-              web:
-                url: "https://example.com/products"
-              steps:
+          tasks:
+            - flow:
                 - aiQuery:
                     query: "所有商品名称和价格"
                     name: "products"
 
-            - name: "采集用户评价"
-              web:
-                url: "https://example.com/reviews"
-              steps:
+            - flow:
                 - aiQuery:
                     query: "最新 10 条用户评价"
                     name: "reviews"
 
-            - name: "采集库存信息"
-              web:
-                url: "https://example.com/inventory"
-              steps:
+            - flow:
                 - aiQuery:
                     query: "各商品库存数量"
                     name: "inventory"
@@ -955,7 +971,7 @@ tasks:
           waitAll: true
 ```
 
-`waitAll: true` 表示等待所有分支都完成后再继续。每个分支在独立的浏览器标签中运行。
+`waitAll: true`（或 `merge_results: true`）表示等待所有分支完成后，将各分支返回值作为数组解构赋值。各分支内通过 `name` 声明的变量会被自动提升到外层作用域，后续步骤可直接访问。
 
 ### 完整示例: 数据管道与 API 集成
 
@@ -1147,12 +1163,12 @@ tasks:
 | `loop` | 控制 | 循环（`repeat` / `for` / `while`） |
 | `import` | 集成 | 导入子流程（`flow`）或数据文件（`data`） |
 | `use` | 集成 | 调用已导入的子流程（配合 `with` 传参） |
-| `data_transform` | 数据 | 数据转换操作（`filter` / `sort` / `map` / `reduce` / `unique` / `slice`） |
+| `data_transform` | 数据 | 数据转换操作（`filter`/`sort`/`map`/`reduce`/`unique`/`slice`/`flatten`/`groupBy`） |
 | `external_call` | 集成 | 外部调用（`http` 请求或 `shell` 命令） |
 | `try` | 异常 | 尝试执行步骤 |
 | `catch` | 异常 | 捕获 `try` 中的错误并执行备选步骤 |
 | `finally` | 异常 | 无论成功或失败都会执行的收尾步骤 |
-| `parallel` | 并发 | 并行执行多个独立分支（`branches` + 可选 `waitAll`） |
+| `parallel` | 并发 | 并行执行多个独立分支（`tasks`/`branches` + 可选 `waitAll`/`merge_results`） |
 
 ---
 

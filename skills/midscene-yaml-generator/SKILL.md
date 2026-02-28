@@ -107,6 +107,7 @@
 - `templates/native/web-basic.yaml` — 基础网页操作
 - `templates/native/web-login.yaml` — 登录流程
 - `templates/native/web-data-extract.yaml` — 数据提取
+- `templates/native/web-search.yaml` — 网页搜索流程
 - `templates/native/android-app.yaml` — Android 测试
 - `templates/native/ios-app.yaml` — iOS 测试
 
@@ -116,6 +117,7 @@
 - `templates/extended/web-data-pipeline.yaml` — 数据流水线
 - `templates/extended/multi-step-with-retry.yaml` — 带重试的多步骤
 - `templates/extended/api-integration-test.yaml` — API 集成
+- `templates/extended/e2e-workflow.yaml` — 端到端完整工作流
 
 ### 第 5 步：生成 YAML
 
@@ -235,8 +237,12 @@ Extended 模式下 `data_transform` 支持的操作：
 | `sort` | 排序 | `by`（字段名）、`order`（asc/desc） |
 | `map` | 映射/变换 | `template`（字段映射模板） |
 | `reduce` | 聚合计算 | `reducer`（JS 表达式）、`initial`（初始值） |
-| `unique` | 去重 | `by`（去重依据的字段） |
+| `unique` / `distinct` | 去重 | `by`（去重依据的字段） |
 | `slice` | 截取子集 | `start`、`end` |
+| `flatten` | 展平嵌套数组 | 数字（展平深度，默认 1）— 仅嵌套格式 |
+| `groupBy` | 按字段分组 | 字段名字符串 — 仅嵌套格式 |
+
+> **两种格式**: 平面格式 `{source, operation, name}` 适合单步操作；嵌套格式 `{input, operations:[], output}` 支持链式多步操作（含 flatten/groupBy）。
 
 ## 平台特定注意事项
 

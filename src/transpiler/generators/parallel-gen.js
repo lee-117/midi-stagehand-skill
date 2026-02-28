@@ -81,7 +81,8 @@ function generate(step, ctx, processStep) {
   }
 
   const tasks = tasksArray;
-  const mergeResults = parallel.merge_results !== undefined ? parallel.merge_results : false;
+  const mergeResults = parallel.merge_results !== undefined ? parallel.merge_results
+    : parallel.waitAll !== undefined ? parallel.waitAll : false;
   const lines = [];
 
   // --- Hoist variable declarations from inside IIFEs to outer scope ---

@@ -221,4 +221,4 @@ function generate(step, ctx) {
   return pad + '// Unknown native action: ' + JSON.stringify(step);
 }
 
-module.exports = { generate, resolveTemplate, toCodeString };
+module.exports = { generate };

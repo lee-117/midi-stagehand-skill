@@ -72,4 +72,4 @@ function generate(step, ctx) {
   return lines.join('\n');
 }
 
-module.exports = { generate, resolveTemplate, valueToCode };
+module.exports = { generate };

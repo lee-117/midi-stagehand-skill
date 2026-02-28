@@ -50,12 +50,7 @@ function generate(step, ctx, processStep) {
   if (finallyBlock) {
     const finallyFlow = finallyBlock.flow || finallyBlock.steps || (Array.isArray(finallyBlock) ? finallyBlock : []);
 
-    // If there was no catch block, close try first
-    if (!catchBlock) {
-      lines.push(pad + '} finally {');
-    } else {
-      lines.push(pad + '} finally {');
-    }
+    lines.push(pad + '} finally {');
 
     for (const subStep of finallyFlow) {
       const code = processStep(subStep, indent + 1);
