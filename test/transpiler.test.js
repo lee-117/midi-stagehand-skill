@@ -849,7 +849,10 @@ tasks:
       const result = transpile(yaml);
       assert.ok(result.code.includes('sorted'));
       assert.ok(result.code.includes('.sort('));
-      assert.ok(result.code.includes('b.price - a.price'));
+      assert.ok(result.code.includes('localeCompare'),
+        'Should use localeCompare for string-safe sorting');
+      assert.ok(result.code.includes('return -c'),
+        'Desc sort should negate comparator');
     });
 
     it('transpiles map operation with template object', () => {
@@ -957,7 +960,8 @@ tasks:
       assert.ok(result.code.includes('processedData'));
       assert.ok(result.code.includes('.filter('));
       assert.ok(result.code.includes('.sort('));
-      assert.ok(result.code.includes('b.price - a.price'));
+      assert.ok(result.code.includes('localeCompare'),
+        'Should use localeCompare for string-safe sorting');
     });
 
     it('transpiles flatten operation', () => {
@@ -1203,5 +1207,151 @@ tasks:
           `Should not have unimplemented generator placeholders`);
       });
     }
+  });
+
+  describe('aiInput edge cases', () => {
+    it('handles missing value in string syntax with empty string default', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiInput: "search field"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes("aiInput("),
+        'Should generate aiInput call');
+      assert.ok(!result.code.includes('undefined'),
+        'Should not have undefined value — defaults to empty string');
+    });
+
+    it('merges value with options using buildOptionEntries', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiInput:
+          locator: "email field"
+          value: "test@example.com"
+          deepThink: true
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes("deepThink: true"),
+        'Should include deepThink option');
+      assert.ok(result.code.includes("value:"),
+        'Should include value in options object');
+    });
+  });
+
+  describe('aiScroll edge cases', () => {
+    it('handles object syntax without direction', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiScroll:
+          locator: "main content"
+          scrollCount: 3
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('aiScroll'),
+        'Should generate aiScroll call');
+      assert.ok(result.code.includes('scrollCount: 3'),
+        'Should include scrollCount');
+    });
+  });
+
+  describe('data_transform edge cases', () => {
+    it('handles nested format with missing input gracefully', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - data_transform:
+          operations:
+            - flatten: 1
+          output: "flatData"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('flatData'),
+        'Should use output variable name');
+      assert.ok(result.code.includes('[]'),
+        'Should default to empty array when input is missing');
+    });
+
+    it('handles flat format with missing source gracefully', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - data_transform:
+          operation: filter
+          condition: "item.active"
+          name: "activeItems"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('activeItems'),
+        'Should use name as output variable');
+      assert.ok(result.code.includes('[]'),
+        'Should default to empty array when source is missing');
+    });
+  });
+
+  describe('continueOnError', () => {
+    it('wraps task flow in try/catch with warning', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: risky task
+    continueOnError: true
+    flow:
+      - aiTap: "button"
+  - name: safe task
+    flow:
+      - aiAssert: "page loaded"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('_continueErr'),
+        'Should have continueOnError catch variable');
+      assert.ok(result.code.includes('console.warn'),
+        'Should warn on error instead of crashing');
+      assert.ok(result.code.includes('aiAssert'),
+        'Second task should still be generated');
+    });
+  });
+
+  describe('catch error variable', () => {
+    it('supports custom error variable name via error field', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - try:
+          steps:
+            - aiTap: "button"
+        catch:
+          error: myError
+          steps:
+            - aiTap: "close"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('catch (myError)'),
+        'Should use custom error variable name');
+    });
   });
 });

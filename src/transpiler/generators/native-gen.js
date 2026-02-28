@@ -8,9 +8,10 @@
 const { resolveTemplate, toCodeString, escapeForTemplateLiteral } = require('./utils');
 
 /**
- * Build an options object string from action options like deepThink, xpath, timeout.
+ * Build an array of "key: value" option entries from action options like deepThink, xpath, timeout.
+ * Returns an empty array if no options are found.
  */
-function buildOptions(step, extra) {
+function buildOptionEntries(step, extra) {
   const opts = [];
   if (step.deepThink === true) opts.push('deepThink: true');
   if (step.xpath) opts.push('xpath: ' + toCodeString(resolveTemplate(step.xpath)));
@@ -20,8 +21,16 @@ function buildOptions(step, extra) {
       opts.push(k + ': ' + v);
     }
   }
-  if (opts.length === 0) return null;
-  return '{ ' + opts.join(', ') + ' }';
+  return opts;
+}
+
+/**
+ * Build an options object string from action options like deepThink, xpath, timeout.
+ */
+function buildOptions(step, extra) {
+  const entries = buildOptionEntries(step, extra);
+  if (entries.length === 0) return null;
+  return '{ ' + entries.join(', ') + ' }';
 }
 
 /**
@@ -163,20 +172,23 @@ function generate(step, ctx) {
   if (step.aiInput !== undefined) {
     let prompt;
     let value;
+    let optSource;
 
     if (typeof step.aiInput === 'object' && step.aiInput !== null) {
       // Object syntax: aiInput: { locator: "...", value: "..." }
       prompt = toCodeString(resolveTemplate(step.aiInput.locator || ''));
       value = toCodeString(resolveTemplate(step.aiInput.value || ''));
+      optSource = step.aiInput;
     } else {
       // String syntax: aiInput: "..." with separate value field
       prompt = toCodeString(resolveTemplate(step.aiInput));
-      value = toCodeString(resolveTemplate(step.value));
+      value = step.value !== undefined ? toCodeString(resolveTemplate(step.value)) : "''";
+      optSource = step;
     }
 
-    const opts = buildOptions(step.aiInput && typeof step.aiInput === 'object' ? step.aiInput : step);
-    const valueOpts = opts ? ', { value: ' + value + ', ' + opts.slice(2) : ', { value: ' + value + ' }';
-    return pad + 'await agent.aiInput(' + prompt + valueOpts + ');';
+    const optEntries = buildOptionEntries(optSource);
+    optEntries.unshift('value: ' + value);
+    return pad + 'await agent.aiInput(' + prompt + ', { ' + optEntries.join(', ') + ' });';
   }
 
   // --- aiKeyboardPress ---

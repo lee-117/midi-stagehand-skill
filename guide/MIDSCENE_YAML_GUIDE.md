@@ -485,6 +485,24 @@ tasks:
       dataName: "productList"
 ```
 
+### `continueOnError` — 任务级容错
+
+当一个 task 设置了 `continueOnError: true`，即使该 task 的 flow 中出现异常，后续 task 仍会继续执行。错误信息会通过 `console.warn` 输出。
+
+```yaml
+tasks:
+  - name: 可能失败的步骤
+    continueOnError: true
+    flow:
+      - aiTap: "可能不存在的按钮"
+
+  - name: 无论上面是否失败都执行
+    flow:
+      - aiAssert: "页面仍然正常"
+```
+
+> 注意：`continueOnError` 是任务级别的选项，不适用于单个步骤。如果需要步骤级容错，请使用 `try` / `catch`。
+
 ---
 
 ## L4: 逻辑控制 — 超集入门 (Extended)
@@ -529,7 +547,7 @@ web:
 | 来源 | 语法 | 示例 |
 |---|---|---|
 | 直接赋值 | `key: "value"` | `username: "admin"` |
-| 环境变量 | `${ENV:NAME}` | `password: "${ENV:TEST_PASSWORD}"` |
+| 环境变量 | `${ENV:NAME}` 或 `${ENV.NAME}` | `password: "${ENV:TEST_PASSWORD}"` |
 | aiQuery 提取 | 通过 `name` 存储 | `aiQuery: { query: "...", name: "result" }` |
 
 在流程中通过 `${}` 语法引用变量：
@@ -940,8 +958,16 @@ tasks:
 执行逻辑：
 
 1. **`try`**: 先尝试执行这些步骤。
-2. **`catch`**: 如果 `try` 中任何步骤失败，执行 `catch` 中的步骤。
+2. **`catch`**: 如果 `try` 中任何步骤失败，执行 `catch` 中的步骤。可以用 `error:` 或 `as:` 指定错误变量名（默认 `e`）。
 3. **`finally`**: 无论成功还是失败，最后都会执行（可选）。
+
+```yaml
+# 自定义 catch 错误变量名
+catch:
+  error: err   # 或 as: err ；默认为 e
+  steps:
+    - aiTap: "关闭对话框"
+```
 
 ### `parallel` — 并行执行
 
@@ -1150,6 +1176,7 @@ tasks:
 | `aiAssert` | 断言 | 验证页面状态（可选 `errorMessage`） |
 | `aiQuery` | 提取 | 从页面提取数据（可选 `name` 存储结果） |
 | `output` | 导出 | 将数据写入文件（`filePath` + `dataName`） |
+| `continueOnError` | 选项 | 任务级容错，失败后继续后续任务 |
 | `deepThink` | 选项 | 启用深度分析，提高复杂元素定位准确率 |
 | `xpath` | 选项 | 使用 XPath 选择器精确定位元素 |
 
@@ -1166,7 +1193,7 @@ tasks:
 | `data_transform` | 数据 | 数据转换操作（`filter`/`sort`/`map`/`reduce`/`unique`/`slice`/`flatten`/`groupBy`） |
 | `external_call` | 集成 | 外部调用（`http` 请求或 `shell` 命令） |
 | `try` | 异常 | 尝试执行步骤 |
-| `catch` | 异常 | 捕获 `try` 中的错误并执行备选步骤 |
+| `catch` | 异常 | 捕获 `try` 中的错误并执行备选步骤（可选 `error:`/`as:` 指定错误变量名） |
 | `finally` | 异常 | 无论成功或失败都会执行的收尾步骤 |
 | `parallel` | 并发 | 并行执行多个独立分支（`tasks`/`branches` + 可选 `waitAll`/`merge_results`） |
 

@@ -248,7 +248,6 @@ function detectStepType(step) {
 function createImportTracker() {
   return {
     needsChildProcess: false,
-    needsFetch: false,
     needsFs: false,
   };
 }
@@ -263,9 +262,7 @@ function trackImports(tracker, stepType, step) {
       if (callType === 'shell' || callType === 'command') {
         tracker.needsChildProcess = true;
       }
-      if (callType === 'http' || callType === 'fetch' || callType === 'api') {
-        tracker.needsFetch = true;
-      }
+      // Note: Node 18+ has native fetch, no import needed
     }
   }
   // Note: data_transform operations are in-memory; only the `output` directive needs fs
@@ -488,7 +485,6 @@ function transpile(yamlInput, options) {
     chromeArgs: platformConfig.chromeArgs,
     generatedCode: generatedCode,
     needsChildProcess: importTracker.needsChildProcess,
-    needsFetch: importTracker.needsFetch,
     needsFs: importTracker.needsFs,
   };
 

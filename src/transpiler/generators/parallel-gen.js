@@ -9,6 +9,8 @@
  * to the outer scope so they remain accessible after Promise.all completes.
  */
 
+const { escapeRegExp } = require('./utils');
+
 /**
  * Collect variable names that would be declared inside a flow.
  * These are steps like `aiQuery` with a `name` field, `import` with `as`,
@@ -106,8 +108,6 @@ function rewriteHoistedDeclarations(code, hoisted) {
   return code;
 }
 
-const { escapeRegExp } = require('./utils');
-
 /**
  * Generate TypeScript code for a `parallel` step.
  *
@@ -123,8 +123,11 @@ function generate(step, ctx, processStep) {
   const varScope = ctx && ctx.varScope || new Set();
   const parallel = step.parallel;
 
+  if (!parallel) {
+    return pad + '// Invalid parallel block: missing definition';
+  }
   const tasksArray = parallel.tasks || parallel.branches;
-  if (!parallel || !tasksArray || !Array.isArray(tasksArray)) {
+  if (!tasksArray || !Array.isArray(tasksArray)) {
     return pad + '// Invalid parallel block: missing "tasks" or "branches" array';
   }
 

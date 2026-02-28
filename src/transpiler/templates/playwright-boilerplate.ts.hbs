@@ -3,9 +3,6 @@ import { PlaywrightAgent } from '@midscene/web/playwright';
 {{#if needsChildProcess}}
 import { execSync } from 'child_process';
 {{/if}}
-{{#if needsFetch}}
-import fetch from 'node-fetch';
-{{/if}}
 {{#if needsFs}}
 import * as fs from 'fs';
 {{/if}}
@@ -28,6 +25,9 @@ async function main() {
 {{{generatedCode}}}
     // === Generated code end ===
 
+  } catch (error) {
+    console.error('Execution failed:', error);
+    throw error;
   } finally {
     await browser.close();
   }

@@ -50,13 +50,14 @@ function generateOperation(op, outputVar, pad) {
     return pad + outputVar + ' = ' + outputVar + '.filter(item => item.' + filterExpr + ');';
   }
 
-  // Sort operation
+  // Sort operation (works for both numeric and string fields)
   if (op.sort !== undefined) {
     const { field, order } = parseSortExpr(op.sort);
+    const cmp = "typeof a." + field + " === 'string' ? a." + field + ".localeCompare(b." + field + ") : a." + field + " - b." + field;
     if (order === 'desc') {
-      return pad + outputVar + ' = ' + outputVar + '.sort((a, b) => b.' + field + ' - a.' + field + ');';
+      return pad + outputVar + ' = ' + outputVar + ".sort((a, b) => { const c = " + cmp + "; return -c; });";
     }
-    return pad + outputVar + ' = ' + outputVar + '.sort((a, b) => a.' + field + ' - b.' + field + ');';
+    return pad + outputVar + ' = ' + outputVar + ".sort((a, b) => " + cmp + ");";
   }
 
   // Map operation
@@ -123,7 +124,7 @@ function generateOperation(op, outputVar, pad) {
  */
 function generateFlatTransform(transform, pad, varScope) {
   const lines = [];
-  const inputRef = extractVarRef(transform.source) || resolveExprVars(transform.source || 'undefined');
+  const inputRef = extractVarRef(transform.source) || resolveExprVars(transform.source || '[]');
   const outputVar = transform.name || 'transformedData';
   const operation = transform.operation;
 
@@ -141,10 +142,11 @@ function generateFlatTransform(transform, pad, varScope) {
   } else if (operation === 'sort') {
     const field = transform.by || 'id';
     const order = (transform.order || 'asc').toLowerCase();
+    const cmp = "typeof a." + field + " === 'string' ? a." + field + ".localeCompare(b." + field + ") : a." + field + " - b." + field;
     if (order === 'desc') {
-      lines.push(pad + outputVar + ' = ' + outputVar + '.sort((a, b) => b.' + field + ' - a.' + field + ');');
+      lines.push(pad + outputVar + ' = ' + outputVar + ".sort((a, b) => { const c = " + cmp + "; return -c; });");
     } else {
-      lines.push(pad + outputVar + ' = ' + outputVar + '.sort((a, b) => a.' + field + ' - b.' + field + ');');
+      lines.push(pad + outputVar + ' = ' + outputVar + ".sort((a, b) => " + cmp + ");");
     }
   } else if (operation === 'map') {
     if (transform.template && typeof transform.template === 'object') {
@@ -208,8 +210,8 @@ function generate(step, ctx) {
   const lines = [];
 
   // Resolve input variable
-  const inputRef = extractVarRef(transform.input) || transform.input;
-  const outputVar = transform.output || 'transformedData';
+  const inputRef = extractVarRef(transform.input) || transform.input || '[]';
+  const outputVar = transform.output || transform.name || 'transformedData';
 
   // Declare output variable initialized from input
   if (varScope.has(outputVar)) {
