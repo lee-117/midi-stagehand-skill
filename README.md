@@ -91,18 +91,16 @@ Options:
 通过 [Skills CLI](https://github.com/vercel-labs/skills) 一键安装到你的 AI 编码工具中：
 
 ```bash
-# 安装全部技能（Claude Code / Cursor / Cline 等）
-npx skills add https://gitee.com/lee-zh/midi-stagehand-skill -a claude
-
-# 安装全部技能到 Qoder
-npx skills add https://gitee.com/lee-zh/midi-stagehand-skill -a qoder
+# 从 GitHub 安装（Claude Code / Cursor / Cline / Qoder 等）
+npx skills add https://github.com/lee-zh/midi-stagehand-skill -a claude
+npx skills add https://github.com/lee-zh/midi-stagehand-skill -a qoder
 
 # 仅安装指定技能
-npx skills add https://gitee.com/lee-zh/midi-stagehand-skill --skill midscene-yaml-generator -a claude
-npx skills add https://gitee.com/lee-zh/midi-stagehand-skill --skill midscene-runner -a claude
+npx skills add https://github.com/lee-zh/midi-stagehand-skill --skill midscene-yaml-generator -a claude
+npx skills add https://github.com/lee-zh/midi-stagehand-skill --skill midscene-runner -a claude
 ```
 
-也可以先 clone 到本地再安装：
+从 Gitee 安装（Skills CLI 不支持 Gitee URL，需先 clone 到本地）：
 
 ```bash
 git clone https://gitee.com/lee-zh/midi-stagehand-skill.git
