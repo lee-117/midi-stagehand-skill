@@ -92,12 +92,12 @@ Options:
 
 ```bash
 # 从 GitHub 安装（Claude Code / Cursor / Cline / Qoder 等）
-npx skills add https://github.com/lee-zh/midi-stagehand-skill -a claude
-npx skills add https://github.com/lee-zh/midi-stagehand-skill -a qoder
+npx skills add https://github.com/lee-117/midi-stagehand-skill -a claude
+npx skills add https://github.com/lee-117/midi-stagehand-skill -a qoder
 
 # 仅安装指定技能
-npx skills add https://github.com/lee-zh/midi-stagehand-skill --skill midscene-yaml-generator -a claude
-npx skills add https://github.com/lee-zh/midi-stagehand-skill --skill midscene-runner -a claude
+npx skills add https://github.com/lee-117/midi-stagehand-skill --skill midscene-yaml-generator -a claude
+npx skills add https://github.com/lee-117/midi-stagehand-skill --skill midscene-runner -a claude
 ```
 
 从 Gitee 安装（Skills CLI 不支持 Gitee URL，需先 clone 到本地）：
