@@ -1,0 +1,124 @@
+# 端到端工作流模板 — 展示 Extended 模式完整能力
+# 适用场景: 复杂工作流（登录→采集→处理→上报）
+# 使用方式: node scripts/midscene-run.js templates/extended/e2e-workflow.yaml --dry-run
+# 说明: 此模板用于演示，需要替换 URL 和凭证后才能实际执行
+
+engine: extended
+features: [variables, logic, loop, try_catch, data_transform, external_call]
+
+variables:
+  siteUrl: "${ENV:SITE_URL}"
+  username: "${ENV:SITE_USER}"
+  password: "${ENV:SITE_PASS}"
+  maxPages: 3
+  collectedItems: []
+
+web:
+  url: "${siteUrl}"
+  headless: false
+  viewportWidth: 1920
+  viewportHeight: 1080
+
+tasks:
+  # ========== 阶段 1: 条件登录 ==========
+  - name: 登录系统
+    flow:
+      - aiWaitFor:
+          condition: "页面加载完成"
+          timeout: 10000
+
+      - logic:
+          if: "页面显示了登录表单（有用户名和密码输入框）"
+          then:
+            - aiInput:
+                locator: "用户名输入框"
+                value: "${username}"
+            - aiInput:
+                locator: "密码输入框"
+                value: "${password}"
+            - aiTap: "登录按钮"
+            - aiWaitFor: "登录成功，进入主页面"
+          else:
+            - aiAssert: "已经处于登录状态"
+
+  # ========== 阶段 2: 分页数据采集 ==========
+  - name: 采集数据
+    continueOnError: true
+    flow:
+      - try:
+          flow:
+            - aiTap: "数据列表 菜单项"
+            - aiWaitFor: "数据列表页面加载完成"
+
+            - loop:
+                type: repeat
+                count: "${maxPages}"
+                steps:
+                  - aiQuery:
+                      query: >
+                        提取当前页面表格中的所有数据行，
+                        每行包含：编号(id)、名称(name)、状态(status)。
+                      name: "pageData"
+
+                  - logic:
+                      if: "页面底部有下一页按钮且未被禁用"
+                      then:
+                        - aiTap: "下一页"
+                        - aiWaitFor: "新的数据页面加载完成"
+
+        catch:
+          flow:
+            - recordToReport
+            - aiQuery:
+                query: "页面是否显示了错误信息？如果是，错误内容是什么？"
+                name: "errorInfo"
+
+  # ========== 阶段 3: 数据处理 ==========
+  - name: 处理采集数据
+    flow:
+      - data_transform:
+          source: "${pageData}"
+          operation: filter
+          condition: "item.status === 'active'"
+          name: "activeItems"
+
+      - data_transform:
+          source: "${activeItems}"
+          operation: sort
+          by: "name"
+          order: "asc"
+          name: "sortedItems"
+
+  # ========== 阶段 4: 结果上报 ==========
+  - name: 上报结果
+    flow:
+      - try:
+          flow:
+            - external_call:
+                type: http
+                method: POST
+                url: "${ENV:API_ENDPOINT}"
+                headers:
+                  Authorization: "Bearer ${ENV:API_TOKEN}"
+                  Content-Type: "application/json"
+                body:
+                  data: "${sortedItems}"
+                  collectedAt: "${ENV:CURRENT_TIME}"
+                name: "uploadResult"
+
+            - logic:
+                if: "uploadResult.status == 200"
+                then:
+                  - aiAssert: "数据上报成功"
+                else:
+                  - recordToReport
+
+        catch:
+          flow:
+            - external_call:
+                type: shell
+                command: "echo 'Upload failed' >> ./logs/error.log"
+
+    output:
+      filePath: "./midscene-output/workflow-result.json"
+      dataName: "sortedItems"

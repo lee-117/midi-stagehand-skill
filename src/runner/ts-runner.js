@@ -2,43 +2,93 @@ const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
+/**
+ * Run transpiled TypeScript code using tsx.
+ *
+ * @param {string} tsCode - TypeScript code string (or ignored if options.tsPath is set).
+ * @param {object} [options]
+ * @param {string} [options.tsPath] - Path to an existing .ts file to run instead.
+ * @param {string} [options.reportDir='./midscene-report'] - Directory for reports.
+ * @param {string} [options.cwd] - Working directory.
+ * @param {number} [options.timeout=300000] - Execution timeout in ms.
+ * @param {boolean} [options.keepTs=false] - Keep the generated temp file after execution.
+ * @returns {{ success: boolean, tsPath: string, reportDir: string, error?: string, exitCode?: number|string }}
+ */
 function run(tsCode, options = {}) {
-  // Write TS to temp file if code string is provided
-  let tsPath = options.tsPath;
+  const reportDir = options.reportDir || './midscene-report';
 
-  if (!tsPath) {
-    const tmpDir = path.join(process.cwd(), '.midscene-tmp');
-    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
-    tsPath = path.join(tmpDir, `generated-${Date.now()}.ts`);
-    fs.writeFileSync(tsPath, tsCode, 'utf-8');
+  // Validate input
+  if (!options.tsPath && (!tsCode || typeof tsCode !== 'string' || tsCode.trim() === '')) {
+    return { success: false, error: 'TypeScript code or tsPath is required', exitCode: null, tsPath: null, reportDir: reportDir };
   }
 
-  const reportDir = options.reportDir || './midscene-report';
-  const cmd = `npx tsx ${tsPath}`;
+  // Write TS to temp file if code string is provided
+  let tsPath = options.tsPath;
+  let isTempFile = false;
 
-  console.log(`[ts-runner] Executing: ${cmd}`);
+  if (!tsPath) {
+    const tmpDir = path.join(options.cwd || process.cwd(), '.midscene-tmp');
+    try {
+      if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+    } catch (mkdirErr) {
+      return { success: false, error: 'Failed to create temp directory: ' + mkdirErr.message, exitCode: null, tsPath: null, reportDir: reportDir };
+    }
+    tsPath = path.join(tmpDir, 'generated-' + Date.now() + '.ts');
+    try {
+      fs.writeFileSync(tsPath, tsCode, 'utf-8');
+    } catch (writeErr) {
+      return { success: false, error: 'Failed to write temp file: ' + writeErr.message, exitCode: null, tsPath: null, reportDir: reportDir };
+    }
+    isTempFile = true;
+  } else {
+    // Validate provided tsPath exists
+    if (!fs.existsSync(tsPath)) {
+      return { success: false, error: 'TypeScript file not found: ' + tsPath, exitCode: null, tsPath: tsPath, reportDir: reportDir };
+    }
+  }
+
+  const cmd = 'npx tsx ' + tsPath;
+
+  console.log('[ts-runner] Executing: ' + cmd);
 
   try {
     execSync(cmd, {
       stdio: 'inherit',
       cwd: options.cwd || process.cwd(),
-      env: { ...process.env, MIDSCENE_REPORT_DIR: reportDir },
+      env: Object.assign({}, process.env, { MIDSCENE_REPORT_DIR: reportDir }),
       timeout: options.timeout || 300000
     });
 
-    return { success: true, tsPath, reportDir };
+    return { success: true, tsPath: tsPath, reportDir: reportDir };
   } catch (error) {
+    let errorMessage = error.message;
+    let exitCode = error.status;
+
+    if (error.killed) {
+      errorMessage = 'Process was killed (timeout or signal)';
+      exitCode = exitCode || 'KILLED';
+    } else if (exitCode === null || exitCode === undefined) {
+      errorMessage = 'Process exited without a status code: ' + error.message;
+      exitCode = 'UNKNOWN';
+    }
+
     return {
       success: false,
-      error: error.message,
-      exitCode: error.status,
-      tsPath,
-      reportDir
+      error: errorMessage,
+      exitCode: exitCode,
+      tsPath: tsPath,
+      reportDir: reportDir
     };
   } finally {
     // Clean up temp file unless user wants to keep it
-    if (!options.keepTs && !options.tsPath && fs.existsSync(tsPath)) {
-      fs.unlinkSync(tsPath);
+    if (isTempFile && !options.keepTs) {
+      try {
+        if (fs.existsSync(tsPath)) {
+          fs.unlinkSync(tsPath);
+        }
+      } catch (_cleanupErr) {
+        // Silently ignore cleanup failures
+      }
     }
   }
 }

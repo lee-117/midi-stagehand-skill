@@ -65,8 +65,8 @@ Options:
 ├── scripts/                  # CLI 入口
 ├── skills/                   # Claude Code SKILL 定义
 ├── templates/                # YAML 模板库
-│   ├── native/               # 原生模板 (5个)
-│   └── extended/             # 扩展模板 (5个)
+│   ├── native/               # 原生模板 (6个)
+│   └── extended/             # 扩展模板 (6个)
 └── test/                     # 测试
 ```
 
@@ -77,11 +77,51 @@ Options:
 | `variables` | 变量声明 | `variables: { url: "..." }` |
 | `logic` | 条件分支 | `logic: { if: "...", then: [...] }` |
 | `loop` | 循环控制 | `loop: { type: repeat, count: 5 }` |
-| `import` | 外部导入 | `import: "./sub-flow.yaml"` |
-| `data_transform` | 数据处理 | `data_transform: { input, operations, output }` |
+| `import` | 外部导入 | `import: [{ flow: "./login.yaml", as: loginFlow }]` |
+| `use` | 调用子流程 | `use: "${loginFlow}"` + `with: { params }` |
+| `data_transform` | 数据处理 | 平面: `{ source, operation, name }` 或嵌套: `{ input, operations, output }` |
 | `try/catch/finally` | 异常处理 | `try: { flow: [...] }` |
 | `external_call` | 外部调用 | `external_call: { type: http, url: "..." }` |
-| `parallel` | 并行执行 | `parallel: { tasks: [...] }` |
+| `parallel` | 并行执行 | `parallel: { tasks: [...] }` 或 `{ branches: [...] }` |
+
+## Claude Code Skills（AI 辅助工作流）
+
+项目内置两个 Claude Code Skill，支持从自然语言到自动化执行的完整链路：
+
+### YAML Generator — 自然语言 → YAML
+
+当你描述一个浏览器自动化需求时，Generator 会：
+1. 分析需求复杂度，选择 Native 或 Extended 模式
+2. 确定目标平台（Web/Android/iOS/Computer）
+3. 将自然语言映射为 YAML 动作
+4. 基于模板生成完整 YAML 文件
+5. 自动验证并输出到 `./midscene-output/`
+
+> Skill 定义: `skills/midscene-yaml-generator/SKILL.md`
+
+### YAML Runner — 执行 → 报告
+
+当你需要执行 YAML 文件时，Runner 会：
+1. 检查运行环境（Node.js、依赖、浏览器）
+2. 定位并预验证 YAML 文件
+3. 执行并分析结果
+4. 解读 Midscene 报告，提供修复建议
+
+> Skill 定义: `skills/midscene-runner/SKILL.md`
+
+### 端到端工作流
+
+```
+用户: "帮我写个自动化脚本，打开百度搜索 Midscene"
+  ↓ [Generator]
+生成: midscene-output/search-baidu.yaml
+  ↓ [Runner --dry-run]
+验证: 通过
+  ↓ [Runner]
+执行: 打开浏览器 → 输入关键词 → 点击搜索
+  ↓
+报告: midscene-report/ (HTML + JSON)
+```
 
 ## 运行测试
 
@@ -91,4 +131,5 @@ npm test
 
 ## 文档
 
-详细使用指南请参考 [渐进式指导手册](guide/MIDSCENE_YAML_GUIDE.md)。
+- [渐进式指导手册](guide/MIDSCENE_YAML_GUIDE.md) — 从入门到进阶的完整教程（L1-L5）
+- [CLAUDE.md](CLAUDE.md) — Claude Code 项目上下文指引

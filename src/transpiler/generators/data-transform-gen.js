@@ -6,32 +6,7 @@
  * Supports operations: filter, sort, map, reduce, slice, unique, flatten, groupBy.
  */
 
-/**
- * Resolve YAML ${var} template syntax into JS template literals.
- * ${ENV.XXX} is converted to process.env.XXX.
- */
-function resolveTemplate(str) {
-  if (typeof str !== 'string') return str;
-  if (!str.includes('${')) return str;
-
-  let result = str.replace(/\$\{ENV\.(\w+)\}/g, '${process.env.$1}');
-
-  const singleExprMatch = result.match(/^\$\{([^}]+)\}$/);
-  if (singleExprMatch) {
-    return { __expr: singleExprMatch[1] };
-  }
-
-  return { __template: '`' + result + '`' };
-}
-
-/**
- * Extract a raw variable reference from a template string like "${items}".
- */
-function extractVarRef(str) {
-  if (typeof str !== 'string') return null;
-  const match = str.match(/^\$\{([a-zA-Z_$][a-zA-Z0-9_$.]*)\}$/);
-  return match ? match[1] : null;
-}
+const { extractVarRef } = require('./utils');
 
 /**
  * Parse a sort expression like "price desc" or "name asc".
@@ -138,6 +113,82 @@ function generateOperation(op, outputVar, pad) {
  * @param {object} ctx  - Context: { indent: number, varScope: Set<string> }
  * @returns {string} TypeScript code string.
  */
+/**
+ * Generate code for the Guide's flat data_transform format:
+ *   data_transform:
+ *     source: "${rawProducts}"
+ *     operation: filter
+ *     condition: "item.rating >= 4"
+ *     name: "highRatedProducts"
+ */
+function generateFlatTransform(transform, pad, varScope) {
+  const lines = [];
+  const inputRef = extractVarRef(transform.source) || resolveExprVars(transform.source || 'undefined');
+  const outputVar = transform.name || 'transformedData';
+  const operation = transform.operation;
+
+  // Declare output variable
+  if (varScope.has(outputVar)) {
+    lines.push(pad + outputVar + ' = [...' + inputRef + '];');
+  } else {
+    varScope.add(outputVar);
+    lines.push(pad + 'let ' + outputVar + ' = [...' + inputRef + '];');
+  }
+
+  if (operation === 'filter') {
+    const condition = resolveExprVars(transform.condition || 'true');
+    lines.push(pad + outputVar + ' = ' + outputVar + '.filter(item => ' + condition + ');');
+  } else if (operation === 'sort') {
+    const field = transform.by || 'id';
+    const order = (transform.order || 'asc').toLowerCase();
+    if (order === 'desc') {
+      lines.push(pad + outputVar + ' = ' + outputVar + '.sort((a, b) => b.' + field + ' - a.' + field + ');');
+    } else {
+      lines.push(pad + outputVar + ' = ' + outputVar + '.sort((a, b) => a.' + field + ' - b.' + field + ');');
+    }
+  } else if (operation === 'map') {
+    if (transform.template && typeof transform.template === 'object') {
+      const entries = Object.entries(transform.template).map(function (entry) {
+        var k = entry[0];
+        var v = entry[1];
+        var val = extractVarRef(v);
+        if (val) {
+          // ${item.name} → item.name
+          return k + ': ' + val;
+        }
+        return k + ': ' + resolveExprVars(JSON.stringify(v));
+      });
+      lines.push(pad + outputVar + ' = ' + outputVar + '.map(item => ({ ' + entries.join(', ') + ' }));');
+    } else {
+      const mapExpr = resolveExprVars(transform.template || 'item');
+      lines.push(pad + outputVar + ' = ' + outputVar + '.map(item => (' + mapExpr + '));');
+    }
+  } else if (operation === 'reduce') {
+    const reducer = resolveExprVars(transform.reducer || 'acc + item');
+    const initial = transform.initial !== undefined ? JSON.stringify(transform.initial) : '0';
+    lines.push(pad + outputVar + ' = ' + outputVar + '.reduce((acc, item) => ' + reducer + ', ' + initial + ');');
+  } else if (operation === 'unique') {
+    const byField = transform.by;
+    if (byField && typeof byField === 'string') {
+      lines.push(pad + outputVar + ' = [...new Map(' + outputVar + '.map(item => [item.' + byField + ', item])).values()];');
+    } else {
+      lines.push(pad + outputVar + ' = [...new Set(' + outputVar + ')];');
+    }
+  } else if (operation === 'slice') {
+    const start = transform.start || 0;
+    const end = transform.end;
+    if (end !== undefined) {
+      lines.push(pad + outputVar + ' = ' + outputVar + '.slice(' + start + ', ' + end + ');');
+    } else {
+      lines.push(pad + outputVar + ' = ' + outputVar + '.slice(' + start + ');');
+    }
+  } else {
+    lines.push(pad + '// Unknown operation: ' + operation);
+  }
+
+  return lines.join('\n');
+}
+
 function generate(step, ctx) {
   const indent = ctx && ctx.indent || 0;
   const pad = '  '.repeat(indent);
@@ -148,6 +199,12 @@ function generate(step, ctx) {
     return pad + '// Invalid data_transform: missing definition';
   }
 
+  // Support the Guide's flat format: { source, operation, condition, name }
+  if (transform.operation || transform.source) {
+    return generateFlatTransform(transform, pad, varScope);
+  }
+
+  // Nested format: { input, operations: [...], output }
   const lines = [];
 
   // Resolve input variable

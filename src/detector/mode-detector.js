@@ -13,6 +13,7 @@ const EXTENDED_KEYWORDS = new Set([
   'logic',
   'loop',
   'import',
+  'use',
   'data_transform',
   'try',
   'catch',
@@ -36,6 +37,7 @@ const KEYWORD_TO_FEATURE = {
   logic: 'logic',
   loop: 'loop',
   import: 'import',
+  use: 'import',
   data_transform: 'data_transform',
   try: 'try_catch',
   catch: 'try_catch',
@@ -168,6 +170,22 @@ function detect(yamlInput) {
         needs_transpilation: needsTranspilation,
       };
     }
+
+    // Invalid engine value — warn and fall through to auto-detection.
+    // The `warnings` array is returned so callers can surface this to users.
+    const foundKeywords = new Set();
+    const flags = { templateUsed: false };
+    scan(doc, foundKeywords, flags);
+
+    const features = buildFeatureList(foundKeywords, flags.templateUsed);
+    const isExtended = features.length > 0;
+
+    return {
+      mode: isExtended ? 'extended' : 'native',
+      features,
+      needs_transpilation: isExtended,
+      warnings: ['Unknown engine value "' + doc.engine + '". Valid values are "native" or "extended". Falling back to auto-detection.'],
+    };
   }
 
   // ------------------------------------------------------------------

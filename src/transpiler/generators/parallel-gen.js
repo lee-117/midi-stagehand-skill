@@ -23,8 +23,10 @@ function collectDeclaredVars(flow) {
     if (step.aiQuery !== undefined && step.name) {
       vars.push(step.name);
     }
-    if (step.external_call && step.external_call.response_as) {
-      vars.push(step.external_call.response_as);
+    if (step.external_call) {
+      const ec = step.external_call;
+      const ecVar = ec.response_as || ec.as || ec.name;
+      if (ecVar) vars.push(ecVar);
     }
     if (step.import !== undefined && step.as) {
       vars.push(step.as);
@@ -56,9 +58,7 @@ function rewriteHoistedDeclarations(code, hoisted) {
   return code;
 }
 
-function escapeRegExp(str) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+const { escapeRegExp } = require('./utils');
 
 /**
  * Generate TypeScript code for a `parallel` step.
@@ -75,11 +75,12 @@ function generate(step, ctx, processStep) {
   const varScope = ctx && ctx.varScope || new Set();
   const parallel = step.parallel;
 
-  if (!parallel || !parallel.tasks || !Array.isArray(parallel.tasks)) {
-    return pad + '// Invalid parallel block: missing "tasks" array';
+  const tasksArray = parallel.tasks || parallel.branches;
+  if (!parallel || !tasksArray || !Array.isArray(tasksArray)) {
+    return pad + '// Invalid parallel block: missing "tasks" or "branches" array';
   }
 
-  const tasks = parallel.tasks;
+  const tasks = tasksArray;
   const mergeResults = parallel.merge_results !== undefined ? parallel.merge_results : false;
   const lines = [];
 

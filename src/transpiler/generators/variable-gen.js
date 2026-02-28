@@ -5,26 +5,7 @@
  * Converts `variables` declarations from YAML into TypeScript const/let declarations.
  */
 
-/**
- * Resolve YAML ${var} template syntax into JS template literals.
- * ${ENV.XXX} is converted to process.env.XXX.
- */
-function resolveTemplate(str) {
-  if (typeof str !== 'string') return str;
-  if (!str.includes('${')) return str;
-
-  // Replace ${ENV.XXX} -> ${process.env.XXX}
-  let result = str.replace(/\$\{ENV\.(\w+)\}/g, '${process.env.$1}');
-
-  // If the entire string is a single ${...} expression, return the inner expression directly
-  const singleExprMatch = result.match(/^\$\{([^}]+)\}$/);
-  if (singleExprMatch) {
-    return { __expr: singleExprMatch[1] };
-  }
-
-  // Otherwise it's a template literal with embedded expressions
-  return { __template: '`' + result + '`' };
-}
+const { resolveTemplate } = require('./utils');
 
 /**
  * Convert a value into a TypeScript code representation.

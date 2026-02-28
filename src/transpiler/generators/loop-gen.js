@@ -8,51 +8,7 @@
  *   - repeat: fixed count loop
  */
 
-/**
- * Resolve YAML ${var} template syntax into JS template literals.
- * ${ENV.XXX} is converted to process.env.XXX.
- */
-function resolveTemplate(str) {
-  if (typeof str !== 'string') return str;
-  if (!str.includes('${')) return str;
-
-  let result = str.replace(/\$\{ENV\.(\w+)\}/g, '${process.env.$1}');
-
-  const singleExprMatch = result.match(/^\$\{([^}]+)\}$/);
-  if (singleExprMatch) {
-    return { __expr: singleExprMatch[1] };
-  }
-
-  return { __template: '`' + result + '`' };
-}
-
-/**
- * Convert a resolved template to a code string.
- */
-function toCodeString(val) {
-  if (val === null || val === undefined) return 'undefined';
-  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
-  if (typeof val === 'object' && val.__template) return val.__template;
-  if (typeof val === 'object' && val.__expr) return val.__expr;
-  if (typeof val === 'string') {
-    if (val.includes('${')) {
-      let result = val.replace(/\$\{ENV\.(\w+)\}/g, '${process.env.$1}');
-      return '`' + result + '`';
-    }
-    return "'" + val.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
-  }
-  return JSON.stringify(val);
-}
-
-/**
- * Extract a raw variable reference from a template string like "${items}".
- * Returns the variable name if it's a simple reference, or null otherwise.
- */
-function extractVarRef(str) {
-  if (typeof str !== 'string') return null;
-  const match = str.match(/^\$\{([a-zA-Z_$][a-zA-Z0-9_$.]*)\}$/);
-  return match ? match[1] : null;
-}
+const { resolveTemplate, toCodeString, extractVarRef } = require('./utils');
 
 /**
  * Generate TypeScript code for a `loop` step.
@@ -77,7 +33,7 @@ function generate(step, ctx, processStep) {
   switch (loop.type) {
     case 'for': {
       // for (const item of items) { ...flow }
-      const itemVar = loop.as || loop.item || 'item';
+      const itemVar = loop.itemVar || loop.as || loop.item || 'item';
       const iterableRaw = loop.items || loop.in || loop.collection;
       const varRef = extractVarRef(iterableRaw);
       const iterable = varRef || toCodeString(resolveTemplate(iterableRaw));

@@ -1,0 +1,25 @@
+engine: extended
+
+import:
+  - flow: "./common/login-flow.yaml"
+    as: loginFlow
+  - data: "./fixtures/test-users.json"
+    as: testUsers
+
+web:
+  url: "https://example.com"
+
+tasks:
+  - name: 使用导入的登录流程
+    flow:
+      - use: "${loginFlow}"
+        with:
+          username: "${testUsers[0].username}"
+          password: "${testUsers[0].password}"
+
+  - name: 基本操作
+    flow:
+      - aiAssert: "登录成功"
+      - aiQuery:
+          query: "提取用户名"
+          name: "currentUser"

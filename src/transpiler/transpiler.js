@@ -36,6 +36,7 @@ const dataTransformGen = loadGenerator('data-transform-gen');
 const tryCatchGen = loadGenerator('try-catch-gen');
 const externalCallGen = loadGenerator('external-call-gen');
 const parallelGen = loadGenerator('parallel-gen');
+const useGen = loadGenerator('use-gen');
 
 // ---------------------------------------------------------------------------
 // Native action keys – any step that carries one of these is dispatched to
@@ -220,6 +221,7 @@ function detectStepType(step) {
   if (step.try !== undefined) return { generator: tryCatchGen, type: 'try_catch' };
   if (step.external_call !== undefined) return { generator: externalCallGen, type: 'external_call' };
   if (step.parallel !== undefined) return { generator: parallelGen, type: 'parallel' };
+  if (step.use !== undefined) return { generator: useGen, type: 'use' };
 
   // Check for any native Midscene key
   for (const key of Object.keys(step)) {
@@ -265,10 +267,26 @@ function trackImports(tracker, stepType, step) {
       }
     }
   }
-  if (stepType === 'data_transform') {
-    // data transforms may read/write files
-    tracker.needsFs = true;
+  // Note: data_transform operations are in-memory; only the `output` directive needs fs
+  // (handled separately in the task output section)
+}
+
+// ---------------------------------------------------------------------------
+// String helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert an import path string to a code-safe string literal.
+ * Handles ${...} template syntax, converting it to template literals.
+ */
+function toImportCodeString(str) {
+  if (typeof str !== 'string') return 'undefined';
+  if (str.includes('${')) {
+    let result = str.replace(/\$\{ENV\.(\w+)\}/g, '${process.env.$1}');
+    result = result.replace(/\$\{ENV:(\w+)\}/g, '${process.env.$1}');
+    return '`' + result + '`';
   }
+  return "'" + str.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
 }
 
 // ---------------------------------------------------------------------------
@@ -358,8 +376,46 @@ function transpile(yamlInput, options) {
   // Base indent inside the template's try block (matches template structure)
   const BASE_INDENT = 2;
 
-  // 6. Iterate tasks and their flow steps, collecting generated TS lines
+  // 5b. Process top-level `import` section (declares flow/data imports)
   const codeLines = [];
+
+  if (doc.import && Array.isArray(doc.import)) {
+    for (const imp of doc.import) {
+      if (imp.flow && imp.as) {
+        // Flow import: store the path as a variable for later use with `use`
+        const flowPath = imp.flow;
+        const varName = imp.as;
+        varScope.add(varName);
+        codeLines.push('  '.repeat(BASE_INDENT) + 'const ' + varName + ' = ' + toImportCodeString(flowPath) + ';');
+      } else if (imp.data && imp.as) {
+        // Data import: require JSON/data file
+        const dataPath = imp.data;
+        const varName = imp.as;
+        varScope.add(varName);
+        const ext = (dataPath.match(/\.([a-zA-Z0-9]+)$/) || [])[1] || '';
+        if (ext === 'json') {
+          codeLines.push('  '.repeat(BASE_INDENT) + 'const ' + varName + ' = require(' + toImportCodeString(dataPath) + ');');
+        } else {
+          codeLines.push('  '.repeat(BASE_INDENT) + 'const ' + varName + ' = require(' + toImportCodeString(dataPath) + ');');
+        }
+      }
+    }
+    if (codeLines.length > 0) {
+      codeLines.push('');
+    }
+  }
+
+  // 5c. Process top-level `variables` section
+  if (doc.variables && typeof doc.variables === 'object' && !Array.isArray(doc.variables)) {
+    const varStep = { variables: doc.variables };
+    const varCode = variableGen.generate(varStep, { indent: BASE_INDENT, varScope });
+    if (varCode) {
+      codeLines.push(varCode);
+      codeLines.push('');
+    }
+  }
+
+  // 6. Iterate tasks and their flow steps, collecting generated TS lines
 
   for (let ti = 0; ti < tasks.length; ti++) {
     const task = tasks[ti];
@@ -379,11 +435,37 @@ function transpile(yamlInput, options) {
       codeLines.push('  '.repeat(BASE_INDENT) + '// --- ' + taskName + ' ---');
     }
 
+    // continueOnError: wrap entire task flow in try/catch so failures
+    // don't abort subsequent tasks.
+    const useContinueOnError = task.continueOnError === true;
+    const stepIndent = useContinueOnError ? BASE_INDENT + 1 : BASE_INDENT;
+
+    if (useContinueOnError) {
+      codeLines.push('  '.repeat(BASE_INDENT) + 'try {');
+    }
+
     for (const step of flow) {
-      const generated = processStep(step, BASE_INDENT, varScope);
+      const generated = processStep(step, stepIndent, varScope);
       if (generated !== undefined && generated !== null) {
         codeLines.push(generated);
       }
+    }
+
+    if (useContinueOnError) {
+      codeLines.push('  '.repeat(BASE_INDENT) + '} catch (_continueErr) {');
+      codeLines.push('  '.repeat(BASE_INDENT + 1) + "console.warn('[continueOnError] Task \"" + taskName + "\" failed:', _continueErr.message);");
+      codeLines.push('  '.repeat(BASE_INDENT) + '}');
+    }
+
+    // output directive: write collected data to a JSON file
+    if (task.output && task.output.filePath && task.output.dataName) {
+      importTracker.needsFs = true;
+      const filePath = task.output.filePath;
+      const dataName = task.output.dataName;
+      codeLines.push('  '.repeat(BASE_INDENT) + "// Output: write " + dataName + " to " + filePath);
+      codeLines.push('  '.repeat(BASE_INDENT) + "const __outputDir = require('path').dirname('" + filePath.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "');");
+      codeLines.push('  '.repeat(BASE_INDENT) + 'if (!fs.existsSync(__outputDir)) fs.mkdirSync(__outputDir, { recursive: true });');
+      codeLines.push('  '.repeat(BASE_INDENT) + "fs.writeFileSync('" + filePath.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "', JSON.stringify(" + dataName + ", null, 2), 'utf-8');");
     }
   }
 

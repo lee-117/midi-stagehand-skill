@@ -140,6 +140,17 @@ function validateStructure(doc, errors, warnings) {
     return;
   }
 
+  // Validate engine field if present.
+  if (doc.engine !== undefined) {
+    const engineVal = String(doc.engine).toLowerCase();
+    if (engineVal !== 'native' && engineVal !== 'extended') {
+      warnings.push(makeWarning(
+        'Unknown engine value "' + doc.engine + '". Valid values are "native" or "extended".',
+        '/engine'
+      ));
+    }
+  }
+
   // Check for at least one platform config key.
   const rootKeys = Object.keys(doc);
   const hasPlatform = rootKeys.some((key) => PLATFORM_KEYS.has(key));
@@ -346,9 +357,10 @@ function validateExtendedStep(step, stepPath, errors, warnings) {
         }
       }
 
-      // Recurse into the loop's flow.
-      if (Array.isArray(loop.flow)) {
-        loop.flow.forEach((s, i) => {
+      // Recurse into the loop's flow (accept both "flow" and "steps" keys).
+      const loopFlow = loop.flow || loop.steps;
+      if (Array.isArray(loopFlow)) {
+        loopFlow.forEach((s, i) => {
           validateExtendedStep(s, `${loopPath}/flow[${i}]`, errors, warnings);
         });
       }
@@ -366,24 +378,34 @@ function validateExtendedStep(step, stepPath, errors, warnings) {
       // a flow array.
       errors.push(makeError('"try" must be an object with a "flow" array.', tryPath));
     } else {
-      if (!Array.isArray(tryBlock.flow)) {
-        errors.push(makeError('"try" construct must have a "flow" array.', `${tryPath}/flow`));
+      // Accept both "flow" and "steps" keys for try/catch/finally blocks.
+      const tryFlow = tryBlock.flow || tryBlock.steps;
+      if (!Array.isArray(tryFlow)) {
+        errors.push(makeError('"try" construct must have a "flow" (or "steps") array.', `${tryPath}/flow`));
       } else {
-        tryBlock.flow.forEach((s, i) => {
+        tryFlow.forEach((s, i) => {
           validateExtendedStep(s, `${tryPath}/flow[${i}]`, errors, warnings);
         });
       }
 
-      // Recurse into catch/finally if present.
-      if (tryBlock.catch && Array.isArray(tryBlock.catch.flow)) {
-        tryBlock.catch.flow.forEach((s, i) => {
-          validateExtendedStep(s, `${tryPath}/catch/flow[${i}]`, errors, warnings);
-        });
+      // Recurse into catch/finally if present (accept both "flow" and "steps").
+      const catchBlock = tryBlock.catch;
+      if (catchBlock) {
+        const catchFlow = catchBlock.flow || catchBlock.steps;
+        if (Array.isArray(catchFlow)) {
+          catchFlow.forEach((s, i) => {
+            validateExtendedStep(s, `${tryPath}/catch/flow[${i}]`, errors, warnings);
+          });
+        }
       }
-      if (tryBlock.finally && Array.isArray(tryBlock.finally.flow)) {
-        tryBlock.finally.flow.forEach((s, i) => {
-          validateExtendedStep(s, `${tryPath}/finally/flow[${i}]`, errors, warnings);
-        });
+      const finallyBlock = tryBlock.finally;
+      if (finallyBlock) {
+        const finallyFlow = finallyBlock.flow || finallyBlock.steps;
+        if (Array.isArray(finallyFlow)) {
+          finallyFlow.forEach((s, i) => {
+            validateExtendedStep(s, `${tryPath}/finally/flow[${i}]`, errors, warnings);
+          });
+        }
       }
     }
   }
@@ -418,19 +440,68 @@ function validateExtendedStep(step, stepPath, errors, warnings) {
     if (par === null || typeof par !== 'object' || Array.isArray(par)) {
       errors.push(makeError('"parallel" must be an object.', parPath));
     } else {
-      if (!Array.isArray(par.tasks)) {
+      const parTasks = par.tasks || par.branches;
+      if (!Array.isArray(parTasks)) {
         errors.push(makeError(
-          '"parallel" construct must have a "tasks" array.',
+          '"parallel" construct must have a "tasks" or "branches" array.',
           `${parPath}/tasks`
         ));
       } else {
-        par.tasks.forEach((t, i) => {
-          if (t && Array.isArray(t.flow)) {
-            t.flow.forEach((s, si) => {
+        parTasks.forEach((t, i) => {
+          const tFlow = t && (t.flow || t.steps);
+          if (Array.isArray(tFlow)) {
+            tFlow.forEach((s, si) => {
               validateExtendedStep(s, `${parPath}/tasks[${i}]/flow[${si}]`, errors, warnings);
             });
           }
         });
+      }
+    }
+  }
+
+  // --- use ---
+  if (step.use !== undefined) {
+    const useRef = step.use;
+    const usePath = `${stepPath}/use`;
+
+    if (typeof useRef !== 'string' || useRef.trim() === '') {
+      errors.push(makeError('"use" must be a non-empty string (flow reference or path).', usePath));
+    }
+
+    if (step.with !== undefined && (step.with === null || typeof step.with !== 'object' || Array.isArray(step.with))) {
+      errors.push(makeError('"with" must be an object mapping parameter names to values.', `${stepPath}/with`));
+    }
+  }
+
+  // --- data_transform ---
+  if (step.data_transform !== undefined) {
+    const transform = step.data_transform;
+    const transformPath = `${stepPath}/data_transform`;
+
+    if (transform === null || typeof transform !== 'object' || Array.isArray(transform)) {
+      errors.push(makeError('"data_transform" must be an object.', transformPath));
+    } else {
+      // Flat format: { source, operation, name }
+      const VALID_OPERATIONS = ['filter', 'sort', 'map', 'reduce', 'unique', 'slice', 'flatten', 'groupBy'];
+
+      if (transform.operation) {
+        if (!VALID_OPERATIONS.includes(transform.operation)) {
+          errors.push(makeError(
+            'Invalid data_transform operation "' + transform.operation + '". Must be one of: ' + VALID_OPERATIONS.join(', ') + '.',
+            `${transformPath}/operation`
+          ));
+        }
+        if (!transform.source) {
+          warnings.push(makeWarning(
+            '"data_transform" with "operation" should have a "source" field.',
+            `${transformPath}/source`
+          ));
+        }
+      }
+
+      // Nested format: { input, operations }
+      if (transform.operations && !Array.isArray(transform.operations)) {
+        errors.push(makeError('"data_transform.operations" must be an array.', `${transformPath}/operations`));
       }
     }
   }
@@ -452,6 +523,22 @@ function validateExtendedStep(step, stepPath, errors, warnings) {
  */
 function collectDefinedVariables(doc) {
   const defined = new Set();
+
+  // Top-level variables block
+  if (doc.variables && typeof doc.variables === 'object' && !Array.isArray(doc.variables)) {
+    for (const varName of Object.keys(doc.variables)) {
+      defined.add(varName);
+    }
+  }
+
+  // Top-level import block
+  if (doc.import && Array.isArray(doc.import)) {
+    for (const imp of doc.import) {
+      if (imp.as && typeof imp.as === 'string') {
+        defined.add(imp.as);
+      }
+    }
+  }
 
   if (!doc.tasks || !Array.isArray(doc.tasks)) {
     return defined;
@@ -500,6 +587,22 @@ function collectDefinedVariablesFromFlow(flow, defined) {
       defined.add(step.as);
     }
 
+    // external_call with response_as/as/name: the variable becomes defined.
+    if (step.external_call && typeof step.external_call === 'object') {
+      const ecVar = step.external_call.response_as || step.external_call.as || step.external_call.name;
+      if (typeof ecVar === 'string') {
+        defined.add(ecVar);
+      }
+    }
+
+    // data_transform with output/name: the variable becomes defined.
+    if (step.data_transform && typeof step.data_transform === 'object') {
+      const dtVar = step.data_transform.output || step.data_transform.name;
+      if (typeof dtVar === 'string') {
+        defined.add(dtVar);
+      }
+    }
+
     // Recurse into nested flows.
     if (step.logic && typeof step.logic === 'object') {
       if (Array.isArray(step.logic.then)) {
@@ -509,20 +612,31 @@ function collectDefinedVariablesFromFlow(flow, defined) {
         collectDefinedVariablesFromFlow(step.logic.else, defined);
       }
     }
-    if (step.loop && typeof step.loop === 'object' && Array.isArray(step.loop.flow)) {
-      // The loop "as" variable is also a defined variable within the loop.
-      if (typeof step.loop.as === 'string') {
-        defined.add(step.loop.as);
+    if (step.loop && typeof step.loop === 'object') {
+      const loopFlow = step.loop.flow || step.loop.steps;
+      // The loop "as"/"itemVar"/"item" variable is a defined variable within the loop.
+      const loopVar = step.loop.itemVar || step.loop.as || step.loop.item;
+      if (typeof loopVar === 'string') {
+        defined.add(loopVar);
       }
-      collectDefinedVariablesFromFlow(step.loop.flow, defined);
+      if (Array.isArray(loopFlow)) {
+        collectDefinedVariablesFromFlow(loopFlow, defined);
+      }
     }
-    if (step.try && typeof step.try === 'object' && Array.isArray(step.try.flow)) {
-      collectDefinedVariablesFromFlow(step.try.flow, defined);
+    if (step.try && typeof step.try === 'object') {
+      const tryFlow = step.try.flow || step.try.steps;
+      if (Array.isArray(tryFlow)) {
+        collectDefinedVariablesFromFlow(tryFlow, defined);
+      }
     }
-    if (step.parallel && typeof step.parallel === 'object' && Array.isArray(step.parallel.tasks)) {
-      for (const t of step.parallel.tasks) {
-        if (t && Array.isArray(t.flow)) {
-          collectDefinedVariablesFromFlow(t.flow, defined);
+    if (step.parallel && typeof step.parallel === 'object') {
+      const parTasks = step.parallel.tasks || step.parallel.branches;
+      if (Array.isArray(parTasks)) {
+        for (const t of parTasks) {
+          const tFlow = t && (t.flow || t.steps);
+          if (Array.isArray(tFlow)) {
+            collectDefinedVariablesFromFlow(tFlow, defined);
+          }
         }
       }
     }
@@ -684,11 +798,17 @@ function collectImportsFromFlow(flow, prefix, result) {
         collectImportsFromFlow(step.logic.else, `${prefix}[${i}]/logic/else`, result);
       }
     }
-    if (step.loop && typeof step.loop === 'object' && Array.isArray(step.loop.flow)) {
-      collectImportsFromFlow(step.loop.flow, `${prefix}[${i}]/loop/flow`, result);
+    if (step.loop && typeof step.loop === 'object') {
+      const loopFlow = step.loop.flow || step.loop.steps;
+      if (Array.isArray(loopFlow)) {
+        collectImportsFromFlow(loopFlow, `${prefix}[${i}]/loop/flow`, result);
+      }
     }
-    if (step.try && typeof step.try === 'object' && Array.isArray(step.try.flow)) {
-      collectImportsFromFlow(step.try.flow, `${prefix}[${i}]/try/flow`, result);
+    if (step.try && typeof step.try === 'object') {
+      const tryFlow = step.try.flow || step.try.steps;
+      if (Array.isArray(tryFlow)) {
+        collectImportsFromFlow(tryFlow, `${prefix}[${i}]/try/flow`, result);
+      }
     }
     if (step.parallel && typeof step.parallel === 'object' && Array.isArray(step.parallel.tasks)) {
       for (let t = 0; t < step.parallel.tasks.length; t++) {

@@ -6,41 +6,7 @@
  * or shell command execution.
  */
 
-/**
- * Resolve YAML ${var} template syntax into JS template literals.
- * ${ENV.XXX} is converted to process.env.XXX.
- */
-function resolveTemplate(str) {
-  if (typeof str !== 'string') return str;
-  if (!str.includes('${')) return str;
-
-  let result = str.replace(/\$\{ENV\.(\w+)\}/g, '${process.env.$1}');
-
-  const singleExprMatch = result.match(/^\$\{([^}]+)\}$/);
-  if (singleExprMatch) {
-    return { __expr: singleExprMatch[1] };
-  }
-
-  return { __template: '`' + result + '`' };
-}
-
-/**
- * Convert a resolved template to a code string.
- */
-function toCodeString(val) {
-  if (val === null || val === undefined) return 'undefined';
-  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
-  if (typeof val === 'object' && val.__template) return val.__template;
-  if (typeof val === 'object' && val.__expr) return val.__expr;
-  if (typeof val === 'string') {
-    if (val.includes('${')) {
-      let result = val.replace(/\$\{ENV\.(\w+)\}/g, '${process.env.$1}');
-      return '`' + result + '`';
-    }
-    return "'" + val.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
-  }
-  return JSON.stringify(val);
-}
+const { resolveTemplate, toCodeString } = require('./utils');
 
 /**
  * Convert a headers object into a TypeScript object literal string.
@@ -62,6 +28,41 @@ function headersToCode(headers, pad) {
 }
 
 /**
+ * Convert a body object into a TypeScript object literal string,
+ * resolving ${...} template variables in values.
+ */
+function bodyToCode(body, pad) {
+  if (!body || typeof body !== 'object') return JSON.stringify(body);
+  if (Array.isArray(body)) {
+    const items = body.map(function (item) {
+      if (typeof item === 'string') return toCodeString(resolveTemplate(item));
+      if (typeof item === 'object' && item !== null) return bodyToCode(item, pad);
+      return JSON.stringify(item);
+    });
+    return '[' + items.join(', ') + ']';
+  }
+
+  const entries = Object.entries(body).map(function (entry) {
+    var k = entry[0];
+    var v = entry[1];
+    if (typeof v === 'string') {
+      return "'" + k + "': " + toCodeString(resolveTemplate(v));
+    }
+    if (typeof v === 'object' && v !== null) {
+      return "'" + k + "': " + bodyToCode(v, pad);
+    }
+    return "'" + k + "': " + JSON.stringify(v);
+  });
+
+  if (entries.length <= 3) {
+    return '{ ' + entries.join(', ') + ' }';
+  }
+
+  var innerPad = pad + '  ';
+  return '{\n' + entries.map(function (e) { return innerPad + e; }).join(',\n') + '\n' + pad + '}';
+}
+
+/**
  * Generate TypeScript code for an `external_call` step.
  *
  * @param {object} step - The YAML step: { external_call: { type, url, method, headers, body, command, response_as } }
@@ -78,7 +79,7 @@ function generate(step, ctx) {
     return pad + '// Invalid external_call: missing type';
   }
 
-  const responseVar = call.response_as || call.as || 'response';
+  const responseVar = call.response_as || call.as || call.name || 'response';
 
   switch (call.type) {
     case 'http': {
@@ -97,7 +98,8 @@ function generate(step, ctx) {
 
       if (call.body) {
         if (typeof call.body === 'object') {
-          fetchOptions.push('body: JSON.stringify(' + JSON.stringify(call.body) + ')');
+          const bodyCode = bodyToCode(call.body, pad + '  ');
+          fetchOptions.push('body: JSON.stringify(' + bodyCode + ')');
         } else {
           const bodyCode = toCodeString(resolveTemplate(call.body));
           fetchOptions.push('body: JSON.stringify(' + bodyCode + ')');

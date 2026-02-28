@@ -5,48 +5,23 @@
  * Converts native Midscene YAML actions into TypeScript agent calls.
  */
 
-/**
- * Resolve YAML ${var} template syntax into JS template literals.
- * ${ENV.XXX} is converted to process.env.XXX.
- * Other ${var} references are passed through as JS template literal expressions.
- */
-function resolveTemplate(str) {
-  if (typeof str !== 'string') return str;
-  // Check if the string contains any template expressions
-  if (!str.includes('${')) return str;
-
-  // Replace ${ENV.XXX} -> ${process.env.XXX}
-  let result = str.replace(/\$\{ENV\.(\w+)\}/g, '${process.env.$1}');
-
-  // If the entire string is a single template expression, return just the expression
-  // e.g. "${myVar}" -> myVar (no backticks needed when used as a standalone value)
-  const singleExprMatch = result.match(/^\$\{([^}]+)\}$/);
-  if (singleExprMatch) {
-    return { __expr: singleExprMatch[1], __template: '`' + result + '`' };
-  }
-
-  // Otherwise wrap in backticks for a template literal
-  return { __template: '`' + result + '`' };
-}
+const { resolveTemplate, toCodeString, escapeForTemplateLiteral } = require('./utils');
 
 /**
- * Convert a resolved template value to a string suitable for code generation.
- * If the value is a plain string, wrap it in single quotes.
- * If it contains template expressions, return the template literal.
+ * Build an options object string from action options like deepThink, xpath, timeout.
  */
-function toCodeString(val) {
-  if (val === null || val === undefined) return 'undefined';
-  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
-  if (typeof val === 'object' && val.__template) return val.__template;
-  if (typeof val === 'string') {
-    // Check for template expressions that were not caught
-    if (val.includes('${')) {
-      let result = val.replace(/\$\{ENV\.(\w+)\}/g, '${process.env.$1}');
-      return '`' + result + '`';
+function buildOptions(step, extra) {
+  const opts = [];
+  if (step.deepThink === true) opts.push('deepThink: true');
+  if (step.xpath) opts.push('xpath: ' + toCodeString(resolveTemplate(step.xpath)));
+  if (step.timeout !== undefined) opts.push('timeoutMs: ' + step.timeout);
+  if (extra) {
+    for (const [k, v] of Object.entries(extra)) {
+      opts.push(k + ': ' + v);
     }
-    return "'" + val.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
   }
-  return JSON.stringify(val);
+  if (opts.length === 0) return null;
+  return '{ ' + opts.join(', ') + ' }';
 }
 
 /**
@@ -59,81 +34,179 @@ function toCodeString(val) {
 function generate(step, ctx) {
   const indent = ctx && ctx.indent || 0;
   const pad = '  '.repeat(indent);
-  const action = step.action || step.ai || step.aiAct;
   const varScope = ctx && ctx.varScope || new Set();
 
-  // Determine which native action this is
+  // --- sleep ---
   if (step.sleep !== undefined) {
     const ms = typeof step.sleep === 'number' ? step.sleep : toCodeString(resolveTemplate(String(step.sleep)));
     return pad + 'await new Promise(r => setTimeout(r, ' + ms + '));';
   }
 
+  // --- javascript ---
   if (step.javascript !== undefined) {
-    const code = step.javascript;
+    const code = escapeForTemplateLiteral(step.javascript);
     return pad + 'await agent.evaluateJavaScript(`' + code + '`);';
   }
 
+  // --- recordToReport ---
   if (step.recordToReport !== undefined) {
     const title = toCodeString(resolveTemplate(step.recordToReport));
     const content = step.content ? toCodeString(resolveTemplate(step.content)) : "''";
     return pad + 'await agent.recordToReport(' + title + ', { content: ' + content + ' });';
   }
 
-  // All ai* actions
+  // --- aiQuery ---
   if (step.aiQuery !== undefined) {
-    const prompt = toCodeString(resolveTemplate(step.aiQuery));
-    const varName = step.name || 'queryResult';
+    let prompt;
+    let varName = 'queryResult';
+
+    if (typeof step.aiQuery === 'object' && step.aiQuery !== null) {
+      // Object syntax: aiQuery: { query: "...", name: "..." }
+      prompt = toCodeString(resolveTemplate(step.aiQuery.query || ''));
+      varName = step.aiQuery.name || step.name || 'queryResult';
+    } else {
+      // String syntax: aiQuery: "..."
+      prompt = toCodeString(resolveTemplate(step.aiQuery));
+      varName = step.name || 'queryResult';
+    }
+
     varScope.add(varName);
     return pad + 'const ' + varName + ' = await agent.aiQuery(' + prompt + ');';
   }
 
+  // --- aiAssert ---
   if (step.aiAssert !== undefined) {
-    const prompt = toCodeString(resolveTemplate(step.aiAssert));
+    let prompt;
+    let errorMsg = null;
+
+    if (typeof step.aiAssert === 'object' && step.aiAssert !== null) {
+      // Object syntax: aiAssert: { assertion: "...", errorMessage: "..." }
+      prompt = toCodeString(resolveTemplate(step.aiAssert.assertion || ''));
+      if (step.aiAssert.errorMessage) {
+        errorMsg = toCodeString(resolveTemplate(step.aiAssert.errorMessage));
+      }
+    } else {
+      prompt = toCodeString(resolveTemplate(step.aiAssert));
+    }
+
+    if (errorMsg) {
+      return pad + 'await agent.aiAssert(' + prompt + ', { errorMessage: ' + errorMsg + ' });';
+    }
     return pad + 'await agent.aiAssert(' + prompt + ');';
   }
 
+  // --- aiWaitFor ---
   if (step.aiWaitFor !== undefined) {
-    const prompt = toCodeString(resolveTemplate(step.aiWaitFor));
-    if (step.timeout !== undefined) {
-      return pad + 'await agent.aiWaitFor(' + prompt + ', { timeoutMs: ' + step.timeout + ' });';
+    let prompt;
+    let timeout = step.timeout;
+
+    if (typeof step.aiWaitFor === 'object' && step.aiWaitFor !== null) {
+      // Object syntax: aiWaitFor: { condition: "...", timeout: 10000 }
+      prompt = toCodeString(resolveTemplate(step.aiWaitFor.condition || ''));
+      timeout = step.aiWaitFor.timeout || timeout;
+    } else {
+      prompt = toCodeString(resolveTemplate(step.aiWaitFor));
+    }
+
+    if (timeout !== undefined) {
+      return pad + 'await agent.aiWaitFor(' + prompt + ', { timeoutMs: ' + timeout + ' });';
     }
     return pad + 'await agent.aiWaitFor(' + prompt + ');';
   }
 
+  // --- aiTap ---
   if (step.aiTap !== undefined) {
-    const prompt = toCodeString(resolveTemplate(step.aiTap));
+    let prompt;
+
+    if (typeof step.aiTap === 'object' && step.aiTap !== null) {
+      // Object syntax: aiTap: { locator: "...", deepThink: true, xpath: "..." }
+      if (step.aiTap.xpath) {
+        return pad + 'await agent.aiTap({ xpath: ' + toCodeString(resolveTemplate(step.aiTap.xpath)) + ' });';
+      }
+      prompt = toCodeString(resolveTemplate(step.aiTap.locator || ''));
+      const opts = buildOptions(step.aiTap);
+      if (opts) {
+        return pad + 'await agent.aiTap(' + prompt + ', ' + opts + ');';
+      }
+    } else {
+      prompt = toCodeString(resolveTemplate(step.aiTap));
+      const opts = buildOptions(step);
+      if (opts) {
+        return pad + 'await agent.aiTap(' + prompt + ', ' + opts + ');';
+      }
+    }
+
     return pad + 'await agent.aiTap(' + prompt + ');';
   }
 
+  // --- aiHover ---
   if (step.aiHover !== undefined) {
-    const prompt = toCodeString(resolveTemplate(step.aiHover));
+    let prompt;
+
+    if (typeof step.aiHover === 'object' && step.aiHover !== null) {
+      if (step.aiHover.xpath) {
+        return pad + 'await agent.aiHover({ xpath: ' + toCodeString(resolveTemplate(step.aiHover.xpath)) + ' });';
+      }
+      prompt = toCodeString(resolveTemplate(step.aiHover.locator || ''));
+      const opts = buildOptions(step.aiHover);
+      if (opts) {
+        return pad + 'await agent.aiHover(' + prompt + ', ' + opts + ');';
+      }
+    } else {
+      prompt = toCodeString(resolveTemplate(step.aiHover));
+    }
+
     return pad + 'await agent.aiHover(' + prompt + ');';
   }
 
+  // --- aiInput ---
   if (step.aiInput !== undefined) {
-    const prompt = toCodeString(resolveTemplate(step.aiInput));
-    const value = toCodeString(resolveTemplate(step.value));
-    return pad + 'await agent.aiInput(' + prompt + ', { value: ' + value + ' });';
+    let prompt;
+    let value;
+
+    if (typeof step.aiInput === 'object' && step.aiInput !== null) {
+      // Object syntax: aiInput: { locator: "...", value: "..." }
+      prompt = toCodeString(resolveTemplate(step.aiInput.locator || ''));
+      value = toCodeString(resolveTemplate(step.aiInput.value || ''));
+    } else {
+      // String syntax: aiInput: "..." with separate value field
+      prompt = toCodeString(resolveTemplate(step.aiInput));
+      value = toCodeString(resolveTemplate(step.value));
+    }
+
+    const opts = buildOptions(step.aiInput && typeof step.aiInput === 'object' ? step.aiInput : step);
+    const valueOpts = opts ? ', { value: ' + value + ', ' + opts.slice(2) : ', { value: ' + value + ' }';
+    return pad + 'await agent.aiInput(' + prompt + valueOpts + ');';
   }
 
+  // --- aiKeyboardPress ---
   if (step.aiKeyboardPress !== undefined) {
     const key = toCodeString(resolveTemplate(step.aiKeyboardPress));
     return pad + 'await agent.aiKeyboardPress(' + key + ');';
   }
 
+  // --- aiScroll ---
   if (step.aiScroll !== undefined) {
-    const direction = step.aiScroll.direction || step.aiScroll;
-    const distance = step.aiScroll.distance;
     if (typeof step.aiScroll === 'object') {
       const parts = [];
-      if (direction) parts.push("direction: '" + direction + "'");
-      if (distance !== undefined) parts.push('distance: ' + distance);
+      if (step.aiScroll.locator) {
+        parts.push('locator: ' + toCodeString(resolveTemplate(step.aiScroll.locator)));
+      }
+      if (step.aiScroll.direction) {
+        parts.push("direction: '" + step.aiScroll.direction + "'");
+      }
+      if (step.aiScroll.distance !== undefined) {
+        parts.push('distance: ' + step.aiScroll.distance);
+      }
+      if (step.aiScroll.scrollCount !== undefined) {
+        parts.push('scrollCount: ' + step.aiScroll.scrollCount);
+      }
       return pad + 'await agent.aiScroll({ ' + parts.join(', ') + ' });';
     }
     return pad + "await agent.aiScroll({ direction: '" + step.aiScroll + "' });";
   }
 
-  // ai / aiAct (general action prompt)
+  // --- ai / aiAct (general action prompt) ---
   if (step.ai !== undefined) {
     const prompt = toCodeString(resolveTemplate(step.ai));
     return pad + 'await agent.aiAct(' + prompt + ');';

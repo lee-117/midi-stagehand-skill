@@ -10,8 +10,10 @@
   "aiAssertions": ["aiAssert", "aiWaitFor"],
   "tools": ["sleep", "javascript", "recordToReport"],
   "platformSpecific": ["runAdbShell", "runWdaRequest", "launch"],
-  "actionOptions": ["value", "direction", "distance", "key", "deepThink", "xpath", "timeout", "name", "output"],
+  "actionOptions": ["value", "direction", "distance", "key", "deepThink", "xpath", "timeout", "name", "output", "locator", "scrollCount", "assertion", "errorMessage", "query", "condition", "content"],
+  "metaKeys": ["engine", "features", "steps"],
   "allKeywords": [
+    "engine", "features", "steps",
     "web", "android", "ios", "computer",
     "agent", "testId", "groupName", "cache", "groupDescription",
     "tasks", "name", "flow", "continueOnError",
@@ -22,6 +24,7 @@
     "sleep", "javascript", "recordToReport",
     "runAdbShell", "runWdaRequest", "launch",
     "value", "direction", "distance", "key", "deepThink", "xpath", "timeout", "name", "output",
+    "locator", "scrollCount", "assertion", "errorMessage", "query", "condition", "content",
     "url", "headless", "viewportWidth", "viewportHeight", "userAgent", "waitForNetworkIdle",
     "device", "pkg", "bundleId"
   ]

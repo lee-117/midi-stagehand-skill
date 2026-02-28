@@ -1266,6 +1266,28 @@ variables:
   user: "${ENV:TEST_USER}"
 ```
 
+### Q9: `steps` 和 `flow` 有什么区别？
+
+**A**: 在 `loop`、`try`、`catch`、`finally` 内部，`steps` 和 `flow` 是完全等价的别名，可以互换使用。本手册中统一使用 `steps`，但写成 `flow` 也能正常验证和执行。
+
+```yaml
+# 以下两种写法等价：
+
+# 写法 1: 使用 steps
+- loop:
+    type: repeat
+    count: 3
+    steps:
+      - aiTap: "下一页"
+
+# 写法 2: 使用 flow
+- loop:
+    type: repeat
+    count: 3
+    flow:
+      - aiTap: "下一页"
+```
+
 ---
 
 ## 附录 D: 从 TypeScript 迁移到 YAML

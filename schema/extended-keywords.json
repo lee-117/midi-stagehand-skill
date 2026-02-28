@@ -10,38 +10,38 @@
       "description": "Conditional branching (if/else)"
     },
     "loop": {
-      "keywords": ["loop", "type", "items", "as", "condition", "maxIterations", "count"],
+      "keywords": ["loop", "type", "items", "as", "itemVar", "item", "condition", "maxIterations", "max_iterations", "count", "times", "indexVar"],
       "description": "Loop control (for/while/repeat)"
     },
     "import": {
-      "keywords": ["import", "with", "as"],
-      "description": "External file import"
+      "keywords": ["import", "use", "with", "as", "flow", "data"],
+      "description": "External file import and parameterized sub-flow invocation"
     },
     "data_transform": {
-      "keywords": ["data_transform", "input", "operations", "filter", "sort", "map", "output"],
-      "description": "In-process data transformation"
+      "keywords": ["data_transform", "input", "operations", "source", "operation", "name", "output", "filter", "sort", "map", "reduce", "unique", "distinct", "slice", "flatten", "groupBy", "condition", "by", "order", "template", "reducer", "initial", "start", "end"],
+      "description": "In-process data transformation (flat and nested formats)"
     },
     "try_catch": {
       "keywords": ["try", "catch", "finally"],
       "description": "Exception handling"
     },
     "external_call": {
-      "keywords": ["external_call", "method", "url", "headers", "body", "response_as", "command"],
+      "keywords": ["external_call", "type", "method", "url", "headers", "body", "response_as", "command"],
       "description": "External HTTP/system calls"
     },
     "parallel": {
-      "keywords": ["parallel", "merge_results"],
+      "keywords": ["parallel", "tasks", "branches", "merge_results", "waitAll"],
       "description": "Parallel task execution"
     }
   },
   "templateSyntax": "\\$\\{[^}]+\\}",
   "allExtendedKeywords": [
     "variables", "logic", "if", "then", "else",
-    "loop", "items", "as", "condition", "maxIterations", "count",
-    "import", "with",
-    "data_transform", "input", "operations", "filter", "sort", "map",
+    "loop", "items", "as", "itemVar", "item", "condition", "maxIterations", "max_iterations", "count", "times", "indexVar",
+    "import", "use", "with", "flow", "data",
+    "data_transform", "input", "operations", "source", "operation", "name", "output", "filter", "sort", "map", "reduce", "unique", "distinct", "slice", "flatten", "groupBy", "condition", "by", "order", "template", "reducer", "initial", "start", "end",
     "try", "catch", "finally",
-    "external_call", "method", "headers", "body", "response_as", "command",
-    "parallel", "merge_results"
+    "external_call", "type", "method", "headers", "body", "response_as", "command",
+    "parallel", "tasks", "branches", "merge_results", "waitAll"
   ]
 }

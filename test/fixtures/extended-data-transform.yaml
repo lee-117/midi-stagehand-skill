@@ -1,0 +1,39 @@
+engine: extended
+
+web:
+  url: "https://example.com"
+
+tasks:
+  - name: 提取并处理数据
+    flow:
+      - aiQuery:
+          query: "提取所有商品的名称、价格和评分"
+          name: "rawProducts"
+
+      - data_transform:
+          source: "${rawProducts}"
+          operation: filter
+          condition: "item.rating >= 4"
+          name: "highRatedProducts"
+
+      - data_transform:
+          source: "${highRatedProducts}"
+          operation: sort
+          by: "price"
+          order: "asc"
+          name: "sortedProducts"
+
+      - data_transform:
+          source: "${sortedProducts}"
+          operation: map
+          template:
+            title: "${item.name}"
+            cost: "${item.price}"
+          name: "finalProducts"
+
+      - data_transform:
+          source: "${finalProducts}"
+          operation: slice
+          start: 0
+          end: 10
+          name: "top10Products"

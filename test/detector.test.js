@@ -119,6 +119,80 @@ tasks:
     });
   });
 
+  describe('engine field handling', () => {
+    it('honours explicit engine: native declaration', () => {
+      const yaml = `
+engine: native
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = detect(yaml);
+      assert.equal(result.mode, 'native');
+      assert.equal(result.needs_transpilation, false);
+      assert.equal(result.warnings, undefined);
+    });
+
+    it('honours explicit engine: extended declaration', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - variables:
+          x: 1
+`;
+      const result = detect(yaml);
+      assert.equal(result.mode, 'extended');
+      assert.equal(result.needs_transpilation, true);
+      assert.ok(result.features.includes('variables'));
+      assert.equal(result.warnings, undefined);
+    });
+
+    it('returns warnings for invalid engine value', () => {
+      const yaml = `
+engine: turbo
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = detect(yaml);
+      assert.ok(result.warnings);
+      assert.ok(result.warnings.length > 0);
+      assert.ok(result.warnings[0].includes('turbo'));
+      // Falls back to native since no extended features
+      assert.equal(result.mode, 'native');
+    });
+
+    it('auto-detects extended with invalid engine when features present', () => {
+      const yaml = `
+engine: v2
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - logic:
+          if: "visible"
+          then:
+            - aiTap: "btn"
+`;
+      const result = detect(yaml);
+      assert.ok(result.warnings);
+      assert.equal(result.mode, 'extended');
+      assert.equal(result.needs_transpilation, true);
+      assert.ok(result.features.includes('logic'));
+    });
+  });
+
   describe('edge cases', () => {
     it('returns native for empty input', () => {
       const result = detect('');
@@ -141,6 +215,40 @@ tasks:
       const result = detect('/non/existent/file.yaml');
       assert.equal(result.mode, 'native');
       assert.equal(result.needs_transpilation, false);
+    });
+  });
+
+  describe('detect() with new fixture files', () => {
+    it('detects extended-import-use.yaml as extended with import', () => {
+      const result = detect(fixtures('extended-import-use.yaml'));
+      assert.equal(result.mode, 'extended');
+      assert.equal(result.needs_transpilation, true);
+      assert.ok(result.features.includes('import'));
+    });
+
+    it('detects extended-data-transform.yaml as extended with data_transform', () => {
+      const result = detect(fixtures('extended-data-transform.yaml'));
+      assert.equal(result.mode, 'extended');
+      assert.equal(result.needs_transpilation, true);
+      assert.ok(result.features.includes('data_transform'));
+    });
+  });
+
+  describe('use keyword detection', () => {
+    it('detects use step as import feature', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - use: "./common/login.yaml"
+        with:
+          user: "admin"
+`;
+      const result = detect(yaml);
+      assert.equal(result.mode, 'extended');
+      assert.ok(result.features.includes('import'));
     });
   });
 
