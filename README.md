@@ -94,6 +94,9 @@ Options:
 # 安装全部技能（Claude Code / Cursor / Cline 等）
 npx skills add https://gitee.com/lee-zh/midi-stagehand-skill -a claude
 
+# 安装全部技能到 Qoder
+npx skills add https://gitee.com/lee-zh/midi-stagehand-skill -a qodo
+
 # 仅安装指定技能
 npx skills add https://gitee.com/lee-zh/midi-stagehand-skill --skill midscene-yaml-generator -a claude
 npx skills add https://gitee.com/lee-zh/midi-stagehand-skill --skill midscene-runner -a claude
@@ -104,6 +107,7 @@ npx skills add https://gitee.com/lee-zh/midi-stagehand-skill --skill midscene-ru
 ```bash
 git clone https://gitee.com/lee-zh/midi-stagehand-skill.git
 npx skills add ./midi-stagehand-skill -a claude
+npx skills add ./midi-stagehand-skill -a qodo
 ```
 
 ## Claude Code Skills（AI 辅助工作流）
