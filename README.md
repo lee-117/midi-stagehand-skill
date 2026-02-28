@@ -95,7 +95,7 @@ Options:
 npx skills add https://gitee.com/lee-zh/midi-stagehand-skill -a claude
 
 # 安装全部技能到 Qoder
-npx skills add https://gitee.com/lee-zh/midi-stagehand-skill -a qodo
+npx skills add https://gitee.com/lee-zh/midi-stagehand-skill -a qoder
 
 # 仅安装指定技能
 npx skills add https://gitee.com/lee-zh/midi-stagehand-skill --skill midscene-yaml-generator -a claude
@@ -107,7 +107,7 @@ npx skills add https://gitee.com/lee-zh/midi-stagehand-skill --skill midscene-ru
 ```bash
 git clone https://gitee.com/lee-zh/midi-stagehand-skill.git
 npx skills add ./midi-stagehand-skill -a claude
-npx skills add ./midi-stagehand-skill -a qodo
+npx skills add ./midi-stagehand-skill -a qoder
 ```
 
 ## Claude Code Skills（AI 辅助工作流）
