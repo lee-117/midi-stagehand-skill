@@ -33,6 +33,55 @@ npm run setup
 
 自动完成：智能镜像检测、依赖预热、Chrome 检测，避免首次执行 YAML 时长时间等待下载。
 
+### 模型配置
+
+Midscene 执行 AI 操作（`aiTap`、`aiAssert`、`aiQuery` 等）时需要调用视觉语言模型。执行前必须配置模型参数，否则会因模型未配置而失败。
+
+**核心环境变量**：
+
+| 变量 | 说明 | 示例 |
+|------|------|------|
+| `MIDSCENE_MODEL_BASE_URL` | 模型 API 地址 | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
+| `MIDSCENE_MODEL_API_KEY` | 模型 API 密钥 | `sk-xxxxxxxx` |
+| `MIDSCENE_MODEL_NAME` | 模型名称 | `qwen-vl-max-latest` |
+
+**方式一：环境变量**
+
+```bash
+export MIDSCENE_MODEL_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1"
+export MIDSCENE_MODEL_API_KEY="sk-your-key"
+export MIDSCENE_MODEL_NAME="qwen-vl-max-latest"
+```
+
+**方式二：`.env` 文件**（推荐）
+
+在项目根目录创建 `.env` 文件：
+
+```env
+MIDSCENE_MODEL_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+MIDSCENE_MODEL_API_KEY=sk-your-key
+MIDSCENE_MODEL_NAME=qwen-vl-max-latest
+```
+
+**常见模型配置示例**：
+
+```env
+# 通义千问 (Qwen VL)
+MIDSCENE_MODEL_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+MIDSCENE_MODEL_NAME=qwen-vl-max-latest
+
+# OpenAI (GPT-4o)
+MIDSCENE_MODEL_BASE_URL=https://api.openai.com/v1
+MIDSCENE_MODEL_NAME=gpt-4o
+
+# 其他兼容 OpenAI 格式的模型服务同理，修改 BASE_URL 和 MODEL_NAME 即可
+```
+
+**高级配置**（可选）：
+
+- `MIDSCENE_MODEL_FAMILY` — 指定模型系列（如 `qwen-vl`），用于优化 prompt 策略
+- 多模型分离配置：可分别为规划、操作、查询设置不同模型，详见 [Midscene 模型配置文档](https://midscenejs.com/zh/model-common-config.html)
+
 ### 运行 YAML
 
 ```bash

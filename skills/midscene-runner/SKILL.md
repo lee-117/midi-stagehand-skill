@@ -42,7 +42,24 @@ test -d node_modules && echo "Dependencies OK" || echo "Run: npm install"
 
 # 检查 CLI 脚本是否存在
 test -f scripts/midscene-run.js && echo "CLI OK" || echo "CLI not found"
+
+# 检查 AI 模型是否已配置
+if [ -n "$MIDSCENE_MODEL_API_KEY" ]; then
+  echo "Model Config OK"
+else
+  echo "WARNING: MIDSCENE_MODEL_API_KEY not set — AI operations will fail"
+fi
 ```
+
+**模型未配置？** Midscene 执行 AI 操作需要视觉语言模型。在项目根目录创建 `.env` 文件：
+
+```env
+MIDSCENE_MODEL_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+MIDSCENE_MODEL_API_KEY=sk-your-key
+MIDSCENE_MODEL_NAME=qwen-vl-max-latest
+```
+
+详细配置说明见 [Midscene 模型配置文档](https://midscenejs.com/zh/model-common-config.html)。
 
 **首次使用？运行一键环境初始化**：
 

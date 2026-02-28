@@ -282,13 +282,27 @@ function printReport(results) {
         if (results.chrome.downloaded) return 'Chromium (downloaded)';
         return 'NOT FOUND';
       }
+    },
+    {
+      label: 'Model Config',
+      check: () => {
+        const apiKey = process.env.MIDSCENE_MODEL_API_KEY;
+        const envFile = fs.existsSync(path.join(projectRoot, '.env'));
+        if (apiKey) {
+          return 'configured (***masked)';
+        }
+        if (envFile) {
+          return 'NOT SET (but .env file exists — check MIDSCENE_MODEL_API_KEY inside)';
+        }
+        return 'NOT SET — create .env with MIDSCENE_MODEL_API_KEY (see README)';
+      }
     }
   ];
 
   let allOk = true;
   for (const c of checks) {
     const val = c.check();
-    const ok = val && !val.includes('NOT FOUND');
+    const ok = val && !val.includes('NOT FOUND') && !val.includes('NOT SET');
     if (!ok) allOk = false;
     log(ok ? '[OK]' : '[!!]', c.label + ': ' + (val || 'unknown'));
   }
