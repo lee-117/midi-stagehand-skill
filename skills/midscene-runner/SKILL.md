@@ -8,7 +8,7 @@ description: >
 license: MIT
 metadata:
   author: lee-zh
-  version: "1.1.0"
+  version: "1.2.0"
   argument-hint: <yaml-file-path>
 ---
 
@@ -34,7 +34,7 @@ metadata:
 首次执行前，确认运行环境就绪：
 
 ```bash
-# 检查 Node.js 版本（需要 >= 16）
+# 检查 Node.js 版本（需要 >= 18）
 node --version
 
 # 检查依赖是否已安装
@@ -130,11 +130,11 @@ node scripts/midscene-run.js <yaml-file> [options]
 ```
 
 **可用选项**：
-- `--platform web|android|ios|computer` — 强制指定平台（默认自动检测）
-- `--dry-run` — 仅验证和转换，不实际执行
-- `--output-ts <path>` — 保存转换后的 TypeScript 文件（仅 Extended 模式）
+- `--platform web|android|ios|computer` — 强制指定平台（默认根据 YAML 中的 `web`/`android`/`ios`/`computer` 键自动检测）
+- `--dry-run` — 仅验证和转换，不实际执行（注意：不检测模型配置，AI 操作需配置 `MIDSCENE_MODEL_API_KEY`）
+- `--output-ts <path>` — 保存转换后的 TypeScript 文件（仅 Extended 模式）。排查转译错误时，建议配合 `--dry-run` 一起使用
 - `--report-dir <path>` — 报告输出目录（默认 `./midscene-report`）
-- `--template puppeteer|playwright` — 选择 TS 模板（默认 puppeteer）
+- `--template puppeteer|playwright` — 选择 TS 模板（默认 puppeteer；playwright 适合需要多浏览器兼容的场景）
 - `--help` / `-h` — 显示帮助信息
 
 **Extended 模式的执行流程**：
@@ -162,11 +162,12 @@ node scripts/midscene-run.js test.yaml --output-ts ./debug-output.ts
 
 | 错误类型 | 典型表现 | 修复建议 |
 |---------|---------|---------|
-| 超时错误 | `Timeout exceeded` | 增加 `timeout` 值，或检查页面加载速度 |
+| 模型未配置 | `API key` / `401 Unauthorized` | 设置 `MIDSCENE_MODEL_API_KEY` 环境变量或 `.env` 文件 |
+| 超时错误 | `Timeout exceeded` | 页面慢：增加 `timeout`；页面不可达：检查网络和 URL |
 | 元素未找到 | `Element not found` | 修改 AI 描述更精确，或使用 `deepThink: true` |
-| 断言失败 | `Assertion failed` | 检查实际页面状态 vs 预期描述 |
-| 网络错误 | `Navigation failed` | 检查 URL 是否可访问 |
-| 转换错误 | `Transpiler error` | 检查超集语法是否正确 |
+| 断言失败 | `Assertion failed` | 查看报告截图，对比实际页面状态 vs 预期描述 |
+| 网络错误 | `Navigation failed` | 检查 URL 是否可访问，确认协议（`https://`） |
+| 转换错误 | `Transpiler error` | 使用 `--output-ts` 查看生成的 TS 代码排查语法问题 |
 | 权限错误 | `Permission denied` | 检查页面是否需要登录或特殊权限 |
 | 脚本错误 | `javascript` 步骤报错 | 检查 JS 代码语法和运行环境 |
 
@@ -181,9 +182,10 @@ node scripts/midscene-run.js test.yaml --output-ts ./debug-output.ts
 解读 Midscene 生成的报告：
 
 - 报告默认在 `./midscene-report/` 目录
-- JSON 报告包含每个步骤的执行状态和截图
-- HTML 报告可在浏览器中查看，直观展示每步结果
-- `recordToReport` 步骤产生的截图也包含在报告中
+- **HTML 报告**：在浏览器中打开，每个步骤展示执行状态和截图（绿色 ✓ = 通过，红色 ✗ = 失败），点击可展开详情
+- **JSON 报告**：结构化数据，包含每步的状态、耗时、截图路径，适合 CI/CD 自动解析
+- 截图路径为相对于报告目录的路径
+- `recordToReport` 步骤产生的自定义截图也包含在报告中
 
 报告摘要格式：
 ```
@@ -213,6 +215,9 @@ node scripts/midscene-run.js test.yaml --report-dir ./reports
 
 # 强制指定平台
 node scripts/midscene-run.js test.yaml --platform web
+
+# 验证 + 保存 TS（排查转译问题）
+node scripts/midscene-run.js test.yaml --dry-run --output-ts ./debug.ts
 
 # 查看帮助
 node scripts/midscene-run.js --help
@@ -249,18 +254,18 @@ tasks:
 # Web 平台完整配置
 web:
   url: "https://example.com"
-  headless: false
-  viewportWidth: 1920
-  viewportHeight: 1080
+  headless: false       # true = 无头模式（适合 CI/CD）; false = 有界面（适合调试）
+  viewportWidth: 1920   # 默认 1280；移动端模拟可用 375
+  viewportHeight: 1080  # 默认 720；移动端模拟可用 667
   userAgent: "Custom User Agent"
   waitForNetworkIdle: true
 
-# Android 平台
+# Android 平台（需先 adb devices 确认设备已连接）
 android:
-  device: "emulator-5554"
-  pkg: "com.example.app"
+  device: "emulator-5554"   # adb devices 输出中的设备 ID
+  pkg: "com.example.app"    # 应用包名
 
-# iOS 平台
+# iOS 平台（需先配置 WebDriverAgent）
 ios:
   device: "iPhone 15"
   bundleId: "com.example.app"
@@ -286,5 +291,6 @@ ios:
 - Extended 模式的 YAML 会先转换为 TypeScript 再执行，需要 tsx 运行时
 - 报告中的截图路径为相对路径，在报告目录内查找
 - 如果需要生成新的 YAML 文件，可以使用 **Midscene YAML Generator** skill
-- 环境变量通过系统环境传入，在 YAML 中用 `${ENV:NAME}` 引用
-- `parallel` 分支在独立浏览器上下文中运行，执行期间互不影响
+- 环境变量通过系统环境或 `.env` 文件传入，在 YAML 中用 `${ENV:NAME}` 或 `${ENV.NAME}` 引用（两种语法等价）
+- `parallel` 分支在独立浏览器上下文中运行，执行期间互不影响；各分支的 `aiQuery` 结果在全部完成后可合并访问（通过 `merge_results: true`）
+- `--dry-run` 仅检查 YAML 语法和结构，不检测模型配置和网络可达性

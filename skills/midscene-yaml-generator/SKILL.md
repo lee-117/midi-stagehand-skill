@@ -8,7 +8,7 @@ description: >
 license: MIT
 metadata:
   author: lee-zh
-  version: "1.1.0"
+  version: "1.2.0"
   argument-hint: <natural-language-requirement>
 ---
 
@@ -104,11 +104,11 @@ metadata:
 | "使用环境变量 XXX" | `${ENV:XXX}` 或 `${ENV.XXX}` |
 | "如果 XXX 则 YYY 否则 ZZZ" | `logic: { if: "XXX", then: [YYY], else: [ZZZ] }` |
 | "重复 N 次" | `loop: { type: repeat, count: N, steps: [...] }` |
-| "对每个 XXX 执行" | `loop: { type: for, items: "XXX", itemVar: "item", steps: [...] }` |
+| "对每个 XXX 执行" | `loop: { type: for, items: "XXX", itemVar: "item", steps: [...] }` （`itemVar`/`as`/`item` 均可） |
 | "当 XXX 时持续做 YYY" | `loop: { type: while, condition: "XXX", maxIterations: N, steps: [...] }` |
 | "先做 A，失败了就做 B" | `try: { steps: [A] }, catch: { steps: [B] }` |
-| "同时做 A 和 B" | `parallel: { branches: [{steps: [A]}, {steps: [B]}], waitAll: true }` |
-| "调用 XXX 接口" | `external_call: { type: http, method: POST, url: "XXX" }` |
+| "同时做 A 和 B" | `parallel: { branches: [{steps: [A]}, {steps: [B]}], waitAll: true, merge_results: true }` |
+| "调用 XXX 接口" | `external_call: { type: http, method: POST, url: "XXX", response_as: "varName" }` |
 | "执行 Shell 命令" | `external_call: { type: shell, command: "XXX" }` |
 | "导入/复用 XXX 流程" | `import: [{ flow: "XXX.yaml", as: name }]` |
 | "过滤/排序/映射数据" | `data_transform: { source, operation, ... }` |
@@ -133,15 +133,31 @@ metadata:
 - `templates/extended/api-integration-test.yaml` — API 集成
 - `templates/extended/e2e-workflow.yaml` — 端到端完整工作流
 
+**模板选择决策**：
+
+| 需求特征 | 推荐模板 |
+|---------|---------|
+| 简单页面操作（打开、点击、输入） | `native/web-basic.yaml` |
+| 登录 / 表单填写 | `native/web-login.yaml` |
+| 数据采集 / 信息提取 | `native/web-data-extract.yaml` |
+| 搜索 + 结果验证 | `native/web-search.yaml` |
+| 需要条件判断（如果登录了就...） | `extended/web-conditional-flow.yaml` |
+| 需要翻页 / 列表遍历 | `extended/web-pagination-loop.yaml` |
+| 数据过滤 / 排序 / 聚合 | `extended/web-data-pipeline.yaml` |
+| 需要失败重试 | `extended/multi-step-with-retry.yaml` |
+| 需要调用外部 API | `extended/api-integration-test.yaml` |
+| 完整业务流程（多步骤 + 变量 + 导出） | `extended/e2e-workflow.yaml` |
+
 ### 第 5 步：生成 YAML
 
 基于模板和转换规则生成 YAML 内容，注意以下要点：
 
 1. **文件头部**：添加注释说明需求来源和生成时间
 2. **engine 字段**：Extended 模式必须显式声明 `engine: extended`
-3. **features 列表**：Extended 模式下声明使用的特性（如 `features: [logic, variables, loop]`）
-4. **agent 配置**（可选）：如需自定义测试标识，添加 `agent` 配置
+3. **features 列表**：Extended 模式下声明使用的特性（如 `features: [logic, variables, loop]`），Native 模式可省略
+4. **agent 配置**（可选）：`testId` 用于标识测试、`groupName`/`groupDescription` 用于报告分类、`cache: true` 可缓存 AI 结果加速重复运行
 5. **continueOnError**（可选）：如需某个任务失败后继续执行后续任务，设置 `continueOnError: true`
+6. **output 导出**（可选）：将 `aiQuery` 等结果导出为 JSON 文件，供后续流程使用
 
 #### 输出格式
 
@@ -198,19 +214,19 @@ tasks:
 ### 定位策略优先级
 
 1. **自然语言描述**（首选）：可读性高，适应页面变化
-2. **deepThink 模式**：复杂页面中有多个相似元素时启用
-3. **xpath 选择器**（最后手段）：当自然语言无法精确定位时
+2. **deepThink 模式**：复杂页面中多个相似元素时启用，AI 会进行更深层分析，准确率更高但耗时更长
+3. **xpath 选择器**（最后手段）：当自然语言无法精确定位时。**注意：xpath 仅适用于 Web 平台**，Android/iOS 应使用自然语言描述
 
 ```yaml
 # 优先使用自然语言
 - aiTap: "商品列表中第三行的编辑按钮"
 
-# 复杂场景启用 deepThink
+# 复杂场景启用 deepThink（相似元素多、定位不准时使用）
 - aiTap:
     locator: "第三行数据中的编辑图标"
     deepThink: true
 
-# 最后手段使用 xpath
+# 最后手段使用 xpath（仅 Web 平台）
 - aiTap:
     xpath: "//table/tbody/tr[3]//button[@class='edit']"
 ```
@@ -287,5 +303,7 @@ Extended 模式下 `data_transform` 支持的操作：
 - 循环中务必设置 `maxIterations` 作为安全上限，防止无限循环
 - `${ENV:XXX}` 或 `${ENV.XXX}` 可引用环境变量，避免在 YAML 中硬编码敏感信息
 - 始终显式声明 `engine` 字段，避免自动检测带来的意外行为
-- 生成后务必通过 `--dry-run` 验证，确保语法和结构正确
+- 变量引用区分大小写：`${userName}` 和 `${username}` 是不同的变量
+- 避免循环导入：A.yaml 导入 B.yaml、B.yaml 又导入 A.yaml 会导致运行时错误
+- 生成后务必通过 `--dry-run` 验证语法和结构（注意：`--dry-run` 不检测模型配置，AI 操作需要配置 `MIDSCENE_MODEL_API_KEY` 才能实际执行）
 - 提示用户可以用 **Midscene Runner** skill 来执行生成的文件
