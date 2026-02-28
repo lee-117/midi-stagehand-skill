@@ -126,7 +126,7 @@ function installDependencies(registry) {
   }
 
   const registryFlag = registry !== DEFAULT_REGISTRY ? ' --registry=' + registry : '';
-  exec('npm install' + registryFlag);
+  exec('npm install' + registryFlag, { env: { MIDI_SETUP_RUNNING: '1' } });
   log('[OK]', 'Project dependencies installed');
 }
 
@@ -311,6 +311,8 @@ async function main() {
   console.log('');
 
   if (isPostInstall) {
+    // Skip if already running inside full setup (avoids duplicate npx warming)
+    if (process.env.MIDI_SETUP_RUNNING === '1') return;
     // Lightweight mode: only warm npx cache, skip heavy steps
     log('[..]', 'Post-install mode: warming npx cache...');
     warmNpxCache(DEFAULT_REGISTRY);
