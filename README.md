@@ -86,6 +86,26 @@ Options:
 | `external_call` | 外部调用 | `external_call: { type: http, url: "..." }` |
 | `parallel` | 并行执行 | `parallel: { tasks: [...] }` 或 `{ branches: [...] }` |
 
+## 安装 Skills
+
+通过 [Skills CLI](https://github.com/vercel-labs/skills) 一键安装到你的 AI 编码工具中：
+
+```bash
+# 安装全部技能（Claude Code / Cursor / Cline 等）
+npx skills add https://gitee.com/lee-zh/midi-stagehand-skill -a claude
+
+# 仅安装指定技能
+npx skills add https://gitee.com/lee-zh/midi-stagehand-skill --skill midscene-yaml-generator -a claude
+npx skills add https://gitee.com/lee-zh/midi-stagehand-skill --skill midscene-runner -a claude
+```
+
+也可以先 clone 到本地再安装：
+
+```bash
+git clone https://gitee.com/lee-zh/midi-stagehand-skill.git
+npx skills add ./midi-stagehand-skill -a claude
+```
+
 ## Claude Code Skills（AI 辅助工作流）
 
 项目内置两个 Claude Code Skill，支持从自然语言到自动化执行的完整链路：
