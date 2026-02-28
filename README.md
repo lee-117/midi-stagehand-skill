@@ -116,6 +116,44 @@ npx skills add ./midi-stagehand-skill -a claude
 npx skills add ./midi-stagehand-skill -a qoder
 ```
 
+### 更新 Skills
+
+```bash
+# 检查是否有可用更新
+npx skills check
+
+# 一键更新所有已安装的 Skills
+npx skills update
+```
+
+### 卸载 Skills
+
+```bash
+# 交互式卸载（会提示选择要移除的技能）
+npx skills remove
+
+# 卸载指定技能
+npx skills remove midscene-yaml-generator
+npx skills remove midscene-runner
+
+# 从指定 Agent 中卸载
+npx skills remove --agent claude midscene-yaml-generator
+npx skills remove --agent qoder midscene-runner
+
+# 卸载所有技能（跳过确认）
+npx skills remove --all
+```
+
+### 查看已安装的 Skills
+
+```bash
+# 列出所有已安装的技能
+npx skills list
+
+# 按 Agent 过滤
+npx skills list -a claude
+```
+
 ## Claude Code Skills（AI 辅助工作流）
 
 项目内置两个 Claude Code Skill，支持从自然语言到自动化执行的完整链路：
