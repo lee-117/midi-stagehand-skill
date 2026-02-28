@@ -21,6 +21,7 @@ const { resolveTemplate, toCodeString, extractVarRef } = require('./utils');
 function generate(step, ctx, processStep) {
   const indent = ctx && ctx.indent || 0;
   const pad = '  '.repeat(indent);
+  const varScope = ctx && ctx.varScope || new Set();
   const loop = step.loop;
 
   if (!loop || !loop.type) {
@@ -56,15 +57,24 @@ function generate(step, ctx, processStep) {
       const maxIterRef = typeof maxIterRaw === 'string' ? extractVarRef(maxIterRaw) : null;
       const maxIterations = maxIterRef || maxIterRaw;
 
-      lines.push(pad + 'let _iter = 0;');
-      lines.push(pad + 'while (await agent.aiBoolean(' + condition + ') && _iter < ' + maxIterations + ') {');
+      // Generate a unique iteration counter to avoid collisions with sibling while loops
+      let iterVar = '_iter';
+      let iterSuffix = 0;
+      while (varScope.has(iterVar)) {
+        iterVar = '_iter' + iterSuffix;
+        iterSuffix++;
+      }
+      varScope.add(iterVar);
+
+      lines.push(pad + 'let ' + iterVar + ' = 0;');
+      lines.push(pad + 'while (await agent.aiBoolean(' + condition + ') && ' + iterVar + ' < ' + maxIterations + ') {');
 
       for (const subStep of flow) {
         const code = processStep(subStep, indent + 1);
         if (code) lines.push(code);
       }
 
-      lines.push(pad + '  _iter++;');
+      lines.push(pad + '  ' + iterVar + '++;');
       lines.push(pad + '}');
       break;
     }

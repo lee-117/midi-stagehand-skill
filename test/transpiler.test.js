@@ -460,6 +460,35 @@ tasks:
     });
   });
 
+  describe('extended: parallel nested variable hoisting', () => {
+    it('hoists variables from nested logic inside parallel branch', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - parallel:
+          tasks:
+            - flow:
+                - logic:
+                    if: "有搜索框"
+                    then:
+                      - aiQuery: "搜索框内容"
+                        name: searchContent
+            - flow:
+                - aiQuery: "页面标题"
+                  name: pageTitle
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('let searchContent;'),
+        'Should hoist searchContent from nested logic.then');
+      assert.ok(result.code.includes('let pageTitle;'),
+        'Should hoist pageTitle from direct flow');
+    });
+  });
+
   describe('ENV colon syntax', () => {
     it('resolves ${ENV:XXX} colon syntax to process.env', () => {
       const yaml = `
@@ -1012,6 +1041,36 @@ tasks:
         'Should use custom indexVar name');
       assert.ok(result.code.includes('idx < 5'),
         'Should use custom index in condition');
+    });
+  });
+
+  describe('extended: while loop counter uniqueness', () => {
+    it('generates unique _iter counters for sibling while loops', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - loop:
+          type: while
+          condition: "还有更多内容"
+          maxIterations: 10
+          flow:
+            - aiScroll: "down"
+      - loop:
+          type: while
+          condition: "还有下一页"
+          maxIterations: 5
+          flow:
+            - aiTap: "下一页"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('let _iter = 0'),
+        'First while loop should use _iter');
+      assert.ok(result.code.includes('let _iter0 = 0'),
+        'Second while loop should use _iter0 to avoid collision');
     });
   });
 

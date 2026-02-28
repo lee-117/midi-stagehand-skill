@@ -113,6 +113,7 @@ Examples:
 function tryValidate(yamlPath) {
   // Attempt to load the validator module; it may not exist yet
   const validatorPaths = [
+    path.resolve(__dirname, '../src/validator/yaml-validator.js'),
     path.resolve(__dirname, '../src/validator/index.js'),
     path.resolve(__dirname, '../src/validator/validator.js'),
     path.resolve(__dirname, '../src/validator/schema-validator.js'),
@@ -191,12 +192,12 @@ function main() {
 
   if (validation.warnings && validation.warnings.length > 0) {
     console.log('\n  Warnings:');
-    validation.warnings.forEach(w => console.log(`    - ${w}`));
+    validation.warnings.forEach(w => console.log(`    - ${typeof w === 'object' ? w.message : w}`));
   }
 
   if (!validation.valid) {
     console.error('\n  Validation errors:');
-    (validation.errors || []).forEach(e => console.error(`    - ${e}`));
+    (validation.errors || []).forEach(e => console.error(`    - ${typeof e === 'object' ? e.message : e}`));
     console.error('\n[midscene-run] Validation failed. Aborting.');
     process.exit(1);
   }

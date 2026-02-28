@@ -20,6 +20,9 @@
 function collectDeclaredVars(flow) {
   const vars = [];
   for (const step of flow) {
+    if (!step || typeof step !== 'object') continue;
+
+    // Direct variable producers
     if (step.aiQuery !== undefined && step.name) {
       vars.push(step.name);
     }
@@ -31,8 +34,53 @@ function collectDeclaredVars(flow) {
     if (step.import !== undefined && step.as) {
       vars.push(step.as);
     }
-    if (step.data_transform && step.data_transform.output) {
-      vars.push(step.data_transform.output);
+    if (step.data_transform) {
+      const dtVar = step.data_transform.output || step.data_transform.name;
+      if (dtVar) vars.push(dtVar);
+    }
+    if (step.variables && typeof step.variables === 'object') {
+      for (const name of Object.keys(step.variables)) {
+        vars.push(name);
+      }
+    }
+
+    // Recurse into nested flows
+    if (step.logic && typeof step.logic === 'object') {
+      if (Array.isArray(step.logic.then)) {
+        vars.push(...collectDeclaredVars(step.logic.then));
+      }
+      if (Array.isArray(step.logic.else)) {
+        vars.push(...collectDeclaredVars(step.logic.else));
+      }
+    }
+    if (step.loop && typeof step.loop === 'object') {
+      const loopFlow = step.loop.flow || step.loop.steps;
+      if (Array.isArray(loopFlow)) {
+        vars.push(...collectDeclaredVars(loopFlow));
+      }
+    }
+    if (step.try && typeof step.try === 'object') {
+      const tryFlow = step.try.flow || step.try.steps;
+      if (Array.isArray(tryFlow)) {
+        vars.push(...collectDeclaredVars(tryFlow));
+      }
+    }
+    if (step.catch && typeof step.catch === 'object') {
+      const catchFlow = step.catch.flow || step.catch.steps;
+      if (Array.isArray(catchFlow)) {
+        vars.push(...collectDeclaredVars(catchFlow));
+      }
+    }
+    if (step.parallel && typeof step.parallel === 'object') {
+      const parTasks = step.parallel.tasks || step.parallel.branches;
+      if (Array.isArray(parTasks)) {
+        for (const t of parTasks) {
+          const tFlow = t && (t.flow || t.steps || (Array.isArray(t) ? t : []));
+          if (Array.isArray(tFlow)) {
+            vars.push(...collectDeclaredVars(tFlow));
+          }
+        }
+      }
     }
   }
   return vars;

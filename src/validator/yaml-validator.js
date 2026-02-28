@@ -360,9 +360,20 @@ function validateExtendedStep(step, stepPath, errors, warnings) {
       // Recurse into the loop's flow (accept both "flow" and "steps" keys).
       const loopFlow = loop.flow || loop.steps;
       if (Array.isArray(loopFlow)) {
+        if (loopFlow.length === 0) {
+          warnings.push(makeWarning(
+            '"loop" has an empty flow/steps array.',
+            `${loopPath}/flow`
+          ));
+        }
         loopFlow.forEach((s, i) => {
           validateExtendedStep(s, `${loopPath}/flow[${i}]`, errors, warnings);
         });
+      } else if (!loopFlow) {
+        warnings.push(makeWarning(
+          '"loop" is missing a "flow" or "steps" array.',
+          `${loopPath}/flow`
+        ));
       }
     }
   }
@@ -482,7 +493,7 @@ function validateExtendedStep(step, stepPath, errors, warnings) {
       errors.push(makeError('"data_transform" must be an object.', transformPath));
     } else {
       // Flat format: { source, operation, name }
-      const VALID_OPERATIONS = ['filter', 'sort', 'map', 'reduce', 'unique', 'slice', 'flatten', 'groupBy'];
+      const VALID_OPERATIONS = ['filter', 'sort', 'map', 'reduce', 'unique', 'distinct', 'slice', 'flatten', 'groupBy'];
 
       if (transform.operation) {
         if (!VALID_OPERATIONS.includes(transform.operation)) {

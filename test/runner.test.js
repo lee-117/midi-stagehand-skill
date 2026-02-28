@@ -328,3 +328,17 @@ describe('CLI Argument Parsing', () => {
     assert.equal(args.yamlPath, null);
   });
 });
+
+describe('CLI Validator Path', () => {
+  it('yaml-validator.js exists at expected path', () => {
+    const validatorPath = path.resolve(__dirname, '../src/validator/yaml-validator.js');
+    assert.ok(fs.existsSync(validatorPath),
+      'yaml-validator.js should exist at src/validator/yaml-validator.js');
+  });
+
+  it('validator exports a validate function', () => {
+    const validator = require('../src/validator/yaml-validator');
+    assert.ok(typeof validator.validate === 'function',
+      'Validator should export a validate function');
+  });
+});

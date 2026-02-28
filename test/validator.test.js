@@ -320,6 +320,24 @@ tasks:
         'Should error on invalid operation type');
     });
 
+    it('accepts distinct as alias for unique', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - data_transform:
+          source: "\${items}"
+          operation: distinct
+          by: "id"
+          name: "uniqueItems"
+`;
+      const result = validate(yaml);
+      assert.equal(result.valid, true, `distinct should be valid. Errors: ${JSON.stringify(result.errors)}`);
+    });
+
     it('warns when data_transform operation has no source', () => {
       const yaml = `
 engine: extended
@@ -370,6 +388,43 @@ tasks:
 `;
       const result = validate(yaml);
       assert.ok(!result.valid || result.warnings.length > 0 || result.errors.length > 0);
+    });
+  });
+
+  describe('empty loop warning', () => {
+    it('warns when loop has empty flow', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - loop:
+          type: repeat
+          count: 5
+          flow: []
+`;
+      const result = validate(yaml);
+      assert.ok(result.warnings.some(w => w.message.includes('empty')),
+        'Should warn about empty loop flow');
+    });
+
+    it('warns when loop is missing flow/steps', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - loop:
+          type: repeat
+          count: 5
+`;
+      const result = validate(yaml);
+      assert.ok(result.warnings.some(w => w.message.includes('missing')),
+        'Should warn about missing loop flow');
     });
   });
 

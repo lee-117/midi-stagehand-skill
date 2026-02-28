@@ -147,7 +147,8 @@ function extractPlatformConfig(doc) {
   // Web platform (most common)
   if (doc.web) {
     const w = doc.web;
-    config.url = w.url || '';
+    // Escape single quotes in URL to prevent breaking the JS string literal
+    config.url = (w.url || '').replace(/'/g, "\\'");
     config.headless = w.headless !== undefined ? w.headless : false;
     config.viewportWidth = w.viewportWidth || w.viewport_width || 1280;
     config.viewportHeight = w.viewportHeight || w.viewport_height || 720;
@@ -166,7 +167,7 @@ function extractPlatformConfig(doc) {
     if (doc[plat]) {
       config.platform = plat;
       const p = doc[plat];
-      config.url = p.url || '';
+      config.url = (p.url || '').replace(/'/g, "\\'");
       config.headless = p.headless !== undefined ? p.headless : false;
       if (p.viewportWidth || p.viewport_width) {
         config.viewportWidth = p.viewportWidth || p.viewport_width;
