@@ -238,6 +238,12 @@ function setupChrome(registry) {
   log('[!!]', 'No system Chrome found');
   log('[..]', 'Downloading Chromium via puppeteer...');
 
+  // Use China mirror for Chromium download when on China network
+  if (registry === CHINA_MIRROR && !process.env.PUPPETEER_DOWNLOAD_BASE_URL) {
+    process.env.PUPPETEER_DOWNLOAD_BASE_URL = 'https://cdn.npmmirror.com/binaries/chrome-for-testing';
+    log('[OK]', 'Using China mirror for Chromium download');
+  }
+
   const registryFlag = registry !== CHINA_MIRROR ? '' : ' --registry=' + registry;
   try {
     // Trigger puppeteer's browser download

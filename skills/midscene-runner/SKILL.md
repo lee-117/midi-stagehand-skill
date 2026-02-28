@@ -294,3 +294,4 @@ ios:
 - 环境变量通过系统环境或 `.env` 文件传入，在 YAML 中用 `${ENV:NAME}` 或 `${ENV.NAME}` 引用（两种语法等价）
 - `parallel` 分支在独立浏览器上下文中运行，执行期间互不影响；各分支的 `aiQuery` 结果在全部完成后可合并访问（通过 `merge_results: true`）
 - `--dry-run` 仅检查 YAML 语法和结构，不检测模型配置和网络可达性
+- 如果 `npx skills check` 检测不到已有更新，可能是 lock 文件格式过旧（v1），需要重新安装以升级为 v3 格式：`npx skills add https://github.com/lee-117/midi-stagehand-skill -a claude`

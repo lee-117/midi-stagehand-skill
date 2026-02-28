@@ -33,6 +33,16 @@ npm run setup
 
 自动完成：智能镜像检测、依赖预热、Chrome 检测，避免首次执行 YAML 时长时间等待下载。
 
+### 国内网络加速（可选）
+
+如果 `npm install` 时 Puppeteer 下载 Chromium 极慢，可在项目 `.npmrc` 中添加镜像配置：
+
+```ini
+puppeteer_download_base_url=https://cdn.npmmirror.com/binaries/chrome-for-testing
+```
+
+> `npm run setup` 会自动检测国内网络并设置此镜像，无需手动配置。仅当你跳过 setup 直接 `npm install` 时需要手动添加。
+
 ### 模型配置
 
 Midscene 执行 AI 操作（`aiTap`、`aiAssert`、`aiQuery` 等）时需要调用视觉语言模型。执行前必须配置模型参数，否则会因模型未配置而失败。
