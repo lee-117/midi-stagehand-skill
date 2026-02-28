@@ -1,6 +1,7 @@
 const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
 /**
  * Check if a YAML file exists and is readable.
@@ -42,15 +43,25 @@ function run(yamlPath, options = {}) {
   const resolvedPath = path.resolve(yamlPath);
   const reportDir = options.reportDir || './midscene-report';
 
-  const cmd = 'npx @midscene/web@1 run ' + resolvedPath;
+  // Prefer local installation over npx to avoid re-download
+  const cmd = resolveMidsceneCommand() + ' run ' + resolvedPath;
 
   console.log('[native-runner] Executing: ' + cmd);
+
+  // Build env: inherit + report dir + system Chrome path if available
+  const execEnv = Object.assign({}, process.env, { MIDSCENE_REPORT_DIR: reportDir });
+  if (!execEnv.PUPPETEER_EXECUTABLE_PATH) {
+    const chromePath = findSystemChrome();
+    if (chromePath) {
+      execEnv.PUPPETEER_EXECUTABLE_PATH = chromePath;
+    }
+  }
 
   try {
     execSync(cmd, {
       stdio: 'inherit',
       cwd: options.cwd || process.cwd(),
-      env: Object.assign({}, process.env, { MIDSCENE_REPORT_DIR: reportDir }),
+      env: execEnv,
       timeout: options.timeout || 300000 // 5 min default
     });
 
@@ -75,6 +86,44 @@ function run(yamlPath, options = {}) {
       reportDir: reportDir
     };
   }
+}
+
+/**
+ * Resolve the midscene CLI command, preferring local installation.
+ * @returns {string}
+ */
+function resolveMidsceneCommand() {
+  const isWin = os.platform() === 'win32';
+  const localBin = path.resolve(__dirname, '..', '..', 'node_modules', '.bin', 'midscene' + (isWin ? '.cmd' : ''));
+  if (fs.existsSync(localBin)) {
+    return '"' + localBin + '"';
+  }
+  return 'npx @midscene/web@1';
+}
+
+/**
+ * Find system Chrome/Chromium for Puppeteer.
+ * @returns {string|null}
+ */
+function findSystemChrome() {
+  const isWin = os.platform() === 'win32';
+  const candidates = [];
+
+  if (isWin) {
+    const bases = [process.env['PROGRAMFILES'], process.env['PROGRAMFILES(X86)'], process.env['LOCALAPPDATA']].filter(Boolean);
+    for (const base of bases) {
+      candidates.push(path.join(base, 'Google', 'Chrome', 'Application', 'chrome.exe'));
+    }
+  } else if (os.platform() === 'darwin') {
+    candidates.push('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome');
+  } else {
+    candidates.push('/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser');
+  }
+
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
 }
 
 module.exports = { run };

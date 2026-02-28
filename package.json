@@ -8,6 +8,8 @@
   },
   "scripts": {
     "run": "node scripts/midscene-run.js",
+    "setup": "node scripts/setup.js",
+    "postinstall": "node scripts/setup.js --postinstall",
     "test": "node --test test/*.test.js",
     "validate": "node -e \"const v = require('./src/validator/yaml-validator'); console.log(v.validate(process.argv[1]))\"",
     "detect": "node -e \"const d = require('./src/detector/mode-detector'); console.log(d.detect(process.argv[1]))\""

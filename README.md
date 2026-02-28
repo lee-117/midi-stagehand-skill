@@ -25,6 +25,14 @@
 npm install
 ```
 
+### 环境初始化（推荐首次运行）
+
+```bash
+npm run setup
+```
+
+自动完成：智能镜像检测、依赖预热、Chrome 检测，避免首次执行 YAML 时长时间等待下载。
+
 ### 运行 YAML
 
 ```bash

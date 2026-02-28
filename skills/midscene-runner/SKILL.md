@@ -44,6 +44,19 @@ test -d node_modules && echo "Dependencies OK" || echo "Run: npm install"
 test -f scripts/midscene-run.js && echo "CLI OK" || echo "CLI not found"
 ```
 
+**首次使用？运行一键环境初始化**：
+
+```bash
+npm run setup
+```
+
+`setup` 会自动完成以下工作：
+- 智能检测网络环境，自动选择最快的 npm 镜像（国内自动使用淘宝源加速）
+- 安装所有项目依赖
+- 预热 `@midscene/web` 和 `tsx` 到 npx 缓存（避免首次执行时等待下载）
+- 检测系统 Chrome，若无则自动下载 Chromium
+- 输出环境就绪报告
+
 **平台特定前提条件**：
 
 | 平台 | 依赖 |
@@ -55,7 +68,7 @@ test -f scripts/midscene-run.js && echo "CLI OK" || echo "CLI not found"
 
 如果缺少依赖，提示用户安装：
 ```bash
-npm install
+npm install && npm run setup
 ```
 
 ### 第 1 步：定位 YAML 文件

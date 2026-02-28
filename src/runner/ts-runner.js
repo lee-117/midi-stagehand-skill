@@ -1,6 +1,7 @@
 const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
 /**
  * Run transpiled TypeScript code using tsx.
@@ -47,7 +48,8 @@ function run(tsCode, options = {}) {
     }
   }
 
-  const cmd = 'npx tsx ' + tsPath;
+  // Prefer local tsx installation over npx to avoid re-download
+  const cmd = resolveTsxCommand() + ' ' + tsPath;
 
   console.log('[ts-runner] Executing: ' + cmd);
 
@@ -91,6 +93,19 @@ function run(tsCode, options = {}) {
       }
     }
   }
+}
+
+/**
+ * Resolve the tsx command, preferring local installation.
+ * @returns {string}
+ */
+function resolveTsxCommand() {
+  const isWin = os.platform() === 'win32';
+  const localBin = path.resolve(__dirname, '..', '..', 'node_modules', '.bin', 'tsx' + (isWin ? '.cmd' : ''));
+  if (fs.existsSync(localBin)) {
+    return '"' + localBin + '"';
+  }
+  return 'npx tsx';
 }
 
 module.exports = { run };
