@@ -1,3 +1,17 @@
+---
+name: midscene-yaml-generator
+description: >
+  Generate Midscene YAML automation files from natural language requirements.
+  Triggers when users describe browser automation tasks like "write a script to...",
+  "generate a YAML for...", or "automate login flow". Supports Native (basic actions)
+  and Extended (logic, loops, API calls) modes across Web, Android, iOS platforms.
+license: MIT
+metadata:
+  author: lee-zh
+  version: "1.0.0"
+  argument-hint: <natural-language-requirement>
+---
+
 # Midscene YAML Generator
 
 ## 触发条件

@@ -1,3 +1,17 @@
+---
+name: midscene-runner
+description: >
+  Execute, debug, and validate Midscene YAML automation files.
+  Triggers when users say "run this YAML", "execute XXX.yaml", "test this automation",
+  or "validate this script". Handles environment checks, pre-validation, execution,
+  report analysis, and iterative debugging.
+license: MIT
+metadata:
+  author: lee-zh
+  version: "1.0.0"
+  argument-hint: <yaml-file-path>
+---
+
 # Midscene Runner
 
 ## 触发条件

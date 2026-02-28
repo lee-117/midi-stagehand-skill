@@ -1,5 +1,5 @@
 {
-  "name": "midscene-yaml-superset",
+  "name": "midi-stagehand-skill",
   "version": "1.0.0",
   "description": "Midscene YAML Superset Ecosystem - Low-code degradation architecture for browser automation",
   "main": "scripts/midscene-run.js",
