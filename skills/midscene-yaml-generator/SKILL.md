@@ -8,7 +8,7 @@ description: >
 license: MIT
 metadata:
   author: lee-zh
-  version: "1.0.0"
+  version: "1.1.0"
   argument-hint: <natural-language-requirement>
 ---
 
