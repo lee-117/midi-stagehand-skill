@@ -1,8 +1,8 @@
-# Midscene YAML 超集生态系统 — Claude Code 项目指引
+# Midi Stagehand Skill — Claude Code 项目指引
 
 ## 项目概述
 
-这是一个低代码浏览器自动化框架，核心链路：**自然语言 → YAML → 执行 → 报告**。
+这是一个低代码浏览器自动化框架（Midscene YAML 超集生态系统），核心链路：**自然语言 → YAML → 执行 → 报告**。
 
 支持两种执行模式：
 - **Native**：基础操作（点击、输入、断言等），YAML 直接执行
@@ -11,7 +11,7 @@
 ## 项目结构
 
 ```
-src/detector/       → 检测 YAML 是 native 还是 extended 模式
+src/detector/       → 模式检测器 (mode-detector.js)，判断 YAML 是 native 还是 extended
 src/validator/      → 4 层 YAML 验证（语法→结构→模式→语义）
 src/transpiler/     → Extended YAML → TypeScript 转译器
   generators/       → 10 个代码生成器 + 共享工具模块
@@ -22,7 +22,7 @@ schema/             → 关键字 Schema 定义（native-keywords.json + extende
 templates/          → 12 个 YAML 模板（native 6 个 + extended 6 个）
 skills/             → Claude Code Skill 定义（见下方）
 guide/              → 渐进式指导手册（L1-L5）
-test/               → 单元测试（detector + validator + transpiler）
+test/               → 172 个单元测试（detector + validator + transpiler + CLI + report-parser）
 ```
 
 ## Skills（技能）

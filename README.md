@@ -1,4 +1,6 @@
-# Midscene YAML 超集生态系统
+# Midi Stagehand Skill
+
+> Midscene YAML 超集生态系统
 
 **低代码降级架构**：让非技术用户和 AI 在 YAML 层面工作，通过超集定义支持复杂逻辑，在编译阶段自动生成 TypeScript 脚本执行。
 
@@ -128,6 +130,8 @@ Options:
 ```bash
 npm test
 ```
+
+当前共 **172** 个测试，覆盖模式检测、验证器、转译器、CLI 和报告解析。
 
 ## 文档
 
