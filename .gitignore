@@ -3,3 +3,9 @@ node_modules/
 midscene-report/
 midscene-output/
 *.log
+/.idea/
+
+# Claude Code dev-process files
+.claude/
+SKILL-IMPROVEMENT-PLAN*.md
+skills-lock.json
