@@ -14,6 +14,7 @@ const {
   walkAllFlows,
   MAX_WALK_DEPTH,
 } = require('../utils/yaml-helpers');
+const { MAX_FILE_SIZE, MAX_IMPORT_DEPTH } = require('../constants');
 
 // Load keyword schema once at module load time.
 const extendedKeywords = JSON.parse(
@@ -54,6 +55,20 @@ const VALID_ANDROID_CONFIG_FIELDS = new Set([
   'screenshotResizeScale', 'alwaysRefreshScreenInfo',
 ]);
 
+// Valid agent config sub-fields.
+const VALID_AGENT_CONFIG_FIELDS = new Set([
+  'testId', 'groupName', 'groupDescription', 'cache',
+  'generateReport', 'autoPrintReportMsg', 'reportFileName',
+  'replanningCycleLimit', 'aiActContext',
+  'screenshotShrinkFactor', 'waitAfterAction',
+]);
+
+// Valid cache strategy values.
+const VALID_CACHE_STRATEGIES = new Set(['read-write', 'read-only', 'write-only']);
+
+// Valid bridgeMode values.
+const VALID_BRIDGE_MODES = new Set(['newTabWithUrl', 'currentTab']);
+
 // Required fields per loop type.
 const LOOP_REQUIRED_FIELDS = {
   for: ['items'],
@@ -84,7 +99,7 @@ function resolveContent(yamlInput) {
   if (looksLikeFilePath(yamlInput)) {
     const resolved = path.resolve(yamlInput);
     const stat = fs.statSync(resolved);
-    if (stat.size > 1024 * 1024) {
+    if (stat.size > MAX_FILE_SIZE) {
       throw new Error('YAML file exceeds 1MB size limit (' + Math.round(stat.size / 1024) + 'KB). Consider splitting into smaller files using import.');
     }
     return {
@@ -184,6 +199,40 @@ function validateStructure(doc, errors, warnings) {
           `/web/${key}`
         ));
       }
+    }
+  }
+
+  // Validate agent config sub-fields if present.
+  if (doc.agent && typeof doc.agent === 'object' && !Array.isArray(doc.agent)) {
+    for (const key of Object.keys(doc.agent)) {
+      if (!VALID_AGENT_CONFIG_FIELDS.has(key)) {
+        warnings.push(makeWarning(
+          `Unknown agent config field "${key}". Known fields: ${[...VALID_AGENT_CONFIG_FIELDS].join(', ')}.`,
+          `/agent/${key}`
+        ));
+      }
+    }
+
+    // Validate cache object format if present.
+    const cache = doc.agent.cache;
+    if (cache !== undefined && typeof cache === 'object' && cache !== null) {
+      if (cache.strategy !== undefined && !VALID_CACHE_STRATEGIES.has(cache.strategy)) {
+        warnings.push(makeWarning(
+          `Invalid cache strategy "${cache.strategy}". Valid values: ${[...VALID_CACHE_STRATEGIES].join(', ')}.`,
+          '/agent/cache/strategy'
+        ));
+      }
+    }
+  }
+
+  // Validate bridgeMode in web config if present.
+  if (doc.web && typeof doc.web === 'object' && doc.web.bridgeMode !== undefined) {
+    const bm = doc.web.bridgeMode;
+    if (bm !== false && !VALID_BRIDGE_MODES.has(bm)) {
+      warnings.push(makeWarning(
+        `Invalid bridgeMode "${bm}". Valid values: false, ${[...VALID_BRIDGE_MODES].join(', ')}.`,
+        '/web/bridgeMode'
+      ));
     }
   }
 
@@ -942,12 +991,6 @@ function validateVariableReferences(doc, warnings) {
     }
   }
 }
-
-/**
- * Maximum depth for import chain traversal to prevent infinite recursion
- * on deeply nested (but non-circular) import graphs.
- */
-const MAX_IMPORT_DEPTH = 10;
 
 /**
  * Recursively follow import chains to detect circular imports.

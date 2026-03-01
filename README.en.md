@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node >= 22](https://img.shields.io/badge/Node-%3E%3D22-green.svg)](https://nodejs.org/)
-[![Tests: 486](https://img.shields.io/badge/Tests-486-brightgreen.svg)](#development)
+[![Tests: 548](https://img.shields.io/badge/Tests-548-brightgreen.svg)](#development)
 [![Skills: 2](https://img.shields.io/badge/Claude%20Code%20Skills-2-purple.svg)](#install-as-skills)
 
 > AI-powered low-code browser automation via natural language.
@@ -78,7 +78,7 @@ When you describe a browser automation task, the Generator will:
 
 - Analyze complexity and choose **Native** or **Extended** mode
 - Determine target platform (Web / Android / iOS / Computer)
-- Map natural language to YAML actions using 19 built-in templates
+- Map natural language to YAML actions using 22 built-in templates
 - Auto-validate and output to `./midscene-output/`
 
 ### YAML Runner — Execute and Report
@@ -145,8 +145,10 @@ node scripts/midscene-run.js <yaml-file|glob> [options]
 | `--output-ts <path>` | Save transpiled TypeScript to file |
 | `--report-dir <path>` | Custom report output directory |
 | `--template puppeteer\|playwright` | TS template engine (default: puppeteer) |
-| `--timeout <ms>` | Execution timeout in milliseconds |
-| `--verbose`, `-v` | Verbose output |
+| `--timeout <ms>` | Execution timeout (includes browser startup, min 60000 recommended) |
+| `--retry <count>` | Retry failed executions for flaky scenarios (default: 0) |
+| `--clean` | Clean stale temp files from `.midscene-tmp/` (>24h old) |
+| `--verbose`, `-v` | Verbose output (error classification, duration) |
 | `--version`, `-V` | Show version |
 | `--help`, `-h` | Show help |
 
@@ -158,9 +160,9 @@ node scripts/midscene-run.js "tests/**/*.yaml"
 
 ## Templates
 
-19 built-in templates (10 native + 9 extended) covering common automation scenarios:
+22 built-in templates (13 native + 9 extended) covering common automation scenarios:
 
-- **Native**: web basics, login, search, data extraction, file upload, multi-tab, deep-think locator, Android, iOS, Computer
+- **Native**: web basics, login, search, data extraction, file upload, multi-tab, deep-think locator, bridge mode, cookie session, local serve, Android, iOS, Computer
 - **Extended**: conditional flows, pagination loops, retry logic, sub-flow reuse, API integration, data pipelines, auth flows, responsive testing, e2e workflows
 
 Browse all templates in [`templates/`](templates/).
@@ -174,7 +176,7 @@ Browse all templates in [`templates/`](templates/).
 
 ```bash
 npm install          # Install dependencies
-npm test             # Run 486 tests
+npm test             # Run 548 tests
 npm run test:coverage # Tests with coverage report
 npm run lint         # ESLint check
 ```
@@ -187,7 +189,7 @@ src/
   runner/         Native runner + TS runner + report parser
 scripts/          CLI entry point
 schema/           Keyword schemas + JSON Schema
-templates/        19 YAML templates
+templates/        22 YAML templates
 skills/           Claude Code Skill definitions
 ```
 

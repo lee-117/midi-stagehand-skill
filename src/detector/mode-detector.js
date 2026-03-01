@@ -4,6 +4,7 @@ const yaml = require('js-yaml');
 const fs = require('fs');
 
 const { looksLikeFilePath } = require('../utils/yaml-helpers');
+const { MAX_FILE_SIZE } = require('../constants');
 
 /**
  * Extended keywords that trigger needs_transpilation = true when found
@@ -103,8 +104,6 @@ function scan(node, foundKeywords, flags) {
  * @param {string} yamlInput - File path or raw YAML string.
  * @returns {string} The raw YAML text.
  */
-const MAX_FILE_SIZE = 1024 * 1024; // 1MB
-
 function resolveContent(yamlInput) {
   if (looksLikeFilePath(yamlInput)) {
     const stat = fs.statSync(yamlInput);

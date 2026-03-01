@@ -1,6 +1,6 @@
 # Midscene YAML 超集 — 渐进式指导手册
 
-> **版本**: 1.2.0
+> **版本**: 2.0.0
 > **适用范围**: Midscene YAML Native 模式 & Extended 超集模式
 > **阅读建议**: 按 L1 → L5 依次阅读，每一级都建立在前一级的基础上。
 
@@ -714,6 +714,8 @@ tasks:
       dataName: "products"
 ```
 
+> **变量作用域**: `aiQuery` 的 `name` 变量仅在**当前 task** 内有效。如需跨 task 传递数据，使用 `output` 将数据导出到文件，在后续 task 中读取。
+
 ### 完整示例: 提取商品列表并验证
 
 ```yaml
@@ -787,10 +789,14 @@ agent:
   testId: "regression-001"         # 测试标识符，用于区分不同测试场景
   groupName: "回归测试"              # 测试分组名称
   groupDescription: "每日回归测试套件"  # 分组描述
-  cache: true                       # 启用 AI 结果缓存
+  cache: true                       # 启用 AI 结果缓存（也支持对象格式）
   generateReport: true              # 自动生成报告
   autoPrintReportMsg: true          # 自动打印报告消息
   reportFileName: "my-report"       # 自定义报告文件名
+  replanningCycleLimit: 20          # 重规划循环上限（默认 20，UI-TARS 为 40）
+  aiActContext: "电商结算流程"         # AI 操作背景知识，提高理解准确度
+  screenshotShrinkFactor: 0.75      # 截图缩放因子（0~1，节省 token）
+  waitAfterAction: 500              # 每次操作后等待时间（毫秒，默认 300）
 ```
 
 | 字段 | 类型 | 说明 |
@@ -798,10 +804,14 @@ agent:
 | `testId` | string | 测试标识符，区分不同测试场景的缓存 |
 | `groupName` | string | 测试分组名称，报告中用于归类 |
 | `groupDescription` | string | 分组的详细描述 |
-| `cache` | boolean | 启用 AI 结果缓存，相同指令复用结果 |
+| `cache` | boolean \| object | 启用 AI 结果缓存，支持 `true` 或对象格式（见下方） |
 | `generateReport` | boolean | 是否自动生成执行报告 |
 | `autoPrintReportMsg` | boolean | 执行后自动输出报告路径 |
 | `reportFileName` | string | 自定义报告文件名（不含扩展名） |
+| `replanningCycleLimit` | number | 重规划循环上限，防止无限重试（默认 20） |
+| `aiActContext` | string | 提供 AI 操作的业务背景，提高理解准确度 |
+| `screenshotShrinkFactor` | number | 截图缩放因子（0~1），缩小截图可节省 token 消耗 |
+| `waitAfterAction` | number | 每次操作后等待时间（毫秒），默认 300 |
 
 在转译为 TypeScript 时，`agent` 配置会作为第二个参数传递给 Agent 构造函数：
 
@@ -817,27 +827,32 @@ const agent = new PuppeteerAgent(page);
 
 通过 `cache: true` 启用 AI 结果缓存。当相同的 AI 指令在相同的页面上下文中再次执行时，直接复用缓存结果，跳过 AI 调用，显著加速重复运行。
 
+**简写格式**（读写模式）：
 ```yaml
 agent:
   cache: true
   testId: "regression-001"
-  groupName: "回归测试"
-
-web:
-  url: "https://example.com"
-
-tasks:
-  - name: 多次运行可复用 AI 结果
-    flow:
-      - aiTap: "登录按钮"
-      - aiInput: "用户名输入框"
-        value: "admin"
 ```
+
+**对象格式**（精确控制）：
+```yaml
+agent:
+  cache:
+    strategy: "read-write"    # read-write | read-only | write-only
+    id: "my-cache-id"         # 自定义缓存标识符
+  testId: "regression-001"
+```
+
+| `cache` 字段 | 说明 |
+|-------------|------|
+| `strategy` | `read-write`（默认）：读取和写入缓存；`read-only`：仅读取已有缓存，不写入新结果；`write-only`：仅写入缓存，不读取 |
+| `id` | 自定义缓存 ID，用于区分不同缓存实例 |
 
 **适用场景：**
 - 回归测试：同一用例反复执行，第二次起直接走缓存
 - 调试开发：反复微调 YAML 步骤，无需每次都等 AI 响应
 - CI/CD：缓存可降低 AI API 调用量和运行时间
+- `read-only`：生产环境仅使用预热好的缓存，不产生新缓存
 
 **注意事项：**
 - 缓存键基于 AI 指令文本和页面上下文，页面内容变化会自动失效
@@ -1964,8 +1979,16 @@ variables:
 **A**: 在 `agent` 配置中设置 `cache: true` 后，Midscene 会缓存 AI 操作的结果。同一 AI 指令在相同页面上下文中再次执行时，直接复用缓存，跳过 AI 调用。适用于回归测试和调试场景，可大幅减少运行时间和 API 调用量。
 
 ```yaml
+# 简写格式
 agent:
   cache: true
+  testId: "my-test"
+
+# 对象格式（精确控制策略）
+agent:
+  cache:
+    strategy: "read-only"   # read-write | read-only | write-only
+    id: "my-cache-id"
   testId: "my-test"
 ```
 

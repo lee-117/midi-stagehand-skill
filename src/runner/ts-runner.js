@@ -3,6 +3,7 @@ const { randomUUID } = require('crypto');
 const path = require('path');
 const fs = require('fs');
 const { resolveLocalBin, normaliseExecError, findSystemChrome } = require('./runner-utils');
+const { DEFAULT_TIMEOUT, DEFAULT_REPORT_DIR, MIDSCENE_TMP_DIR } = require('../constants');
 
 /**
  * Run transpiled TypeScript code using tsx.
@@ -17,7 +18,7 @@ const { resolveLocalBin, normaliseExecError, findSystemChrome } = require('./run
  * @returns {{ success: boolean, tsPath: string, reportDir: string, error?: string, exitCode?: number|string }}
  */
 function run(tsCode, options = {}) {
-  const reportDir = options.reportDir || './midscene-report';
+  const reportDir = options.reportDir || DEFAULT_REPORT_DIR;
 
   // Validate input
   if (!options.tsPath && (!tsCode || typeof tsCode !== 'string' || tsCode.trim() === '')) {
@@ -29,7 +30,7 @@ function run(tsCode, options = {}) {
   let isTempFile = false;
 
   if (!tsPath) {
-    const tmpDir = path.join(options.cwd || process.cwd(), '.midscene-tmp');
+    const tmpDir = path.join(options.cwd || process.cwd(), MIDSCENE_TMP_DIR);
     try {
       if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
     } catch (mkdirErr) {
@@ -64,7 +65,7 @@ function run(tsCode, options = {}) {
         MIDSCENE_REPORT_DIR: reportDir,
         PUPPETEER_EXECUTABLE_PATH: process.env.PUPPETEER_EXECUTABLE_PATH || findSystemChrome() || '',
       }),
-      timeout: options.timeout || 300000
+      timeout: options.timeout || DEFAULT_TIMEOUT
     });
 
     return { success: true, tsPath: tsPath, reportDir: reportDir };

@@ -1,5 +1,6 @@
 ---
 name: midscene-yaml-generator
+version: 2.0.0
 description: >
   Generate Midscene YAML browser automation files from natural language.
   Supports Web, Android, iOS with Native and Extended modes.
@@ -91,11 +92,14 @@ English trigger phrases:
 - `userAgent` — 自定义 User-Agent
 - `deviceScaleFactor` — 设备像素比（如 Retina 屏设 2）
 - `waitForNetworkIdle` — 网络空闲等待配置，支持 `true` 或对象格式 `{ timeout: 2000, continueOnNetworkIdleError: true }`
+- `waitForNavigationTimeout` — 导航完成等待时间（ms，默认 5000，设 0 禁用）
+- `waitForNetworkIdleTimeout` — 网络空闲等待时间（ms，默认 2000，设 0 禁用）
 - `cookie` — Cookie JSON 文件路径（实现免登录会话恢复）
 - `bridgeMode` — Bridge 模式：`false`（默认）| `'newTabWithUrl'` | `'currentTab'`，复用已登录的桌面浏览器
 - `chromeArgs` — 自定义 Chrome 启动参数数组（如 `['--disable-gpu', '--proxy-server=...']`）
-- `serve` — 本地静态文件目录，启动内置服务器
+- `serve` — 本地静态文件目录，启动内置服务器（本地开发测试用）
 - `acceptInsecureCerts` — 忽略 HTTPS 证书错误（默认 false）
+- `closeNewTabsAfterDisconnect` — 断开时关闭新打开的标签页（默认 false）
 - `forceSameTabNavigation` — 限制导航在当前标签页（默认 true）
 
 ### 第 3 步：自然语言 → YAML 转换
@@ -112,6 +116,8 @@ English trigger phrases:
 **黄金路径 — 最简可工作示例**:
 
 ```yaml
+engine: native
+
 web:
   url: "https://www.baidu.com"
 
@@ -156,13 +162,13 @@ Native 模式的动作参数支持两种格式：
 | 自然语言模式 | YAML 映射 | 说明 |
 |-------------|-----------|------|
 | "打开/访问/进入 XXX 网站" | `web: { url: "XXX" }` | 平台配置 |
-| "自动规划并执行 XXX" | `ai: "XXX"` | AI 自动拆解为多步骤执行；可选 `fileChooserAccept: "path"` 处理文件上传对话框 |
-| "点击/按/选择 XXX" | `aiTap: "XXX"` | 简写形式 |
+| "自动规划并执行 XXX" | `ai: "XXX"` | AI 自动拆解为多步骤执行；`aiAct` 为等价别名；可选 `fileChooserAccept: "path"` 处理文件上传对话框 |
+| "点击/按/选择 XXX" | `aiTap: "XXX"` | 简写形式；通用选项 `deepThink`、`xpath`、`cacheable` |
 | "悬停/移到 XXX 上" | `aiHover: "XXX"` | 触发下拉菜单或 tooltip |
-| "在 XXX 输入 YYY" | `aiInput: "XXX"` + `value: "YYY"` | 扁平兄弟格式；可选 `mode: "replace"\|"clear"\|"typeOnly"\|"append"` |
+| "在 XXX 输入 YYY" | `aiInput: "XXX"` + `value: "YYY"` | 扁平兄弟格式；`mode: "replace"(默认)\|"clear"\|"typeOnly"`（官方 API）；`"append"` 为超集扩展（非官方，慎用） |
 | "按键盘 XXX 键" | `aiKeyboardPress: "XXX"` | 支持组合键如 "Control+A"；`keyName` 可作为替代参数 |
-| "向下/上/左/右滚动" | `aiScroll: "目标区域"` + `direction: "down"` | 扁平兄弟格式；可选 `distance`、`scrollType` |
-| "等待 XXX 出现" | `aiWaitFor: "XXX"` | 可选 timeout（毫秒） |
+| "向下/上/左/右滚动" | `aiScroll: "目标区域"` + `direction: "down"` | 扁平兄弟格式；可选 `distance`、`scrollType: "singleAction"\|"scrollToBottom"\|"scrollToTop"\|"scrollToRight"\|"scrollToLeft"` |
+| "等待 XXX 出现" | `aiWaitFor: "XXX"` | 可选 `timeout`（默认 30000ms）、`checkIntervalMs`（轮询间隔）；可选 `domIncluded`/`screenshotIncluded` 控制 AI 分析范围 |
 | "检查/验证/确认 XXX" | `aiAssert: "XXX"` | 可选 errorMessage |
 | "获取/提取/读取 XXX" | `aiQuery: { query: "XXX", name: "result" }` | name 用于存储结果 |
 | "暂停/等待 N 秒" | `sleep: N*1000` | 参数为毫秒 |
@@ -171,11 +177,11 @@ Native 模式的动作参数支持两种格式：
 | "双击 XXX" | `aiDoubleClick: "XXX"` | 双击操作；可选 `deepThink: true` |
 | "右键点击 XXX" | `aiRightClick: "XXX"` | 右键操作；可选 `deepThink: true` |
 | "定位 XXX 元素" | `aiLocate: "XXX"` + `name: "elem"` | 定位元素，结果存入变量（Extended 模式可引用） |
-| "XXX 是否为真？" | `aiBoolean: "XXX"` + `name: "flag"` | 返回布尔值；可选 `domIncluded`/`screenshotIncluded` |
-| "获取 XXX 数量" | `aiNumber: "XXX"` + `name: "count"` | 返回数字；可选 `domIncluded`/`screenshotIncluded` |
-| "获取 XXX 文本" | `aiString: "XXX"` + `name: "text"` | 返回字符串；可选 `domIncluded`/`screenshotIncluded` |
+| "XXX 是否为真？" | `aiBoolean: "XXX"` + `name: "flag"` | 返回布尔值；`domIncluded`(true/false/"visible-only") 控制是否使用 DOM 文本，`screenshotIncluded`(true/false) 控制是否使用截图 |
+| "获取 XXX 数量" | `aiNumber: "XXX"` + `name: "count"` | 返回数字；同上 `domIncluded`/`screenshotIncluded` 选项 |
+| "获取 XXX 文本" | `aiString: "XXX"` + `name: "text"` | 返回字符串；同上 `domIncluded`/`screenshotIncluded` 选项 |
 | "询问 AI XXX" | `aiAsk: "XXX"` + `name: "answer"` | 自由提问，返回文本答案 |
-| "拖拽 A 到 B" | `aiDragAndDrop: "A"` + `to: "B"` | 扁平格式；或嵌套 `{ from: "A", to: "B" }` |
+| "拖拽 A 到 B" | `aiDragAndDrop: { from: "A", to: "B" }` | 推荐嵌套格式；也支持扁平简写 `aiDragAndDrop: "A"` + `to: "B"` |
 | "清空 XXX 输入框" | `aiClearInput: "XXX"` | 清除输入框内容 |
 | "执行 ADB 命令" | `runAdbShell: "命令"` | Android 平台特有 |
 | "执行 WDA 请求" | `runWdaRequest: { ... }` | iOS 平台特有 |
@@ -213,6 +219,9 @@ Native 模式的动作参数支持两种格式：
 - `templates/native/android-app.yaml` — Android 测试
 - `templates/native/ios-app.yaml` — iOS 测试
 - `templates/native/computer-desktop.yaml` — 桌面应用自动化
+- `templates/native/web-bridge-mode.yaml` — Bridge 模式连接已运行浏览器
+- `templates/native/web-cookie-session.yaml` — Cookie 会话恢复
+- `templates/native/web-local-serve.yaml` — 本地静态文件服务测试
 
 **Extended 模板**：
 - `templates/extended/web-conditional-flow.yaml` — 条件分支
@@ -246,6 +255,9 @@ Native 模式的动作参数支持两种格式：
 | 多屏幕尺寸响应式验证 | `extended/responsive-test.yaml` |
 | 复杂元素定位 / deepThink | `native/deep-think-locator.yaml` |
 | 多标签页操作 | `native/web-multi-tab.yaml` |
+| 连接已运行的浏览器（Bridge 模式） | `native/web-bridge-mode.yaml` |
+| 免登录会话恢复（Cookie） | `native/web-cookie-session.yaml` |
+| 本地开发/构建产物测试 | `native/web-local-serve.yaml` |
 
 ### 第 5 步：生成 YAML
 
@@ -254,17 +266,24 @@ Native 模式的动作参数支持两种格式：
 1. **文件头部**：添加注释说明需求来源和生成时间
 2. **engine 字段**：Extended 模式必须显式声明 `engine: extended`
 3. **features 列表**：Extended 模式下声明使用的特性（如 `features: [logic, variables, loop]`），Native 模式可省略
-4. **agent 配置**（可选）：`testId` 用于标识测试、`groupName`/`groupDescription` 用于报告分类、`cache: true` 可缓存 AI 结果加速重复运行
-5. **aiActContext**（可选）：为 AI Agent 提供额外上下文信息（如多语言网站标注语言、特殊领域术语），设置在 `agent: { aiActContext: "描述" }`
-6. **continueOnError**（可选）：如需某个任务失败后继续执行后续任务，设置 `continueOnError: true`
-6. **output 导出**（可选）：将 `aiQuery` 等结果导出为 JSON 文件，供后续流程使用
+4. **agent 配置**（可选）：控制 AI 行为和报告生成
+   - `testId` — 标识测试用例
+   - `groupName` / `groupDescription` — 报告分组和描述
+   - `cache: true` — 缓存 AI 结果加速重复运行；也支持对象格式 `{ strategy: "read-write"|"read-only"|"write-only", id: "cache-key" }`
+   - `generateReport: true` / `autoPrintReportMsg: true` / `reportFileName` — 报告生成控制
+   - `replanningCycleLimit` — AI 重新规划上限（默认 20，UI-TARS 模型为 40）
+   - `aiActContext` — 为 AI 提供背景知识（如多语言网站标注语言、特殊领域术语）
+   - `screenshotShrinkFactor` — 截图缩放因子（0-1，节省 token）
+   - `waitAfterAction` — 每次操作后等待时间（ms，默认 300）
+5. **continueOnError**（可选）：任务级别设置，该任务失败后后续任务仍会继续执行（注意：是任务级别非步骤级别）
+6. **output 导出**（可选）：将 `aiQuery` 等结果导出为 JSON 文件。`name` 变量仅在当前 task 内有效，跨 task 需用 `output: { filePath, dataName }` 导出
 
 #### 输出格式
 
 ```yaml
 # 自动生成 by Midscene YAML Generator
 # 需求描述: [用户原始需求]
-# 生成时间: [timestamp]
+# 生成时间: [YYYY-MM-DD HH:mm]
 
 engine: native|extended
 features: [...]  # 仅 extended 模式
@@ -273,20 +292,38 @@ features: [...]  # 仅 extended 模式
 # agent:
 #   testId: "test-001"
 #   groupName: "自动化测试组"
-#   groupDescription: "描述"
 #   cache: true
+#   screenshotShrinkFactor: 0.5
+#   waitAfterAction: 500
 
 [platform_config]
 
 tasks:
   - name: "[任务名称]"
-    # continueOnError: true  # 可选：失败后继续
+    # continueOnError: true  # 可选：任务失败后继续执行后续任务
     flow:
       [生成的步骤]
-    # output:                # 可选：导出数据
+    # output:                # 可选：导出数据（跨 task 传递）
     #   filePath: "./midscene-output/data.json"
     #   dataName: "variableName"
 ```
+
+### 澄清问题指南
+
+需求不明确时，应向用户确认以下信息（按优先级排序）：
+
+1. **目标 URL** — 如果用户未提供访问地址
+2. **认证方式** — 是否需要登录？用户名密码、Cookie、OAuth？
+3. **断言需求** — 哪些步骤需要验证？成功标准是什么？
+4. **数据需求** — 是否需要提取数据？输出格式是什么？
+5. **异常处理** — 是否需要失败重试或条件分支？
+
+### 文件命名规范
+
+生成的 YAML 文件名应基于以下规则自动生成 slug：
+- 优先使用 `target.web.url` 的域名部分（如 `baidu-search.yaml`）
+- 或基于首个 task name 生成（如 `login-flow.yaml`）
+- 避免中文文件名，使用英文 kebab-case
 
 ### 第 6 步：验证并输出
 
@@ -439,7 +476,7 @@ Extended 模式下 `data_transform` 支持的操作：
 - AI 指令（aiTap、aiAssert 等）的参数使用自然语言描述，不需要 CSS 选择器
 - 中文和英文描述均可，Midscene 的 AI 引擎支持多语言
 - `aiQuery` 的结果通过 `name` 字段存储，在后续步骤中用 `${name}` 引用（仅 Extended 模式）
-- `aiWaitFor` 建议设置合理的 `timeout`（毫秒），默认通常为 15 秒
+- `aiWaitFor` 建议设置合理的 `timeout`（毫秒），官方默认 30000ms（30 秒）；`checkIntervalMs` 控制轮询间隔
 - 循环中务必设置 `maxIterations` 作为安全上限，防止无限循环
 - `${ENV:XXX}` 或 `${ENV.XXX}` 可引用环境变量，避免在 YAML 中硬编码敏感信息
 - 始终显式声明 `engine` 字段，避免自动检测带来的意外行为
@@ -460,7 +497,15 @@ Extended 模式下 `data_transform` 支持的操作：
 
 生成完成后，向用户返回以下结构化信息：
 
+```
+[GENERATED] ./midscene-output/<filename>.yaml
+[MODE] native|extended
+[FEATURES] loop, logic, ...  (仅 extended 模式)
+[NEXT] /midscene-runner ./midscene-output/<filename>.yaml
+```
+
 1. **生成的文件路径**: `./midscene-output/<filename>.yaml`
 2. **执行模式**: native 或 extended
-3. **建议的下一步命令**: `node scripts/midscene-run.js <path> --dry-run`
-4. 如果 dry-run 验证失败，自动分析错误并修复 YAML，重新验证
+3. **使用的特性**: 仅 extended 模式列出
+4. **建议的下一步命令**: `node scripts/midscene-run.js <path> --dry-run`
+5. 如果 dry-run 验证失败，自动分析错误并修复 YAML，重新验证

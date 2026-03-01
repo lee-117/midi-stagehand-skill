@@ -54,18 +54,42 @@ function normaliseExecError(error) {
  * @returns {string|null}
  */
 function findSystemChrome() {
-  const isWin = os.platform() === 'win32';
+  const { execFileSync } = require('child_process');
+  const platform = os.platform();
   const candidates = [];
 
-  if (isWin) {
+  if (platform === 'win32') {
     const bases = [process.env['PROGRAMFILES'], process.env['PROGRAMFILES(X86)'], process.env['LOCALAPPDATA']].filter(Boolean);
     for (const base of bases) {
+      // Google Chrome
       candidates.push(path.join(base, 'Google', 'Chrome', 'Application', 'chrome.exe'));
+      // Chromium
+      candidates.push(path.join(base, 'Chromium', 'Application', 'chrome.exe'));
     }
-  } else if (os.platform() === 'darwin') {
-    candidates.push('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome');
+    // Microsoft Edge (Chromium-based)
+    const edgeBases = [process.env['PROGRAMFILES'], process.env['PROGRAMFILES(X86)']].filter(Boolean);
+    for (const base of edgeBases) {
+      candidates.push(path.join(base, 'Microsoft', 'Edge', 'Application', 'msedge.exe'));
+    }
+  } else if (platform === 'darwin') {
+    candidates.push(
+      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+      '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    );
   } else {
-    candidates.push('/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser');
+    // Linux — common paths
+    candidates.push(
+      '/usr/bin/google-chrome',
+      '/usr/bin/google-chrome-stable',
+      '/usr/bin/chromium',
+      '/usr/bin/chromium-browser',
+      '/snap/bin/chromium',
+    );
+    // Fallback: try `which google-chrome` for non-standard installs
+    try {
+      const found = execFileSync('which', ['google-chrome'], { stdio: ['pipe', 'pipe', 'pipe'], timeout: 3000 }).toString().trim();
+      if (found) candidates.push(found);
+    } catch (_e) { /* which not available or chrome not in PATH */ }
   }
 
   for (const p of candidates) {

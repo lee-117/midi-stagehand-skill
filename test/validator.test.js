@@ -1764,4 +1764,235 @@ tasks:
       }), 'Should not warn about known android fields');
     });
   });
+
+  describe('agent config validation', () => {
+    it('accepts valid agent config fields', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+agent:
+  testId: "test-001"
+  groupName: "smoke"
+  groupDescription: "Smoke tests"
+  generateReport: true
+  autoPrintReportMsg: false
+  reportFileName: "my-report"
+  replanningCycleLimit: 20
+  aiActContext: "e-commerce checkout"
+  screenshotShrinkFactor: 0.5
+  waitAfterAction: 500
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Unknown agent config field');
+      }), 'Should not warn about known agent config fields');
+    });
+
+    it('warns on unknown agent config field', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+agent:
+  testId: "test-001"
+  unknownAgentField: true
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Unknown agent config field') && msg.includes('unknownAgentField');
+      }), 'Should warn about unknown agent config field');
+    });
+
+    it('accepts agent config with cache object', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+agent:
+  cache:
+    strategy: "read-write"
+    id: "test-cache"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('cache') && msg.includes('strategy');
+      }), 'Should accept valid cache strategy');
+    });
+
+    it('warns on invalid cache strategy', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+agent:
+  cache:
+    strategy: "invalid-strategy"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Invalid cache strategy');
+      }), 'Should warn about invalid cache strategy');
+    });
+
+    it('accepts all valid cache strategies', () => {
+      for (const strategy of ['read-write', 'read-only', 'write-only']) {
+        const yaml = `
+web:
+  url: "https://example.com"
+agent:
+  cache:
+    strategy: "${strategy}"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+        const result = validate(yaml);
+        assert.ok(!result.warnings.some(w => {
+          const msg = typeof w === 'object' ? w.message : w;
+          return msg.includes('Invalid cache strategy');
+        }), `Should accept cache strategy "${strategy}"`);
+      }
+    });
+
+    it('skips cache validation when agent.cache is not an object', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+agent:
+  cache: true
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      // cache: true is a valid shorthand, no strategy warning expected
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Invalid cache strategy');
+      }), 'Should not warn about cache strategy when cache is boolean');
+    });
+
+    it('skips agent validation when agent is not an object', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+agent: true
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      // Should not crash on non-object agent
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Unknown agent config field');
+      }), 'Should not warn when agent is not an object');
+    });
+  });
+
+  describe('bridgeMode validation', () => {
+    it('accepts valid bridgeMode newTabWithUrl', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+  bridgeMode: "newTabWithUrl"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Invalid bridgeMode');
+      }), 'Should accept newTabWithUrl');
+    });
+
+    it('accepts valid bridgeMode currentTab', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+  bridgeMode: "currentTab"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Invalid bridgeMode');
+      }), 'Should accept currentTab');
+    });
+
+    it('accepts bridgeMode: false', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+  bridgeMode: false
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Invalid bridgeMode');
+      }), 'Should accept bridgeMode: false');
+    });
+
+    it('warns on invalid bridgeMode', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+  bridgeMode: "invalidMode"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Invalid bridgeMode');
+      }), 'Should warn about invalid bridgeMode');
+    });
+
+    it('does not warn when bridgeMode is absent', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('bridgeMode');
+      }), 'Should not warn when bridgeMode is absent');
+    });
+  });
 });

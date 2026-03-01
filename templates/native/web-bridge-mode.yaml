@@ -1,0 +1,24 @@
+# Template: Bridge Mode — connect to an already running browser
+# Use case: Reuse a desktop browser where the user is already logged in
+# bridgeMode options:
+#   - 'newTabWithUrl': Opens a new tab with the specified URL
+#   - 'currentTab': Uses the currently active tab (url is optional)
+
+engine: native
+
+web:
+  url: "https://example.com/dashboard"
+  bridgeMode: "newTabWithUrl"
+  closeNewTabsAfterDisconnect: true
+
+tasks:
+  - name: "Operate on existing session"
+    flow:
+      - aiWaitFor: "Dashboard page has loaded"
+        timeout: 10000
+      - aiAssert: "User is logged in and dashboard is visible"
+      - aiQuery:
+          query: "Extract the username shown in the top navigation bar"
+          name: "currentUser"
+      - recordToReport: "Bridge mode session"
+        content: "Connected to existing browser session"

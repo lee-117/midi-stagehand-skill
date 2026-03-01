@@ -1,0 +1,24 @@
+# Template: Cookie Session — restore login state from cookie file
+# Use case: Skip login by loading saved cookies (e.g., from a prior session)
+# cookie: path to a JSON file containing browser cookies
+#
+# To export cookies: use browser DevTools or a cookie export extension
+# Cookie file format: JSON array of { name, value, domain, path, ... }
+
+engine: native
+
+web:
+  url: "https://example.com/profile"
+  cookie: "./cookies/session.json"
+
+tasks:
+  - name: "Verify session restored"
+    flow:
+      - aiWaitFor: "Page has loaded and user profile is visible"
+        timeout: 15000
+      - aiAssert: "User is logged in (not on login page)"
+      - aiQuery:
+          query: "Extract the user's display name from the profile page"
+          name: "displayName"
+      - recordToReport: "Session restore"
+        content: "Cookie-based session restoration verified"

@@ -2,6 +2,7 @@ const { execFileSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const { resolveLocalBin, normaliseExecError, findSystemChrome } = require('./runner-utils');
+const { DEFAULT_TIMEOUT, DEFAULT_REPORT_DIR, MIDSCENE_PKG } = require('../constants');
 
 /**
  * Check if a YAML file exists and is readable.
@@ -37,11 +38,11 @@ function run(yamlPath, options = {}) {
   // Validate input
   const check = checkYamlFile(yamlPath);
   if (!check.ok) {
-    return { success: false, error: check.error, exitCode: null, reportDir: options.reportDir || './midscene-report' };
+    return { success: false, error: check.error, exitCode: null, reportDir: options.reportDir || DEFAULT_REPORT_DIR };
   }
 
   const resolvedPath = path.resolve(yamlPath);
-  const reportDir = options.reportDir || './midscene-report';
+  const reportDir = options.reportDir || DEFAULT_REPORT_DIR;
 
   // Prefer local installation over npx to avoid re-download.
   // Use execFileSync (no shell) to prevent command injection via file paths.
@@ -64,7 +65,7 @@ function run(yamlPath, options = {}) {
       stdio: 'inherit',
       cwd: options.cwd || process.cwd(),
       env: execEnv,
-      timeout: options.timeout || 300000 // 5 min default
+      timeout: options.timeout || DEFAULT_TIMEOUT
     });
 
     return { success: true, reportDir: reportDir };
@@ -84,7 +85,7 @@ function run(yamlPath, options = {}) {
  * @returns {{ bin: string, args: string[] }}
  */
 function resolveMidsceneCommand() {
-  return resolveLocalBin('midscene', { bin: 'npx', args: ['@midscene/web@1'] });
+  return resolveLocalBin('midscene', { bin: 'npx', args: [MIDSCENE_PKG] });
 }
 
 module.exports = { run };

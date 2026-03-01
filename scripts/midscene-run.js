@@ -12,6 +12,7 @@ const { detect } = require('../src/detector/mode-detector');
 const nativeRunner = require('../src/runner/native-runner');
 const tsRunner = require('../src/runner/ts-runner');
 const reportParser = require('../src/runner/report-parser');
+const { DEFAULT_TIMEOUT, DEFAULT_REPORT_DIR, MIDSCENE_TMP_DIR, STALE_TEMP_THRESHOLD_MS, MAX_ERROR_MESSAGE_LENGTH } = require('../src/constants');
 
 // ---------------------------------------------------------------------------
 // Argument parsing (no external dependencies)
@@ -21,9 +22,11 @@ function parseArgs(argv) {
     yamlPath: null,
     dryRun: false,
     outputTs: null,
-    reportDir: './midscene-report',
+    reportDir: DEFAULT_REPORT_DIR,
     template: 'puppeteer',
-    timeout: 300000,
+    timeout: DEFAULT_TIMEOUT,
+    retry: 0,
+    clean: false,
     verbose: false,
     help: false,
     version: false,
@@ -54,6 +57,20 @@ function parseArgs(argv) {
         args.timeout = timeoutVal;
         break;
       }
+
+      case '--retry': {
+        const retryVal = parseInt(rawArgs[++i], 10);
+        if (isNaN(retryVal) || retryVal < 0) {
+          console.error('[midscene-run] --retry must be a non-negative integer.');
+          process.exit(1);
+        }
+        args.retry = retryVal;
+        break;
+      }
+
+      case '--clean':
+        args.clean = true;
+        break;
 
       case '--dry-run':
         args.dryRun = true;
@@ -132,6 +149,9 @@ Options:
                            (default: puppeteer)
   --timeout <ms>           Execution timeout in milliseconds
                            (default: 300000 = 5 minutes)
+  --retry <count>          Retry failed executions (for flaky scenarios)
+                           (default: 0 = no retry)
+  --clean                  Clean stale temp files from .midscene-tmp/
   --verbose, -v            Show detailed output (validation details,
                            detection info, environment)
   --version, -V            Show version information
@@ -143,6 +163,8 @@ Examples:
   midscene-run tests/extended.yaml --dry-run --output-ts ./generated.ts
   midscene-run "tests/**/*.yaml"             # batch: run all YAML files
   midscene-run "tests/smoke-*.yaml" -v       # batch with verbose output
+  midscene-run tests/flaky.yaml --retry 2    # retry up to 2 times on failure
+  midscene-run --clean                       # remove stale temp files
 `);
 }
 
@@ -201,6 +223,78 @@ function resolveYamlFiles(inputPath) {
 }
 
 // ---------------------------------------------------------------------------
+// Quick-fix hints for common error patterns
+// ---------------------------------------------------------------------------
+function printQuickFixHints(allMsgs, errorMsg) {
+  const combined = allMsgs + ' ' + (errorMsg || '');
+
+  if (/syntax|parse/i.test(combined)) {
+    console.error('\n  Hint: Check YAML indentation (use 2 spaces, not tabs) and ensure proper quoting of special characters.');
+  }
+  if (/platform config/i.test(combined)) {
+    console.error('  Hint: Add a platform key at the top level, e.g. web: { url: "https://example.com" }');
+  }
+  if (/tasks/i.test(combined) && /required|missing|must/i.test(combined)) {
+    console.error('  Hint: Add a "tasks" array with at least one task containing "name" and "flow".');
+  }
+  if (/api[_-]?key|MIDSCENE_MODEL_API_KEY|401/i.test(combined)) {
+    console.error('  Hint: Set MIDSCENE_MODEL_API_KEY in .env or environment variables.');
+  }
+  if (/timeout|timed?\s*out/i.test(combined)) {
+    console.error('  Hint: Increase timeout with --timeout flag. Note: timeout includes browser startup time (minimum 60000ms recommended).');
+  }
+  if (/element.*not\s*found|cannot\s*find|locate.*fail/i.test(combined)) {
+    console.error('  Hint: Check selector/description accuracy. Use deepThink: true for complex layouts or add aiWaitFor before interaction.');
+  }
+  if (/EACCES|EPERM|permission|denied/i.test(combined)) {
+    console.error('  Hint: Check file permissions and ensure the process has access to the required directories.');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Error message truncation
+// ---------------------------------------------------------------------------
+function truncateError(msg) {
+  if (!msg || typeof msg !== 'string') return msg;
+  if (msg.length <= MAX_ERROR_MESSAGE_LENGTH) return msg;
+  return msg.slice(0, MAX_ERROR_MESSAGE_LENGTH) + '... (truncated, see full output above)';
+}
+
+// ---------------------------------------------------------------------------
+// Stale temp file cleanup
+// ---------------------------------------------------------------------------
+function cleanStaleTempFiles(cwd) {
+  const tmpDir = path.join(cwd || process.cwd(), MIDSCENE_TMP_DIR);
+  if (!fs.existsSync(tmpDir)) {
+    console.log('[midscene-run] No temp directory found.');
+    return 0;
+  }
+
+  const now = Date.now();
+  let cleaned = 0;
+  const files = fs.readdirSync(tmpDir);
+
+  for (const file of files) {
+    const filePath = path.join(tmpDir, file);
+    try {
+      const stat = fs.statSync(filePath);
+      if (now - stat.mtimeMs > STALE_TEMP_THRESHOLD_MS) {
+        fs.unlinkSync(filePath);
+        cleaned++;
+      }
+    } catch (_e) { /* skip unreadable files */ }
+  }
+
+  // Remove empty directory
+  try {
+    const remaining = fs.readdirSync(tmpDir);
+    if (remaining.length === 0) fs.rmdirSync(tmpDir);
+  } catch (_e) { /* ignore */ }
+
+  return cleaned;
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 function main() {
@@ -214,10 +308,20 @@ function main() {
   }
 
   // Show help if requested or no arguments provided
-  if (args.help || !args.yamlPath) {
+  if (args.help || (!args.yamlPath && !args.clean)) {
     showHelp();
     process.exit(args.help ? 0 : 1);
   }
+
+  // Handle --clean flag
+  if (args.clean) {
+    const cleaned = cleanStaleTempFiles();
+    console.log(`[midscene-run] Cleaned ${cleaned} stale temp file(s).`);
+    if (!args.yamlPath) process.exit(0);
+  }
+
+  // Clean stale temp files at startup (non-disruptive)
+  try { cleanStaleTempFiles(); } catch (_e) { /* non-critical */ }
 
   // Resolve to one or more YAML files.
   const yamlFiles = resolveYamlFiles(args.yamlPath);
@@ -300,15 +404,7 @@ function processFile(yamlPath, args) {
     });
     // Print quick-fix hints for common errors.
     const allMsgs = (validation.errors || []).map(e => typeof e === 'object' ? e.message : String(e)).join(' ');
-    if (/syntax|parse/i.test(allMsgs)) {
-      console.error('\n  Hint: Check YAML indentation (use 2 spaces, not tabs) and ensure proper quoting of special characters.');
-    }
-    if (/platform config/i.test(allMsgs)) {
-      console.error('  Hint: Add a platform key at the top level, e.g. web: { url: "https://example.com" }');
-    }
-    if (/tasks/i.test(allMsgs) && /required|missing|must/i.test(allMsgs)) {
-      console.error('  Hint: Add a "tasks" array with at least one task containing "name" and "flow".');
-    }
+    printQuickFixHints(allMsgs, '');
     console.error('\n[midscene-run] Validation failed. Aborting.');
     return 1;
   }
@@ -326,103 +422,41 @@ function processFile(yamlPath, args) {
   }
 
   if (args.verbose) {
+    console.log('-'.repeat(40));
     console.log(`[midscene-run] Timeout: ${args.timeout}ms`);
     console.log(`[midscene-run] Report dir: ${args.reportDir}`);
+    if (args.retry > 0) {
+      console.log(`[midscene-run] Retry: ${args.retry}`);
+    }
     if (detection.mode === 'extended') {
       console.log(`[midscene-run] Template: ${args.template}`);
     }
+    console.log('-'.repeat(40));
   }
 
+  // -----------------------------------------------------------------------
+  // Step 3: Execute (with retry support)
+  // -----------------------------------------------------------------------
   let result;
+  let attempts = 0;
+  const maxAttempts = 1 + (args.retry || 0);
 
-  // -----------------------------------------------------------------------
-  // Step 3a: Native mode – run directly via Midscene CLI
-  // -----------------------------------------------------------------------
-  if (detection.mode === 'native') {
-    if (args.dryRun) {
-      console.log('[midscene-run] Dry-run: native YAML requires no transpilation.');
-      try {
-        const yaml = require('js-yaml');
-        const doc = yaml.load(fs.readFileSync(yamlPath, 'utf-8'));
-        const platform = ['web', 'android', 'ios', 'computer'].find(p => doc[p]) || 'unknown';
-        const tasks = Array.isArray(doc.tasks) ? doc.tasks : [];
-        console.log('\n  Summary:');
-        console.log(`    Platform : ${platform}`);
-        console.log(`    Tasks    : ${tasks.length}`);
-        tasks.forEach((t, i) => {
-          const flowLen = Array.isArray(t.flow || t.steps) ? (t.flow || t.steps).length : 0;
-          console.log(`      ${i + 1}. ${t.name || '(unnamed)'} — ${flowLen} steps`);
-        });
-        console.log('');
-      } catch (_e) {
-        // Fallback: just print raw content
-        const content = fs.readFileSync(yamlPath, 'utf-8');
-        console.log('\n--- Native YAML content ---');
-        console.log(content);
-        console.log('--- End ---\n');
-      }
-      return 0;
+  while (attempts < maxAttempts) {
+    attempts++;
+    if (attempts > 1) {
+      console.log(`\n[midscene-run] Retry ${attempts - 1}/${args.retry}...`);
     }
 
-    console.log('[midscene-run] Running in native mode...');
-    result = nativeRunner.run(yamlPath, {
-      reportDir: args.reportDir,
-      cwd: path.dirname(yamlPath),
-      timeout: args.timeout,
-    });
+    result = executeFile(yamlPath, detection, args);
 
-  // -----------------------------------------------------------------------
-  // Step 3b: Extended mode – transpile then execute
-  // -----------------------------------------------------------------------
-  } else {
-    console.log('[midscene-run] Transpiling extended YAML to TypeScript...');
+    // For dry-run, executeFile returns a number (exit code)
+    if (typeof result === 'number') return result;
 
-    const transpileResult = tryTranspile(yamlPath, {
-      templateType: args.template,
-    });
+    if (result.success) break;
 
-    // tryTranspile returns { error } on exception, { code } on success.
-    if (transpileResult.error) {
-      console.error(`[midscene-run] ${transpileResult.error}`);
-      return 1;
+    if (attempts < maxAttempts) {
+      console.log(`[midscene-run] Attempt ${attempts} failed, retrying...`);
     }
-
-    const tsCode = transpileResult.code;
-
-    // Display transpiler warnings if any
-    if (transpileResult.warnings && transpileResult.warnings.length > 0) {
-      console.log('\n  Transpiler warnings:');
-      transpileResult.warnings.forEach(w => console.log(`    - ${w}`));
-    }
-
-    if (typeof tsCode !== 'string') {
-      console.error('[midscene-run] Transpiler did not return a valid TypeScript string.');
-      return 1;
-    }
-
-    // Save TS output if requested
-    if (args.outputTs) {
-      const outputTsPath = path.resolve(args.outputTs);
-      fs.mkdirSync(path.dirname(outputTsPath), { recursive: true });
-      fs.writeFileSync(outputTsPath, tsCode, 'utf-8');
-      console.log(`[midscene-run] TypeScript saved to: ${outputTsPath}`);
-    }
-
-    // Dry-run: just show the generated code
-    if (args.dryRun) {
-      console.log('\n--- Generated TypeScript ---');
-      console.log(tsCode);
-      console.log('--- End ---\n');
-      return 0;
-    }
-
-    console.log('[midscene-run] Running transpiled TypeScript...');
-    result = tsRunner.run(tsCode, {
-      reportDir: args.reportDir,
-      cwd: path.dirname(yamlPath),
-      timeout: args.timeout,
-      keepTs: !!args.outputTs,
-    });
   }
 
   // -----------------------------------------------------------------------
@@ -441,6 +475,19 @@ function processFile(yamlPath, args) {
       console.log(`  Failed: ${report.summary.failed}`);
       console.log(`  Status: ${report.summary.status}\n`);
     }
+
+    // Display failed task details
+    if (report.failedTasks && report.failedTasks.length > 0 && args.verbose) {
+      console.log('  Failed tasks:');
+      for (const ft of report.failedTasks) {
+        console.log(`    - ${ft.name}${ft.error ? ': ' + truncateError(ft.error) : ''}`);
+      }
+    }
+
+    // Display total duration if available
+    if (report.totalDuration && args.verbose) {
+      console.log(`  Duration: ${Math.round(report.totalDuration / 1000)}s`);
+    }
   } else {
     console.log(`[midscene-run] ${report.message}`);
   }
@@ -452,10 +499,133 @@ function processFile(yamlPath, args) {
     console.log('[midscene-run] Done.');
     return 0;
   } else {
-    console.error(`[midscene-run] Execution failed: ${result.error || 'unknown error'}`);
+    const errorMsg = truncateError(result.error || 'unknown error');
+    console.error(`[midscene-run] Execution failed: ${errorMsg}`);
+
+    // Print quick-fix hints based on error message
+    printQuickFixHints('', result.error || '');
+
+    // Classify error for additional context
+    if (args.verbose && result.error) {
+      const { classifyError } = reportParser;
+      const classification = classifyError(result.error);
+      console.error(`  Error category: ${classification.category} (${classification.severity})`);
+      console.error(`  Suggestion: ${classification.suggestion}`);
+    }
+
     const exitCode = typeof result.exitCode === 'number' ? result.exitCode : 1;
     return exitCode || 1;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Execute a file (extracted to support retry logic)
+// Returns a result object or a number (for dry-run exit code)
+// ---------------------------------------------------------------------------
+function executeFile(yamlPath, detection, args) {
+  // -----------------------------------------------------------------------
+  // Native mode – run directly via Midscene CLI
+  // -----------------------------------------------------------------------
+  if (detection.mode === 'native') {
+    if (args.dryRun) {
+      console.log('[midscene-run] Dry-run: native YAML requires no transpilation.');
+      try {
+        const yaml = require('js-yaml');
+        const doc = yaml.load(fs.readFileSync(yamlPath, 'utf-8'));
+        const platform = ['web', 'android', 'ios', 'computer'].find(p => doc[p]) || 'unknown';
+        const tasks = Array.isArray(doc.tasks) ? doc.tasks : [];
+        console.log('\n  Summary:');
+        console.log(`    Platform : ${platform}`);
+        console.log(`    Tasks    : ${tasks.length}`);
+        tasks.forEach((t, i) => {
+          const flowLen = Array.isArray(t.flow || t.steps) ? (t.flow || t.steps).length : 0;
+          console.log(`      ${i + 1}. ${t.name || '(unnamed)'} — ${flowLen} steps`);
+        });
+        console.log('');
+      } catch (_e) {
+        console.warn('[midscene-run] Warning: YAML validation passed but js-yaml could not parse the file. Check for non-standard constructs.');
+        const content = fs.readFileSync(yamlPath, 'utf-8');
+        console.log('\n--- Native YAML content ---');
+        console.log(content);
+        console.log('--- End ---\n');
+      }
+      return 0;
+    }
+
+    if (args.verbose) {
+      console.log('-'.repeat(40) + ' [subprocess output] ' + '-'.repeat(40));
+    }
+    console.log('[midscene-run] Running in native mode...');
+    const result = nativeRunner.run(yamlPath, {
+      reportDir: args.reportDir,
+      cwd: path.dirname(yamlPath),
+      timeout: args.timeout,
+    });
+    if (args.verbose) {
+      console.log('-'.repeat(40) + ' [end subprocess] ' + '-'.repeat(40));
+    }
+    return result;
+  }
+
+  // -----------------------------------------------------------------------
+  // Extended mode – transpile then execute
+  // -----------------------------------------------------------------------
+  console.log('[midscene-run] Transpiling extended YAML to TypeScript...');
+
+  const transpileResult = tryTranspile(yamlPath, {
+    templateType: args.template,
+  });
+
+  // tryTranspile returns { error } on exception, { code } on success.
+  if (transpileResult.error) {
+    console.error(`[midscene-run] ${transpileResult.error}`);
+    return { success: false, error: transpileResult.error, reportDir: args.reportDir };
+  }
+
+  const tsCode = transpileResult.code;
+
+  // Display transpiler warnings if any
+  if (transpileResult.warnings && transpileResult.warnings.length > 0) {
+    console.log('\n  Transpiler warnings:');
+    transpileResult.warnings.forEach(w => console.log(`    - ${w}`));
+  }
+
+  if (typeof tsCode !== 'string') {
+    const err = 'Transpiler did not return a valid TypeScript string.';
+    console.error('[midscene-run] ' + err);
+    return { success: false, error: err, reportDir: args.reportDir };
+  }
+
+  // Save TS output if requested
+  if (args.outputTs) {
+    const outputTsPath = path.resolve(args.outputTs);
+    fs.mkdirSync(path.dirname(outputTsPath), { recursive: true });
+    fs.writeFileSync(outputTsPath, tsCode, 'utf-8');
+    console.log(`[midscene-run] TypeScript saved to: ${outputTsPath}`);
+  }
+
+  // Dry-run: just show the generated code
+  if (args.dryRun) {
+    console.log('\n--- Generated TypeScript ---');
+    console.log(tsCode);
+    console.log('--- End ---\n');
+    return 0;
+  }
+
+  if (args.verbose) {
+    console.log('-'.repeat(40) + ' [subprocess output] ' + '-'.repeat(40));
+  }
+  console.log('[midscene-run] Running transpiled TypeScript...');
+  const result = tsRunner.run(tsCode, {
+    reportDir: args.reportDir,
+    cwd: path.dirname(yamlPath),
+    timeout: args.timeout,
+    keepTs: !!args.outputTs,
+  });
+  if (args.verbose) {
+    console.log('-'.repeat(40) + ' [end subprocess] ' + '-'.repeat(40));
+  }
+  return result;
 }
 
 // Export parseArgs and resolveYamlFiles for testability; run main() only when executed directly.

@@ -393,3 +393,295 @@ describe('CLI Validator Path', () => {
       'Validator should export a validate function');
   });
 });
+
+// ---------------------------------------------------------------------------
+// classifyError tests
+// ---------------------------------------------------------------------------
+describe('classifyError', () => {
+  const { classifyError } = reportParser;
+
+  it('classifies API key errors', () => {
+    const result = classifyError('MIDSCENE_MODEL_API_KEY is not set');
+    assert.equal(result.category, 'api_key');
+    assert.equal(result.severity, 'fatal');
+    assert.ok(result.suggestion.includes('MIDSCENE_MODEL_API_KEY'));
+  });
+
+  it('classifies 401 as api_key', () => {
+    const result = classifyError('Request failed with status 401');
+    assert.equal(result.category, 'api_key');
+  });
+
+  it('classifies timeout errors', () => {
+    const result = classifyError('Operation timed out after 30000ms');
+    assert.equal(result.category, 'timeout');
+    assert.equal(result.severity, 'recoverable');
+    assert.ok(result.suggestion.includes('timeout'));
+  });
+
+  it('classifies ETIMEDOUT as timeout', () => {
+    const result = classifyError('connect ETIMEDOUT 192.168.1.1:443');
+    assert.equal(result.category, 'timeout');
+  });
+
+  it('classifies element not found errors', () => {
+    const result = classifyError('Element not found: login button');
+    assert.equal(result.category, 'element_not_found');
+    assert.equal(result.severity, 'recoverable');
+    assert.ok(result.suggestion.includes('deepThink'));
+  });
+
+  it('classifies "cannot find" as element_not_found', () => {
+    const result = classifyError('Cannot find the submit button on the page');
+    assert.equal(result.category, 'element_not_found');
+  });
+
+  it('classifies assertion failures', () => {
+    const result = classifyError('Assertion failed: expected "logged in" but got "login page"');
+    assert.equal(result.category, 'assertion');
+    assert.equal(result.severity, 'recoverable');
+  });
+
+  it('classifies navigation errors', () => {
+    const result = classifyError('net::ERR_NAME_NOT_RESOLVED');
+    assert.equal(result.category, 'navigation');
+    assert.equal(result.severity, 'recoverable');
+    assert.ok(result.suggestion.includes('URL'));
+  });
+
+  it('classifies ERR_CONNECTION_REFUSED as navigation', () => {
+    const result = classifyError('net::ERR_CONNECTION_REFUSED at http://localhost:3000');
+    assert.equal(result.category, 'navigation');
+  });
+
+  it('classifies transpiler errors', () => {
+    const result = classifyError('Syntax error: unexpected token at line 15');
+    assert.equal(result.category, 'transpiler');
+    assert.equal(result.severity, 'fatal');
+  });
+
+  it('classifies permission errors', () => {
+    const result = classifyError('EACCES: permission denied, open /etc/passwd');
+    assert.equal(result.category, 'permission');
+    assert.equal(result.severity, 'fatal');
+  });
+
+  it('classifies JavaScript errors', () => {
+    const result = classifyError('ReferenceError: foo is not defined');
+    assert.equal(result.category, 'javascript');
+    assert.equal(result.severity, 'recoverable');
+  });
+
+  it('classifies TypeError as javascript', () => {
+    const result = classifyError('TypeError: Cannot read properties of undefined');
+    assert.equal(result.category, 'javascript');
+  });
+
+  it('returns unknown for unrecognized errors', () => {
+    const result = classifyError('Something completely unexpected happened');
+    assert.equal(result.category, 'unknown');
+    assert.equal(result.severity, 'recoverable');
+    assert.ok(result.suggestion.includes('full error output'));
+  });
+
+  it('returns unknown for null input', () => {
+    const result = classifyError(null);
+    assert.equal(result.category, 'unknown');
+  });
+
+  it('returns unknown for undefined input', () => {
+    const result = classifyError(undefined);
+    assert.equal(result.category, 'unknown');
+  });
+
+  it('returns unknown for empty string', () => {
+    const result = classifyError('');
+    assert.equal(result.category, 'unknown');
+  });
+
+  it('returns unknown for non-string input', () => {
+    const result = classifyError(42);
+    assert.equal(result.category, 'unknown');
+  });
+
+  it('result has category, suggestion, and severity keys', () => {
+    const result = classifyError('any error');
+    assert.ok('category' in result);
+    assert.ok('suggestion' in result);
+    assert.ok('severity' in result);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// extractTaskDetails tests (via report-parser.parse)
+// ---------------------------------------------------------------------------
+describe('Report Parser — detailed extraction', () => {
+  beforeEach(() => setupTmpDir());
+  afterEach(() => cleanupTmpDir());
+
+  it('extracts failedTasks with error details', () => {
+    const report = [
+      { status: 'passed', name: 'task1' },
+      { status: 'failed', name: 'task2', error: 'Element not found', failedStep: 'aiTap', screenshotPath: '/tmp/shot.png' },
+    ];
+    fs.writeFileSync(path.join(tmpDir, 'report.json'), JSON.stringify(report));
+
+    const result = reportParser.parse(tmpDir);
+    assert.equal(result.failedTasks.length, 1);
+    assert.equal(result.failedTasks[0].name, 'task2');
+    assert.equal(result.failedTasks[0].error, 'Element not found');
+    assert.equal(result.failedTasks[0].failedStep, 'aiTap');
+    assert.equal(result.failedTasks[0].screenshotPath, '/tmp/shot.png');
+  });
+
+  it('extracts taskDetails with name, status, duration, stepCount', () => {
+    const report = [
+      { status: 'passed', name: 'Login', duration: 5000, flow: [{}, {}, {}] },
+      { status: 'failed', name: 'Checkout', duration: 3000, flow: [{}, {}] },
+    ];
+    fs.writeFileSync(path.join(tmpDir, 'report.json'), JSON.stringify(report));
+
+    const result = reportParser.parse(tmpDir);
+    assert.equal(result.taskDetails.length, 2);
+    assert.equal(result.taskDetails[0].name, 'Login');
+    assert.equal(result.taskDetails[0].status, 'passed');
+    assert.equal(result.taskDetails[0].duration, 5000);
+    assert.equal(result.taskDetails[0].stepCount, 3);
+    assert.equal(result.taskDetails[1].name, 'Checkout');
+    assert.equal(result.taskDetails[1].status, 'failed');
+    assert.equal(result.taskDetails[1].stepCount, 2);
+  });
+
+  it('extracts aiQueryResults from task output', () => {
+    const report = [
+      { status: 'passed', name: 'task1', output: { title: 'Hello World', count: 42 } },
+    ];
+    fs.writeFileSync(path.join(tmpDir, 'report.json'), JSON.stringify(report));
+
+    const result = reportParser.parse(tmpDir);
+    assert.ok(result.aiQueryResults);
+    assert.equal(result.aiQueryResults.title, 'Hello World');
+    assert.equal(result.aiQueryResults.count, 42);
+  });
+
+  it('extracts aiQueryResults from task results', () => {
+    const report = [
+      { status: 'passed', name: 'task1', results: { price: '$9.99' } },
+    ];
+    fs.writeFileSync(path.join(tmpDir, 'report.json'), JSON.stringify(report));
+
+    const result = reportParser.parse(tmpDir);
+    assert.ok(result.aiQueryResults);
+    assert.equal(result.aiQueryResults.price, '$9.99');
+  });
+
+  it('computes totalDuration from task durations', () => {
+    const report = [
+      { status: 'passed', name: 'task1', duration: 2000 },
+      { status: 'passed', name: 'task2', duration: 3500 },
+    ];
+    fs.writeFileSync(path.join(tmpDir, 'report.json'), JSON.stringify(report));
+
+    const result = reportParser.parse(tmpDir);
+    assert.equal(result.totalDuration, 5500);
+  });
+
+  it('returns htmlReports list when HTML files exist', () => {
+    const report = [{ status: 'passed', name: 'task1' }];
+    fs.writeFileSync(path.join(tmpDir, 'report.json'), JSON.stringify(report));
+    fs.writeFileSync(path.join(tmpDir, 'report.html'), '<html></html>');
+    fs.writeFileSync(path.join(tmpDir, 'details.html'), '<html></html>');
+
+    const result = reportParser.parse(tmpDir);
+    assert.ok(Array.isArray(result.htmlReports));
+    assert.equal(result.htmlReports.length, 2);
+  });
+
+  it('returns undefined htmlReports when no HTML files', () => {
+    const report = [{ status: 'passed', name: 'task1' }];
+    fs.writeFileSync(path.join(tmpDir, 'report.json'), JSON.stringify(report));
+
+    const result = reportParser.parse(tmpDir);
+    assert.equal(result.htmlReports, undefined);
+  });
+
+  it('returns undefined aiQueryResults when no query output', () => {
+    const report = [{ status: 'passed', name: 'task1' }];
+    fs.writeFileSync(path.join(tmpDir, 'report.json'), JSON.stringify(report));
+
+    const result = reportParser.parse(tmpDir);
+    assert.equal(result.aiQueryResults, undefined);
+  });
+
+  it('handles tasks with success boolean and errorMessage', () => {
+    const report = [
+      { success: false, name: 'broken', errorMessage: 'Crash', screenshot: '/tmp/crash.png' },
+    ];
+    fs.writeFileSync(path.join(tmpDir, 'report.json'), JSON.stringify(report));
+
+    const result = reportParser.parse(tmpDir);
+    assert.equal(result.failedTasks.length, 1);
+    assert.equal(result.failedTasks[0].error, 'Crash');
+    assert.equal(result.failedTasks[0].screenshotPath, '/tmp/crash.png');
+  });
+
+  it('handles unnamed tasks gracefully', () => {
+    const report = [{ status: 'failed' }];
+    fs.writeFileSync(path.join(tmpDir, 'report.json'), JSON.stringify(report));
+
+    const result = reportParser.parse(tmpDir);
+    assert.equal(result.failedTasks[0].name, '(unnamed)');
+    assert.equal(result.taskDetails[0].name, '(unnamed)');
+  });
+
+  it('aggregates details from multiple JSON reports', () => {
+    const report1 = [
+      { status: 'passed', name: 'r1-t1', duration: 1000, output: { key1: 'a' } },
+    ];
+    const report2 = [
+      { status: 'failed', name: 'r2-t1', duration: 2000, error: 'fail' },
+    ];
+    fs.writeFileSync(path.join(tmpDir, 'report1.json'), JSON.stringify(report1));
+    fs.writeFileSync(path.join(tmpDir, 'report2.json'), JSON.stringify(report2));
+
+    const result = reportParser.parse(tmpDir);
+    assert.equal(result.taskDetails.length, 2);
+    assert.equal(result.failedTasks.length, 1);
+    assert.equal(result.totalDuration, 3000);
+    assert.ok(result.aiQueryResults);
+    assert.equal(result.aiQueryResults.key1, 'a');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CLI --retry and --clean parsing tests
+// ---------------------------------------------------------------------------
+describe('CLI --retry and --clean parsing', () => {
+  const { parseArgs } = require('../scripts/midscene-run');
+
+  it('parses --retry flag with value', () => {
+    const args = parseArgs(['node', 'script', 'test.yaml', '--retry', '3']);
+    assert.equal(args.retry, 3);
+  });
+
+  it('defaults retry to 0', () => {
+    const args = parseArgs(['node', 'script', 'test.yaml']);
+    assert.equal(args.retry, 0);
+  });
+
+  it('parses --clean flag', () => {
+    const args = parseArgs(['node', 'script', '--clean']);
+    assert.equal(args.clean, true);
+  });
+
+  it('defaults clean to false', () => {
+    const args = parseArgs(['node', 'script', 'test.yaml']);
+    assert.equal(args.clean, false);
+  });
+
+  it('parses --retry and --clean together', () => {
+    const args = parseArgs(['node', 'script', 'test.yaml', '--retry', '2', '--clean']);
+    assert.equal(args.retry, 2);
+    assert.equal(args.clean, true);
+  });
+});

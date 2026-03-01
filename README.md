@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node >= 22](https://img.shields.io/badge/Node-%3E%3D22-green.svg)](https://nodejs.org/)
-[![Tests: 486](https://img.shields.io/badge/Tests-486-brightgreen.svg)](#开发)
+[![Tests: 548](https://img.shields.io/badge/Tests-548-brightgreen.svg)](#开发)
 [![Skills: 2](https://img.shields.io/badge/Claude%20Code%20Skills-2-purple.svg)](#安装-skills)
 
 > 基于自然语言的 AI 低代码浏览器自动化框架。
@@ -145,8 +145,10 @@ node scripts/midscene-run.js <yaml文件|glob模式> [选项]
 | `--output-ts <路径>` | 保存转译后的 TypeScript 文件 |
 | `--report-dir <路径>` | 自定义报告输出目录 |
 | `--template puppeteer\|playwright` | TS 模板引擎（默认 puppeteer） |
-| `--timeout <毫秒>` | 执行超时时间 |
-| `--verbose`, `-v` | 详细输出 |
+| `--timeout <毫秒>` | 执行超时时间（含浏览器启动，建议最低 60000） |
+| `--retry <次数>` | 失败后自动重试（应对 flaky 场景，默认 0） |
+| `--clean` | 清理 `.midscene-tmp/` 中超过 24 小时的临时文件 |
+| `--verbose`, `-v` | 详细输出（含错误分类、执行耗时） |
 | `--version`, `-V` | 显示版本号 |
 | `--help`, `-h` | 显示帮助 |
 
@@ -158,9 +160,9 @@ node scripts/midscene-run.js "tests/**/*.yaml"
 
 ## 模板
 
-内置 19 个模板（10 个 Native + 9 个 Extended），覆盖常见自动化场景：
+内置 22 个模板（13 个 Native + 9 个 Extended），覆盖常见自动化场景：
 
-- **Native**：Web 基础操作、登录、搜索、数据提取、文件上传、多标签页、深度定位、Android、iOS、Computer
+- **Native**：Web 基础操作、登录、搜索、数据提取、文件上传、多标签页、深度定位、桥接模式、Cookie 会话、本地静态服务、Android、iOS、Computer
 - **Extended**：条件流程、分页循环、重试逻辑、子流程复用、API 集成、数据管道、认证流程、响应式测试、端到端工作流
 
 浏览所有模板：[`templates/`](templates/)
@@ -174,7 +176,7 @@ node scripts/midscene-run.js "tests/**/*.yaml"
 
 ```bash
 npm install          # 安装依赖
-npm test             # 运行 486 个测试
+npm test             # 运行 548 个测试
 npm run test:coverage # 测试 + 覆盖率报告
 npm run lint         # ESLint 检查
 ```
@@ -187,7 +189,7 @@ src/
   runner/         Native 执行器 + TS 执行器 + 报告解析器
 scripts/          CLI 入口
 schema/           关键字 Schema + JSON Schema
-templates/        19 个 YAML 模板
+templates/        22 个 YAML 模板
 skills/           Claude Code Skill 定义
 ```
 

@@ -1,5 +1,6 @@
 ---
 name: midscene-runner
+version: 2.0.0
 description: >
   Execute, validate, and debug Midscene YAML automation files.
   Handles dry-run, execution, report analysis, and iterative debugging.
@@ -73,10 +74,10 @@ npm run setup
 
 **Chrome 浏览器检测**（Web 平台）：
 
-框架会自动按以下顺序查找系统 Chrome：
-- Windows: `Program Files\Google\Chrome\Application\chrome.exe`
-- macOS: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`
-- Linux: `/usr/bin/google-chrome`、`/usr/bin/chromium`
+框架会自动按以下顺序查找系统 Chrome/Chromium/Edge：
+- Windows: `Program Files\Google\Chrome`、`Chromium`、`Microsoft\Edge` (LOCALAPPDATA/PROGRAMFILES)
+- macOS: `/Applications/Google Chrome.app`、`/Applications/Chromium.app`
+- Linux: `/usr/bin/google-chrome`、`/usr/bin/chromium`、`/snap/bin/chromium`、`which google-chrome`
 
 如果未找到系统 Chrome，有两种解决方案：
 1. 安装 Chrome 浏览器（推荐）
@@ -170,11 +171,13 @@ npx @midscene/web "tests/**/*.yaml" --concurrent --continue-on-error
 
 **可用选项**（方式 1）：
 - `--dry-run` — 仅验证和转换，不实际执行（注意：不检测模型配置，AI 操作需配置 `MIDSCENE_MODEL_API_KEY`）
-- `--timeout <ms>` — 执行超时（默认 300000 = 5 分钟）。长时间自动化场景可增大此值
+- `--timeout <ms>` — 执行超时（默认 300000 = 5 分钟）。**注意**：timeout 包含浏览器启动时间，建议最低设置 60000ms
+- `--retry <count>` — 失败后自动重试次数（默认 0，即不重试）。适合 flaky 场景
 - `--output-ts <path>` — 保存转换后的 TypeScript 文件（仅 Extended 模式）。排查转译错误时，建议配合 `--dry-run` 一起使用
 - `--report-dir <path>` — 报告输出目录（默认 `./midscene-report`）
 - `--template puppeteer|playwright` — 选择 TS 模板（默认 puppeteer；playwright 适合需要多浏览器兼容的场景）
-- `--verbose` / `-v` — 显示详细输出（验证详情、检测信息、环境信息）
+- `--clean` — 清理 `.midscene-tmp/` 中超过 24 小时的过期临时文件
+- `--verbose` / `-v` — 显示详细输出（验证详情、检测信息、环境信息、错误分类）
 - `--help` / `-h` — 显示帮助信息
 
 **Extended 模式的执行流程**：
@@ -305,7 +308,14 @@ agent:
   testId: "test-001"
   groupName: "回归测试"
   groupDescription: "每日回归测试套件"
-  cache: true
+  cache: true                        # 或对象格式: { strategy: "read-write", id: "cache-key" }
+  generateReport: true
+  autoPrintReportMsg: true
+  reportFileName: "custom-report"
+  replanningCycleLimit: 20           # 默认 20, UI-TARS 模型设 40
+  aiActContext: "这是一个中文电商网站"  # AI 背景知识
+  screenshotShrinkFactor: 0.5        # 截图缩放（节省 token）
+  waitAfterAction: 500               # 每次操作后等待 ms（默认 300）
 ```
 
 ### continueOnError（可选）

@@ -1,0 +1,23 @@
+# Template: Local Serve — test local build output with built-in static server
+# Use case: Test a locally built SPA or static site without starting a dev server
+# serve: path to the directory containing built files (e.g., ./dist, ./build)
+# The URL field can use relative paths; Midscene starts a local server automatically
+
+engine: native
+
+web:
+  url: "/"
+  serve: "./dist"
+  headless: false
+
+tasks:
+  - name: "Verify local build"
+    flow:
+      - aiWaitFor: "Page has loaded with content visible"
+        timeout: 10000
+      - aiAssert: "The application renders correctly without errors"
+      - aiQuery:
+          query: "Extract the page title text"
+          name: "pageTitle"
+      - recordToReport: "Local serve test"
+        content: "Local static file serving test completed"

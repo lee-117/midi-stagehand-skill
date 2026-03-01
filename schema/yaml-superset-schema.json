@@ -174,8 +174,10 @@
         "generateReport": { "type": "boolean" },
         "autoPrintReportMsg": { "type": "boolean" },
         "reportFileName": { "type": "string" },
-        "replanningCycleLimit": { "type": "integer" },
-        "aiActContext": { "type": "string" },
+        "replanningCycleLimit": { "type": "integer", "description": "Max replanning cycles (default 20, UI-TARS 40)" },
+        "aiActContext": { "type": "string", "description": "Background knowledge for AI actions" },
+        "screenshotShrinkFactor": { "type": "number", "minimum": 0, "description": "Screenshot scale factor to save tokens (0-1)" },
+        "waitAfterAction": { "type": "integer", "minimum": 0, "description": "Wait time after each action in ms (default 300)" }
       },
       "additionalProperties": false
     },

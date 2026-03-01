@@ -152,4 +152,20 @@ describe('findSystemChrome', () => {
         'Returned path should exist on filesystem');
     }
   });
+
+  it('returns consistent results across multiple calls', () => {
+    const result1 = findSystemChrome();
+    const result2 = findSystemChrome();
+    assert.equal(result1, result2, 'Should return the same path on repeated calls');
+  });
+
+  it('returned path includes browser-like name (if found)', () => {
+    const result = findSystemChrome();
+    if (result !== null) {
+      const lower = result.toLowerCase();
+      const hasBrowserName = lower.includes('chrom') || lower.includes('edge');
+      assert.ok(hasBrowserName,
+        `Path should include chrome, chromium, or edge: ${result}`);
+    }
+  });
 });
