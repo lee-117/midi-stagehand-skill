@@ -2,128 +2,128 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node >= 22](https://img.shields.io/badge/Node-%3E%3D22-green.svg)](https://nodejs.org/)
-[![Tests: 486](https://img.shields.io/badge/Tests-486-brightgreen.svg)](#development)
-[![Skills: 2](https://img.shields.io/badge/Claude%20Code%20Skills-2-purple.svg)](#install-as-skills)
+[![Tests: 486](https://img.shields.io/badge/Tests-486-brightgreen.svg)](#开发)
+[![Skills: 2](https://img.shields.io/badge/Claude%20Code%20Skills-2-purple.svg)](#安装-skills)
 
-> AI-powered low-code browser automation via natural language.
-> Two Claude Code Skills: **YAML Generator** + **Runner**.
+> 基于自然语言的 AI 低代码浏览器自动化框架。
+> 两个 Claude Code Skills：**YAML 生成器** + **执行器**。
 
-**[中文用户？查看完整渐进式指导手册 (L1-L5)](guide/MIDSCENE_YAML_GUIDE.md)**
+简体中文 | **[English](README.en.md)**
 
-## What Is This
+## 这是什么
 
-Midi Stagehand Skill is a **Midscene YAML superset ecosystem** that turns natural language into executable browser automation. It ships as **two Claude Code Skills** — a Generator that converts requirements into YAML, and a Runner that validates, executes, and reports results.
+Midi Stagehand Skill 是一个 **Midscene YAML 超集生态系统**，将自然语言转化为可执行的浏览器自动化脚本。它以 **两个 Claude Code Skills** 的形式提供 — 生成器将需求转换为 YAML，执行器负责验证、运行并输出报告。
 
 ```
-Natural Language → YAML (Native / Extended) → Detect → Execute → Report
+自然语言 → YAML (Native / Extended) → 检测 → 执行 → 报告
 ```
 
-Supports **Web**, **Android**, **iOS**, and **Computer** platforms.
+支持 **Web**、**Android**、**iOS** 和 **Computer** 四大平台。
 
-## Install as Skills
+## 安装 Skills
 
-### Prerequisites
+### 前置条件
 
-- **Node.js >= 22** and **npm**
-- **Chrome** browser (for web automation)
-- An AI coding agent: **Claude Code**, Trae, Qoder, Cursor, Cline, etc.
+- **Node.js >= 22** 和 **npm**
+- **Chrome** 浏览器（用于 Web 自动化）
+- AI 编码工具：**Claude Code**、Trae、Qoder、Cursor、Cline 等
 
-### From GitHub (recommended)
+### 从 GitHub 安装（推荐）
 
 ```bash
-# Install both skills globally
+# 全局安装两个 Skills
 npx skills add https://github.com/lee-117/midi-stagehand-skill -a claude-code -y -g
 
-# Other agents
+# 其他 Agent
 npx skills add https://github.com/lee-117/midi-stagehand-skill -a trae -y -g
 npx skills add https://github.com/lee-117/midi-stagehand-skill -a qoder -y -g
 ```
 
-### Install a single skill
+### 仅安装单个 Skill
 
 ```bash
 npx skills add https://github.com/lee-117/midi-stagehand-skill --skill midscene-yaml-generator -a claude-code -y -g
 npx skills add https://github.com/lee-117/midi-stagehand-skill --skill midscene-runner -a claude-code -y -g
 ```
 
-### From Gitee (clone first)
+### 从 Gitee 安装（需先 clone）
 
 ```bash
 git clone https://gitee.com/lee-zh/midi-stagehand-skill.git
 npx skills add ./midi-stagehand-skill -a claude-code -y -g
 ```
 
-### Update / Uninstall
+### 更新 / 卸载
 
 ```bash
-# Check for updates
+# 检查更新
 npx skills check
 
-# Update all installed skills
+# 更新所有已安装的 Skills
 npx skills update
 
-# Remove a specific skill
+# 卸载指定 Skill
 npx skills remove midscene-yaml-generator
 npx skills remove midscene-runner
 
-# List installed skills
+# 查看已安装的 Skills
 npx skills list
 ```
 
-## How It Works
+## 工作原理
 
-### YAML Generator — Natural Language to YAML
+### YAML 生成器 — 自然语言转 YAML
 
-When you describe a browser automation task, the Generator will:
+当你描述一个浏览器自动化需求时，生成器会：
 
-- Analyze complexity and choose **Native** or **Extended** mode
-- Determine target platform (Web / Android / iOS / Computer)
-- Map natural language to YAML actions using 19 built-in templates
-- Auto-validate and output to `./midscene-output/`
+- 分析需求复杂度，自动选择 **Native** 或 **Extended** 模式
+- 确定目标平台（Web / Android / iOS / Computer）
+- 基于 19 个内置模板，将自然语言映射为 YAML 动作
+- 自动验证并输出到 `./midscene-output/`
 
-### YAML Runner — Execute and Report
+### YAML 执行器 — 执行与报告
 
-When you need to run a YAML file, the Runner will:
+当你需要运行 YAML 文件时，执行器会：
 
-- Check the runtime environment (Node.js, dependencies, browser)
-- Locate and pre-validate the YAML file
-- Execute and analyze results
-- Parse the Midscene report with actionable fix suggestions
+- 检查运行环境（Node.js、依赖、浏览器）
+- 定位并预验证 YAML 文件
+- 执行并分析结果
+- 解读 Midscene 报告，提供可操作的修复建议
 
-### End-to-End Workflow
+### 端到端工作流
 
 ```
-You: "Write an automation script to open Google and search for Midscene"
-  ↓ [Generator]
-Output: midscene-output/search-google.yaml
-  ↓ [Runner --dry-run]
-Validate: passed
-  ↓ [Runner]
-Execute: open browser → type query → click search
+你: "帮我写个自动化脚本，打开百度搜索 Midscene"
+  ↓ [生成器]
+输出: midscene-output/search-baidu.yaml
+  ↓ [执行器 --dry-run]
+验证: 通过
+  ↓ [执行器]
+执行: 打开浏览器 → 输入关键词 → 点击搜索
   ↓
-Report: midscene-report/ (HTML + JSON)
+报告: midscene-report/ (HTML + JSON)
 ```
 
-## Two Modes
+## 两种模式
 
-| Mode | Use Case | Execution |
-|------|----------|-----------|
-| **Native** | Basic actions (tap, input, query, assert, scroll) | `@midscene/web` runs YAML directly |
-| **Extended** | Complex logic (conditions, loops, API calls, error handling) | Transpile to TypeScript, then execute |
+| 模式 | 适用场景 | 执行方式 |
+|------|---------|---------|
+| **Native** | 基础操作（点击、输入、查询、断言、滚动） | `@midscene/web` 直接执行 YAML |
+| **Extended** | 复杂逻辑（条件、循环、API 调用、错误处理） | 转译为 TypeScript 后执行 |
 
-Extended mode is auto-detected when YAML contains: `variables`, `logic`, `loop`, `import`, `use`, `data_transform`, `try/catch`, `external_call`, or `parallel`.
+当 YAML 包含以下关键字时自动识别为 Extended 模式：`variables`、`logic`、`loop`、`import`、`use`、`data_transform`、`try/catch`、`external_call`、`parallel`。
 
-## Model Configuration
+## 模型配置
 
-Midscene requires a vision-language model for AI operations. Set these environment variables before execution:
+Midscene 的 AI 操作需要视觉语言模型支持。执行前请设置以下环境变量：
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `MIDSCENE_MODEL_BASE_URL` | Model API endpoint | `https://api.openai.com/v1` |
-| `MIDSCENE_MODEL_API_KEY` | API key | `sk-xxxxxxxx` |
-| `MIDSCENE_MODEL_NAME` | Model name | `gpt-4o` |
+| 变量 | 说明 | 示例 |
+|------|------|------|
+| `MIDSCENE_MODEL_BASE_URL` | 模型 API 地址 | `https://api.openai.com/v1` |
+| `MIDSCENE_MODEL_API_KEY` | API 密钥 | `sk-xxxxxxxx` |
+| `MIDSCENE_MODEL_NAME` | 模型名称 | `gpt-4o` |
 
-Create a `.env` file in the project root:
+在项目根目录创建 `.env` 文件：
 
 ```env
 MIDSCENE_MODEL_BASE_URL=https://api.openai.com/v1
@@ -131,66 +131,66 @@ MIDSCENE_MODEL_API_KEY=sk-your-key
 MIDSCENE_MODEL_NAME=gpt-4o
 ```
 
-Any OpenAI-compatible vision model works. See the [progressive guide](guide/MIDSCENE_YAML_GUIDE.md) for more providers and advanced config.
+支持任何 OpenAI 兼容的视觉模型。更多模型配置（通义千问等）请参阅[渐进式指导手册](guide/MIDSCENE_YAML_GUIDE.md)。
 
-## CLI Reference
+## CLI 参考
 
 ```
-node scripts/midscene-run.js <yaml-file|glob> [options]
+node scripts/midscene-run.js <yaml文件|glob模式> [选项]
 ```
 
-| Option | Description |
-|--------|-------------|
-| `--dry-run` | Validate and transpile only, do not execute |
-| `--output-ts <path>` | Save transpiled TypeScript to file |
-| `--report-dir <path>` | Custom report output directory |
-| `--template puppeteer\|playwright` | TS template engine (default: puppeteer) |
-| `--timeout <ms>` | Execution timeout in milliseconds |
-| `--verbose`, `-v` | Verbose output |
-| `--version`, `-V` | Show version |
-| `--help`, `-h` | Show help |
+| 选项 | 说明 |
+|------|------|
+| `--dry-run` | 仅验证和转译，不执行 |
+| `--output-ts <路径>` | 保存转译后的 TypeScript 文件 |
+| `--report-dir <路径>` | 自定义报告输出目录 |
+| `--template puppeteer\|playwright` | TS 模板引擎（默认 puppeteer） |
+| `--timeout <毫秒>` | 执行超时时间 |
+| `--verbose`, `-v` | 详细输出 |
+| `--version`, `-V` | 显示版本号 |
+| `--help`, `-h` | 显示帮助 |
 
-Supports glob patterns for batch execution:
+支持 glob 模式批量执行：
 
 ```bash
 node scripts/midscene-run.js "tests/**/*.yaml"
 ```
 
-## Templates
+## 模板
 
-19 built-in templates (10 native + 9 extended) covering common automation scenarios:
+内置 19 个模板（10 个 Native + 9 个 Extended），覆盖常见自动化场景：
 
-- **Native**: web basics, login, search, data extraction, file upload, multi-tab, deep-think locator, Android, iOS, Computer
-- **Extended**: conditional flows, pagination loops, retry logic, sub-flow reuse, API integration, data pipelines, auth flows, responsive testing, e2e workflows
+- **Native**：Web 基础操作、登录、搜索、数据提取、文件上传、多标签页、深度定位、Android、iOS、Computer
+- **Extended**：条件流程、分页循环、重试逻辑、子流程复用、API 集成、数据管道、认证流程、响应式测试、端到端工作流
 
-Browse all templates in [`templates/`](templates/).
+浏览所有模板：[`templates/`](templates/)
 
-## Documentation
+## 文档
 
-- **[Progressive Guide (L1-L5)](guide/MIDSCENE_YAML_GUIDE.md)** — comprehensive tutorial from beginner to advanced
-- **[Skills CLI](https://github.com/vercel-labs/skills)** — install, update, and manage skills
+- **[渐进式指导手册 (L1-L5)](guide/MIDSCENE_YAML_GUIDE.md)** — 从入门到进阶的完整教程
+- **[Skills CLI](https://github.com/vercel-labs/skills)** — Skills 的安装、更新和管理
 
-## Development
+## 开发
 
 ```bash
-npm install          # Install dependencies
-npm test             # Run 486 tests
-npm run test:coverage # Tests with coverage report
-npm run lint         # ESLint check
+npm install          # 安装依赖
+npm test             # 运行 486 个测试
+npm run test:coverage # 测试 + 覆盖率报告
+npm run lint         # ESLint 检查
 ```
 
 ```
 src/
-  detector/       Mode detector (native vs extended)
-  validator/      4-layer YAML validation
-  transpiler/     YAML → TypeScript transpiler + 10 generators
-  runner/         Native runner + TS runner + report parser
-scripts/          CLI entry point
-schema/           Keyword schemas + JSON Schema
-templates/        19 YAML templates
-skills/           Claude Code Skill definitions
+  detector/       模式检测器（Native vs Extended）
+  validator/      4 层 YAML 验证
+  transpiler/     YAML → TypeScript 转译器 + 10 个代码生成器
+  runner/         Native 执行器 + TS 执行器 + 报告解析器
+scripts/          CLI 入口
+schema/           关键字 Schema + JSON Schema
+templates/        19 个 YAML 模板
+skills/           Claude Code Skill 定义
 ```
 
-## License
+## 许可证
 
 [MIT](LICENSE) - lee-117
