@@ -49,17 +49,10 @@ const KEYWORD_TO_FEATURE = {
 
 /**
  * Canonical ordering of features in the reported `features` array.
+ * Derived from schema/extended-keywords.json (single source of truth).
  */
-const FEATURE_ORDER = [
-  'logic',
-  'loop',
-  'variables',
-  'import',
-  'data_transform',
-  'try_catch',
-  'external_call',
-  'parallel',
-];
+const extSchema = require('../../schema/extended-keywords.json');
+const FEATURE_ORDER = Object.keys(extSchema.features);
 
 // ---------------------------------------------------------------------------
 // Internal helpers

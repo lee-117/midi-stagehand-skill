@@ -48,6 +48,12 @@ const VALID_WEB_CONFIG_FIELDS = new Set([
   'closeNewTabsAfterDisconnect',
 ]);
 
+// Valid android platform config sub-fields.
+const VALID_ANDROID_CONFIG_FIELDS = new Set([
+  'deviceId', 'androidAdbPath', 'remoteAdbHost', 'remoteAdbPort',
+  'screenshotResizeScale', 'alwaysRefreshScreenInfo',
+]);
+
 // Required fields per loop type.
 const LOOP_REQUIRED_FIELDS = {
   for: ['items'],
@@ -181,6 +187,18 @@ function validateStructure(doc, errors, warnings) {
     }
   }
 
+  // Validate android config sub-fields if present.
+  if (doc.android && typeof doc.android === 'object' && !Array.isArray(doc.android)) {
+    for (const key of Object.keys(doc.android)) {
+      if (!VALID_ANDROID_CONFIG_FIELDS.has(key)) {
+        warnings.push(makeWarning(
+          `Unknown android config field "${key}". Known fields: ${[...VALID_ANDROID_CONFIG_FIELDS].join(', ')}.`,
+          `/android/${key}`
+        ));
+      }
+    }
+  }
+
   // Check for tasks array.
   if (!doc.tasks) {
     errors.push(makeError(
@@ -231,6 +249,22 @@ function validateStructure(doc, errors, warnings) {
         `Task must have a "flow" (or "steps") property of type array.`,
         `${taskPath}/flow`
       ));
+    }
+  });
+
+  // Warn on duplicate task names.
+  const taskNames = new Map();
+  doc.tasks.forEach((task, index) => {
+    if (task && typeof task === 'object' && typeof task.name === 'string') {
+      const name = task.name.trim();
+      if (taskNames.has(name)) {
+        warnings.push(makeWarning(
+          `Duplicate task name "${name}" (also at index ${taskNames.get(name)}). Consider using unique names for clarity.`,
+          `/tasks[${index}]/name`
+        ));
+      } else {
+        taskNames.set(name, index);
+      }
     }
   });
 }

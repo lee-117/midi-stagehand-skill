@@ -26,6 +26,7 @@ function parseArgs(argv) {
     timeout: 300000,
     verbose: false,
     help: false,
+    version: false,
   };
 
   const rawArgs = argv.slice(2); // skip node + script path
@@ -39,9 +40,20 @@ function parseArgs(argv) {
         args.help = true;
         break;
 
-      case '--timeout':
-        args.timeout = parseInt(rawArgs[++i], 10) || 300000;
+      case '--version':
+      case '-V':
+        args.version = true;
         break;
+
+      case '--timeout': {
+        const timeoutVal = parseInt(rawArgs[++i], 10);
+        if (isNaN(timeoutVal) || timeoutVal <= 0) {
+          console.error('[midscene-run] --timeout must be a positive integer (ms).');
+          process.exit(1);
+        }
+        args.timeout = timeoutVal;
+        break;
+      }
 
       case '--dry-run':
         args.dryRun = true;
@@ -53,14 +65,26 @@ function parseArgs(argv) {
         break;
 
       case '--output-ts':
+        if (!rawArgs[i + 1] || rawArgs[i + 1].startsWith('-')) {
+          console.error('[midscene-run] --output-ts requires a file path.');
+          process.exit(1);
+        }
         args.outputTs = rawArgs[++i];
         break;
 
       case '--report-dir':
+        if (!rawArgs[i + 1] || rawArgs[i + 1].startsWith('-')) {
+          console.error('[midscene-run] --report-dir requires a directory path.');
+          process.exit(1);
+        }
         args.reportDir = rawArgs[++i];
         break;
 
       case '--template':
+        if (!rawArgs[i + 1] || rawArgs[i + 1].startsWith('-')) {
+          console.error('[midscene-run] --template requires a template name (puppeteer | playwright).');
+          process.exit(1);
+        }
         args.template = rawArgs[++i];
         break;
 
@@ -110,6 +134,7 @@ Options:
                            (default: 300000 = 5 minutes)
   --verbose, -v            Show detailed output (validation details,
                            detection info, environment)
+  --version, -V            Show version information
   --help, -h               Show this help message
 
 Examples:
@@ -180,6 +205,13 @@ function resolveYamlFiles(inputPath) {
 // ---------------------------------------------------------------------------
 function main() {
   const args = parseArgs(process.argv);
+
+  // Show version if requested
+  if (args.version) {
+    const pkg = require('../package.json');
+    console.log(pkg.name + ' v' + pkg.version);
+    process.exit(0);
+  }
 
   // Show help if requested or no arguments provided
   if (args.help || !args.yamlPath) {

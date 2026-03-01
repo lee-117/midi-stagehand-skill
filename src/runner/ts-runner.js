@@ -1,4 +1,5 @@
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
+const { randomUUID } = require('crypto');
 const path = require('path');
 const fs = require('fs');
 const { resolveLocalBin, normaliseExecError, findSystemChrome } = require('./runner-utils');
@@ -34,7 +35,7 @@ function run(tsCode, options = {}) {
     } catch (mkdirErr) {
       return { success: false, error: 'Failed to create temp directory: ' + mkdirErr.message, exitCode: null, tsPath: null, reportDir: reportDir };
     }
-    tsPath = path.join(tmpDir, 'generated-' + Date.now() + '.ts');
+    tsPath = path.join(tmpDir, 'generated-' + randomUUID() + '.ts');
     try {
       fs.writeFileSync(tsPath, tsCode, 'utf-8');
     } catch (writeErr) {
@@ -48,13 +49,15 @@ function run(tsCode, options = {}) {
     }
   }
 
-  // Prefer local tsx installation over npx to avoid re-download
-  const cmd = resolveTsxCommand() + ' "' + tsPath + '"';
+  // Prefer local tsx installation over npx to avoid re-download.
+  // Use execFileSync (no shell) to prevent command injection via file paths.
+  const { bin, args: binArgs } = resolveTsxCommand();
+  const execArgs = binArgs.concat(tsPath);
 
-  console.log('[ts-runner] Executing: ' + cmd);
+  console.log('[ts-runner] Executing: ' + bin + ' ' + execArgs.join(' '));
 
   try {
-    execSync(cmd, {
+    execFileSync(bin, execArgs, {
       stdio: 'inherit',
       cwd: options.cwd || process.cwd(),
       env: Object.assign({}, process.env, {
@@ -89,11 +92,11 @@ function run(tsCode, options = {}) {
 }
 
 /**
- * Resolve the tsx command, preferring local installation.
- * @returns {string}
+ * Resolve the tsx command for execFileSync usage.
+ * @returns {{ bin: string, args: string[] }}
  */
 function resolveTsxCommand() {
-  return resolveLocalBin('tsx', 'npx tsx');
+  return resolveLocalBin('tsx', { bin: 'npx', args: ['tsx'] });
 }
 
 module.exports = { run };

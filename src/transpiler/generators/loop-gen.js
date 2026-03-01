@@ -90,7 +90,9 @@ function generate(step, ctx, processStep) {
 
     case 'repeat': {
       // for (let i = 0; i < count; i++) { ...flow }
-      const count = loop.count || loop.times || 1;
+      const countRaw = loop.count || loop.times || 1;
+      const countRef = typeof countRaw === 'string' ? extractVarRef(countRaw) : null;
+      const count = countRef || countRaw;
 
       // Generate a unique index counter to avoid collisions with sibling repeat loops
       let repeatSuffix = 0;

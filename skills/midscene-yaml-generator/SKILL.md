@@ -87,7 +87,7 @@ English trigger phrases:
 
 **Web 平台额外配置选项**：
 - `headless: true/false` — 是否无头模式运行（默认 false）
-- `viewportWidth` / `viewportHeight` — 视口大小（默认 1280×960）
+- `viewportWidth` / `viewportHeight` — 视口大小（默认 1280×720）
 - `userAgent` — 自定义 User-Agent
 - `deviceScaleFactor` — 设备像素比（如 Retina 屏设 2）
 - `waitForNetworkIdle` — 网络空闲等待配置，支持 `true` 或对象格式 `{ timeout: 2000, continueOnNetworkIdleError: true }`
@@ -208,6 +208,8 @@ Native 模式的动作参数支持两种格式：
 - `templates/native/web-data-extract.yaml` — 数据提取
 - `templates/native/web-search.yaml` — 网页搜索流程
 - `templates/native/web-file-upload.yaml` — 文件上传表单
+- `templates/native/web-multi-tab.yaml` — 多标签页操作
+- `templates/native/deep-think-locator.yaml` — 图片辅助定位（deepThink/xpath）
 - `templates/native/android-app.yaml` — Android 测试
 - `templates/native/ios-app.yaml` — iOS 测试
 - `templates/native/computer-desktop.yaml` — 桌面应用自动化
@@ -221,7 +223,6 @@ Native 模式的动作参数支持两种格式：
 - `templates/extended/e2e-workflow.yaml` — 端到端完整工作流
 - `templates/extended/reusable-sub-flows.yaml` — 子流程复用（import/use）
 - `templates/extended/responsive-test.yaml` — 多视口响应式测试
-- `templates/extended/deep-think-locator.yaml` — 图片辅助定位
 - `templates/extended/web-auth-flow.yaml` — OAuth/登录认证流程（使用变量和环境引用）
 
 **模板选择决策**：
@@ -243,7 +244,8 @@ Native 模式的动作参数支持两种格式：
 | 完整业务流程（多步骤 + 变量 + 导出） | `extended/e2e-workflow.yaml` |
 | 子流程复用 / 模块化 | `extended/reusable-sub-flows.yaml` |
 | 多屏幕尺寸响应式验证 | `extended/responsive-test.yaml` |
-| 复杂元素定位 / deepThink | `extended/deep-think-locator.yaml` |
+| 复杂元素定位 / deepThink | `native/deep-think-locator.yaml` |
+| 多标签页操作 | `native/web-multi-tab.yaml` |
 
 ### 第 5 步：生成 YAML
 

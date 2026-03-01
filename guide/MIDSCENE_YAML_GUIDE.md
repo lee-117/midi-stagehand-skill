@@ -330,7 +330,7 @@ tasks:
 
 # 使用 scrollType 控制滚动行为
 - aiScroll: "长列表"
-  scrollType: "untilBottom"
+  scrollType: "scrollToBottom"
 
 # 使用 distance 精确控制滚动距离（像素）
 - aiScroll: "商品详情页"
@@ -340,7 +340,7 @@ tasks:
 
 支持的方向：`up`、`down`、`left`、`right`。
 
-支持的 `scrollType`：`once`、`untilBottom`、`untilTop`、`untilRight`、`untilLeft`。
+支持的 `scrollType`：`singleAction`、`scrollToBottom`、`scrollToTop`、`scrollToRight`、`scrollToLeft`。
 
 `distance`：可选，以像素为单位指定滚动距离。未指定时由引擎自动决定滚动量。
 
@@ -379,6 +379,38 @@ tasks:
 - aiRightClick: "文件列表中的第一个文件"
 - aiWaitFor: "右键菜单出现"
 - aiTap: "菜单中的删除选项"
+```
+
+#### 9. `aiDragAndDrop` — 拖拽操作
+
+将一个元素拖拽到另一个位置。
+
+```yaml
+# 扁平格式（推荐）
+- aiDragAndDrop: "待办事项列表中的第一个任务"
+  to: "已完成列表区域"
+
+# 嵌套格式
+- aiDragAndDrop:
+    from: "文件 A"
+    to: "目标文件夹"
+```
+
+#### 10. `aiClearInput` — 清空输入框
+
+清除输入框中的全部内容。
+
+```yaml
+- aiClearInput: "搜索框"
+```
+
+#### 11. `aiAsk` — AI 自由问答
+
+向 AI 提出关于当前页面的问题，返回文本答案。
+
+```yaml
+- aiAsk: "当前页面的主题是什么？"
+  name: "pageTheme"
 ```
 
 ### `deepThink` 选项
@@ -1743,6 +1775,8 @@ tasks:
 | `ai` / `aiAct` | 动作 | AI 自动规划并执行自然语言描述的操作（`aiAct` 为别名） |
 | `aiDoubleClick` | 动作 | 双击页面元素 |
 | `aiRightClick` | 动作 | 右键点击页面元素 |
+| `aiDragAndDrop` | 动作 | 拖拽元素到目标位置（扁平：`to`；嵌套：`from`/`to`） |
+| `aiClearInput` | 动作 | 清空输入框内容 |
 | `aiBoolean` | 提取 | 从页面提取布尔值（`name` 存储结果） |
 | `aiNumber` | 提取 | 从页面提取数值（`name` 存储结果） |
 | `aiString` | 提取 | 从页面提取文本（`name` 存储结果） |
@@ -1750,6 +1784,7 @@ tasks:
 | `aiWaitFor` | 等待 | 等待条件满足（可选 `timeout`） |
 | `aiAssert` | 断言 | 验证页面状态（可选 `errorMessage`） |
 | `aiQuery` | 提取 | 从页面提取数据（可选 `name` 存储结果） |
+| `aiAsk` | 提取 | AI 自由问答，返回文本答案（`name` 存储结果） |
 | `output` | 导出 | 将数据写入文件（`filePath` + `dataName`） |
 | `continueOnError` | 选项 | 任务级容错，失败后继续后续任务 |
 | `sleep` | 工具 | 暂停执行指定毫秒数 |

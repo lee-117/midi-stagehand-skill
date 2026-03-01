@@ -1,6 +1,5 @@
 # 复杂元素定位模板
 # 场景: 当文字描述不足以定位元素时，使用 deepThink 或 xpath 辅助 AI 定位
-engine: extended
 
 web:
   url: "https://example.com/dashboard"

@@ -283,6 +283,16 @@ describe('CLI Argument Parsing', () => {
     assert.equal(args.verbose, true);
   });
 
+  it('parses --version flag', () => {
+    const args = parseArgs(['node', 'script', '--version']);
+    assert.equal(args.version, true);
+  });
+
+  it('parses -V shorthand for version', () => {
+    const args = parseArgs(['node', 'script', '-V']);
+    assert.equal(args.version, true);
+  });
+
   it('uses default values when no options given', () => {
     const args = parseArgs(['node', 'script', 'test.yaml']);
     assert.equal(args.dryRun, false);
@@ -291,6 +301,7 @@ describe('CLI Argument Parsing', () => {
     assert.equal(args.template, 'puppeteer');
     assert.equal(args.timeout, 300000);
     assert.equal(args.verbose, false);
+    assert.equal(args.version, false);
     assert.equal(args.help, false);
   });
 

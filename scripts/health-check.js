@@ -10,6 +10,7 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { findSystemChrome } = require('../src/runner/runner-utils');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -89,7 +90,9 @@ check('AI model configured', () => {
       const match = line.match(/^\s*([^#=]+?)\s*=\s*(.*?)\s*$/);
       if (match) {
         const [, key, val] = match;
-        if (!process.env[key]) process.env[key] = val;
+        // Strip surrounding quotes from .env values
+        const stripped = val.replace(/^(['"])(.*)\1$/, '$2');
+        if (!process.env[key]) process.env[key] = stripped;
       }
     }
   }
@@ -98,27 +101,16 @@ check('AI model configured', () => {
   return 'MIDSCENE_MODEL_API_KEY is set';
 });
 
-// 7. Chrome browser (Web platform)
+// 7. Chrome browser (Web platform) — reuse shared findSystemChrome()
 check('Chrome browser (Web platform)', () => {
-  const candidates = process.platform === 'win32'
-    ? [
-        process.env['PROGRAMFILES'] + '\\Google\\Chrome\\Application\\chrome.exe',
-        process.env['PROGRAMFILES(X86)'] + '\\Google\\Chrome\\Application\\chrome.exe',
-        process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe',
-      ]
-    : process.platform === 'darwin'
-      ? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome']
-      : ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'];
-
   if (process.env.PUPPETEER_EXECUTABLE_PATH) {
     if (fs.existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
       return 'PUPPETEER_EXECUTABLE_PATH: ' + process.env.PUPPETEER_EXECUTABLE_PATH;
     }
   }
 
-  for (const p of candidates) {
-    if (p && fs.existsSync(p)) return p;
-  }
+  const chromePath = findSystemChrome();
+  if (chromePath) return chromePath;
   throw new Error('Chrome not found. Install Chrome or set PUPPETEER_EXECUTABLE_PATH');
 });
 

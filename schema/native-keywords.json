@@ -10,7 +10,7 @@
   "aiAssertions": ["aiAssert", "aiWaitFor"],
   "tools": ["sleep", "javascript", "recordToReport"],
   "platformSpecific": ["runAdbShell", "runWdaRequest", "launch"],
-  "actionOptions": ["value", "direction", "distance", "keyName", "deepThink", "xpath", "timeout", "timeoutMs", "name", "output", "locator", "convertHttpImage2Base64", "scrollType", "cacheable", "assertion", "errorMessage", "query", "condition", "content", "mode", "images", "fileChooserAccept", "autoDismissKeyboard", "checkIntervalMs", "domIncluded", "screenshotIncluded"],
+  "actionOptions": ["value", "direction", "distance", "to", "keyName", "deepThink", "xpath", "timeout", "timeoutMs", "name", "output", "locator", "convertHttpImage2Base64", "scrollType", "cacheable", "assertion", "errorMessage", "query", "condition", "content", "mode", "images", "fileChooserAccept", "autoDismissKeyboard", "checkIntervalMs", "domIncluded", "screenshotIncluded"],
   "metaKeys": ["engine", "features", "steps"],
   "allKeywords": [
     "engine", "features", "steps",
@@ -25,7 +25,7 @@
     "aiAssert", "aiWaitFor",
     "sleep", "javascript", "recordToReport",
     "runAdbShell", "runWdaRequest", "launch",
-    "value", "direction", "distance", "keyName", "deepThink", "xpath", "timeout", "timeoutMs", "name", "output",
+    "value", "direction", "distance", "to", "keyName", "deepThink", "xpath", "timeout", "timeoutMs", "name", "output",
     "locator", "convertHttpImage2Base64", "scrollType", "cacheable", "assertion", "errorMessage", "query", "condition", "content",
     "mode", "images", "fileChooserAccept", "autoDismissKeyboard", "checkIntervalMs",
     "domIncluded", "screenshotIncluded",
@@ -34,6 +34,7 @@
     "waitForNavigationTimeout", "waitForNetworkIdleTimeout",
     "enableTouchEventsInActionSpace", "forceChromeSelectRendering", "closeNewTabsAfterDisconnect",
     "deviceId", "wdaPort", "wdaHost",
+    "androidAdbPath", "remoteAdbHost", "remoteAdbPort",
     "deviceScaleFactor", "cookie"
   ]
 }

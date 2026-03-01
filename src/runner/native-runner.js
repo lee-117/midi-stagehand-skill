@@ -1,4 +1,4 @@
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const { resolveLocalBin, normaliseExecError, findSystemChrome } = require('./runner-utils');
@@ -43,10 +43,12 @@ function run(yamlPath, options = {}) {
   const resolvedPath = path.resolve(yamlPath);
   const reportDir = options.reportDir || './midscene-report';
 
-  // Prefer local installation over npx to avoid re-download
-  const cmd = resolveMidsceneCommand() + ' run "' + resolvedPath + '"';
+  // Prefer local installation over npx to avoid re-download.
+  // Use execFileSync (no shell) to prevent command injection via file paths.
+  const { bin, args: binArgs } = resolveMidsceneCommand();
+  const execArgs = binArgs.concat('run', resolvedPath);
 
-  console.log('[native-runner] Executing: ' + cmd);
+  console.log('[native-runner] Executing: ' + bin + ' ' + execArgs.join(' '));
 
   // Build env: inherit + report dir + system Chrome path if available
   const execEnv = Object.assign({}, process.env, { MIDSCENE_REPORT_DIR: reportDir });
@@ -58,7 +60,7 @@ function run(yamlPath, options = {}) {
   }
 
   try {
-    execSync(cmd, {
+    execFileSync(bin, execArgs, {
       stdio: 'inherit',
       cwd: options.cwd || process.cwd(),
       env: execEnv,
@@ -78,11 +80,11 @@ function run(yamlPath, options = {}) {
 }
 
 /**
- * Resolve the midscene CLI command, preferring local installation.
- * @returns {string}
+ * Resolve the midscene CLI command for execFileSync usage.
+ * @returns {{ bin: string, args: string[] }}
  */
 function resolveMidsceneCommand() {
-  return resolveLocalBin('midscene', 'npx @midscene/web@1');
+  return resolveLocalBin('midscene', { bin: 'npx', args: ['@midscene/web@1'] });
 }
 
 module.exports = { run };

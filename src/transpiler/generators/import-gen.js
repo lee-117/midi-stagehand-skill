@@ -10,7 +10,7 @@
  */
 
 const path = require('path');
-const { resolveTemplate, toCodeString, getPad } = require('./utils');
+const { resolveTemplate, toCodeString, getPad, sanitizeIdentifier } = require('./utils');
 
 /**
  * Generate TypeScript code for an `import` step.
@@ -34,7 +34,7 @@ function generate(step, ctx) {
 
   // JSON imports: const varName = require('./file.json')
   if (ext === 'json') {
-    const varName = step.as || 'importedData';
+    const varName = sanitizeIdentifier(step.as || 'importedData');
     varScope.add(varName);
     return pad + 'const ' + varName + ' = require(' + pathCode + ');';
   }
@@ -51,30 +51,33 @@ function generate(step, ctx) {
       const paramsStr = '{ ' + paramEntries.join(', ') + ' }';
 
       if (step.as) {
-        varScope.add(step.as);
-        return pad + 'const ' + step.as + ' = await agent.runYaml(' + pathCode + ', ' + paramsStr + ');';
+        const asVar = sanitizeIdentifier(step.as);
+        varScope.add(asVar);
+        return pad + 'const ' + asVar + ' = await agent.runYaml(' + pathCode + ', ' + paramsStr + ');';
       }
       return pad + 'await agent.runYaml(' + pathCode + ', ' + paramsStr + ');';
     }
 
     if (step.as) {
-      varScope.add(step.as);
-      return pad + 'const ' + step.as + ' = await agent.runYaml(' + pathCode + ');';
+      const asVar = sanitizeIdentifier(step.as);
+      varScope.add(asVar);
+      return pad + 'const ' + asVar + ' = await agent.runYaml(' + pathCode + ');';
     }
     return pad + 'await agent.runYaml(' + pathCode + ');';
   }
 
   // JS/TS imports: require
   if (ext === 'js' || ext === 'ts') {
-    const varName = step.as || 'importedModule';
+    const varName = sanitizeIdentifier(step.as || 'importedModule');
     varScope.add(varName);
     return pad + 'const ' + varName + ' = require(' + pathCode + ');';
   }
 
   // Fallback: generic require
   if (step.as) {
-    varScope.add(step.as);
-    return pad + 'const ' + step.as + ' = require(' + pathCode + ');';
+    const asVar = sanitizeIdentifier(step.as);
+    varScope.add(asVar);
+    return pad + 'const ' + asVar + ' = require(' + pathCode + ');';
   }
   return pad + 'require(' + pathCode + ');';
 }

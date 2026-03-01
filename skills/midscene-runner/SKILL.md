@@ -174,6 +174,7 @@ npx @midscene/web "tests/**/*.yaml" --concurrent --continue-on-error
 - `--output-ts <path>` — 保存转换后的 TypeScript 文件（仅 Extended 模式）。排查转译错误时，建议配合 `--dry-run` 一起使用
 - `--report-dir <path>` — 报告输出目录（默认 `./midscene-report`）
 - `--template puppeteer|playwright` — 选择 TS 模板（默认 puppeteer；playwright 适合需要多浏览器兼容的场景）
+- `--verbose` / `-v` — 显示详细输出（验证详情、检测信息、环境信息）
 - `--help` / `-h` — 显示帮助信息
 
 **Extended 模式的执行流程**：

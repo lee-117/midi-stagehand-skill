@@ -440,7 +440,7 @@
                 "direction": { "type": "string", "enum": ["up", "down", "left", "right"] },
                 "distance": { "type": "integer" },
 
-                "scrollType": { "type": "string", "enum": ["once", "untilBottom", "untilTop", "untilRight", "untilLeft"] }
+                "scrollType": { "type": "string", "enum": ["singleAction", "scrollToBottom", "scrollToTop", "scrollToRight", "scrollToLeft"] }
               },
               "additionalProperties": false
             }
@@ -454,7 +454,7 @@
         "distance": { "type": "integer", "description": "Scroll distance in pixels (flat format sibling key)" },
         "scrollType": {
           "type": "string",
-          "enum": ["once", "untilBottom", "untilTop", "untilRight", "untilLeft"],
+          "enum": ["singleAction", "scrollToBottom", "scrollToTop", "scrollToRight", "scrollToLeft"],
           "description": "Scroll behavior type (flat format sibling key)"
         },
         "deepThink": { "type": "boolean" },

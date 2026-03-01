@@ -371,7 +371,7 @@ tasks:
             - aiTap: "button"
 `;
       const result = validate(yaml);
-      assert.ok(!result.valid || result.warnings.length > 0 || result.errors.length > 0);
+      assert.ok(result.warnings.length > 0 || !result.valid, 'Should flag logic without condition');
     });
 
     it('rejects loop without type', () => {
@@ -387,7 +387,7 @@ tasks:
             - aiTap: "button"
 `;
       const result = validate(yaml);
-      assert.ok(!result.valid || result.warnings.length > 0 || result.errors.length > 0);
+      assert.ok(result.warnings.length > 0 || !result.valid, 'Should flag loop without type');
     });
   });
 
@@ -1685,6 +1685,83 @@ tasks:
 `;
       const result = validate(yaml);
       assert.equal(result.valid, true);
+    });
+  });
+
+  describe('duplicate task names', () => {
+    it('warns on duplicate task names', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: "Login"
+    flow:
+      - aiTap: "button"
+  - name: "Login"
+    flow:
+      - aiTap: "another button"
+`;
+      const result = validate(yaml);
+      assert.ok(result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Duplicate task name');
+      }), 'Should warn about duplicate task names');
+    });
+
+    it('does not warn on unique task names', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: "Login"
+    flow:
+      - aiTap: "button"
+  - name: "Logout"
+    flow:
+      - aiTap: "another button"
+`;
+      const result = validate(yaml);
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Duplicate task name');
+      }), 'Should not warn about unique task names');
+    });
+  });
+
+  describe('android config validation', () => {
+    it('warns on unknown android config field', () => {
+      const yaml = `
+android:
+  deviceId: "emulator-5554"
+  unknownField: true
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Unknown android config field');
+      }), 'Should warn about unknown android config field');
+    });
+
+    it('accepts known android config fields', () => {
+      const yaml = `
+android:
+  deviceId: "emulator-5554"
+  androidAdbPath: "/usr/bin/adb"
+  remoteAdbHost: "192.168.1.100"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Unknown android config field');
+      }), 'Should not warn about known android fields');
     });
   });
 });

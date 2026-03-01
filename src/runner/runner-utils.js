@@ -14,14 +14,14 @@ const os = require('os');
  * an npx command if no local installation is found.
  *
  * @param {string} binName  - Binary name (e.g. 'midscene', 'tsx').
- * @param {string} npxFallback - npx command to use as fallback (e.g. 'npx tsx').
- * @returns {string} Quoted path to the local binary or the npx fallback.
+ * @param {{ bin: string, args: string[] }} npxFallback - Fallback command for execFileSync.
+ * @returns {{ bin: string, args: string[] }} Binary path and args for execFileSync (no shell).
  */
 function resolveLocalBin(binName, npxFallback) {
   const isWin = os.platform() === 'win32';
   const localBin = path.resolve(__dirname, '..', '..', 'node_modules', '.bin', binName + (isWin ? '.cmd' : ''));
   if (fs.existsSync(localBin)) {
-    return '"' + localBin + '"';
+    return { bin: localBin, args: [] };
   }
   return npxFallback;
 }
@@ -38,7 +38,8 @@ function normaliseExecError(error) {
   let exitCode = error.status;
 
   if (error.killed) {
-    errorMessage = 'Process was killed (timeout or signal)';
+    const signal = error.signal ? ' (' + error.signal + ')' : '';
+    errorMessage = 'Process was killed (timeout or signal)' + signal;
     exitCode = exitCode || 'KILLED';
   } else if (exitCode === null || exitCode === undefined) {
     errorMessage = 'Process exited without a status code: ' + error.message;

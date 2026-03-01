@@ -5,19 +5,20 @@ const assert = require('node:assert/strict');
 const path = require('path');
 const fs = require('fs');
 
-const { resolveLocalBin, normaliseExecError } = require('../src/runner/runner-utils');
+const { resolveLocalBin, normaliseExecError, findSystemChrome } = require('../src/runner/runner-utils');
 
 // ---------------------------------------------------------------------------
 // resolveLocalBin tests
 // ---------------------------------------------------------------------------
 describe('resolveLocalBin', () => {
   it('returns npx fallback when local bin does not exist', () => {
-    const result = resolveLocalBin('nonexistent-binary-xyz', 'npx nonexistent-binary-xyz');
-    assert.equal(result, 'npx nonexistent-binary-xyz',
+    const fallback = { bin: 'npx', args: ['nonexistent-binary-xyz'] };
+    const result = resolveLocalBin('nonexistent-binary-xyz', fallback);
+    assert.deepEqual(result, fallback,
       'Should return npx fallback for missing binary');
   });
 
-  it('returns quoted local path when local bin exists', () => {
+  it('returns local bin path when local bin exists', () => {
     // Use a binary that should exist in node_modules/.bin (e.g., from devDependencies)
     const isWin = process.platform === 'win32';
     const binDir = path.resolve(__dirname, '..', 'node_modules', '.bin');
@@ -31,14 +32,18 @@ describe('resolveLocalBin', () => {
     if (!anyBin) return;
 
     const binName = isWin ? anyBin.replace(/\.cmd$/, '') : anyBin;
-    const result = resolveLocalBin(binName, 'npx ' + binName);
-    assert.ok(result.startsWith('"'), 'Should return quoted path: ' + result);
-    assert.ok(result.endsWith('"'), 'Should end with quote: ' + result);
+    const fallback = { bin: 'npx', args: [binName] };
+    const result = resolveLocalBin(binName, fallback);
+    assert.equal(typeof result.bin, 'string', 'Should have bin string');
+    assert.ok(Array.isArray(result.args), 'Should have args array');
+    assert.ok(result.bin.includes(binName), 'Bin path should contain binary name');
   });
 
-  it('returns string type regardless of resolution path', () => {
-    const result = resolveLocalBin('anything', 'npx anything');
-    assert.equal(typeof result, 'string');
+  it('returns object with bin and args keys', () => {
+    const fallback = { bin: 'npx', args: ['anything'] };
+    const result = resolveLocalBin('anything', fallback);
+    assert.ok('bin' in result, 'Should have bin key');
+    assert.ok('args' in result, 'Should have args key');
   });
 });
 
@@ -106,5 +111,45 @@ describe('normaliseExecError', () => {
     const result = normaliseExecError(err);
     assert.ok('errorMessage' in result, 'Should have errorMessage key');
     assert.ok('exitCode' in result, 'Should have exitCode key');
+  });
+
+  it('includes signal info when process is killed with signal', () => {
+    const err = new Error('Command failed');
+    err.killed = true;
+    err.signal = 'SIGTERM';
+    err.status = null;
+    const result = normaliseExecError(err);
+    assert.ok(result.errorMessage.includes('SIGTERM'),
+      'Should include signal name in error message');
+    assert.equal(result.exitCode, 'KILLED');
+  });
+
+  it('omits signal info when signal is not set', () => {
+    const err = new Error('Command failed');
+    err.killed = true;
+    err.signal = undefined;
+    err.status = null;
+    const result = normaliseExecError(err);
+    assert.ok(!result.errorMessage.includes('undefined'),
+      'Should not include undefined in error message');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// findSystemChrome tests
+// ---------------------------------------------------------------------------
+describe('findSystemChrome', () => {
+  it('returns string or null', () => {
+    const result = findSystemChrome();
+    assert.ok(result === null || typeof result === 'string',
+      'Should return null or a string path');
+  });
+
+  it('returns existing file path when found', () => {
+    const result = findSystemChrome();
+    if (result !== null) {
+      assert.ok(fs.existsSync(result),
+        'Returned path should exist on filesystem');
+    }
   });
 });

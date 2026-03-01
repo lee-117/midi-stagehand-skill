@@ -1385,12 +1385,12 @@ tasks:
   - name: test
     flow:
       - aiScroll: "长列表"
-        scrollType: "untilBottom"
+        scrollType: "scrollToBottom"
 `;
       const result = transpile(yaml);
       assert.ok(result.code.includes('aiScroll'),
         'Should generate aiScroll call');
-      assert.ok(result.code.includes("scrollType: 'untilBottom'"),
+      assert.ok(result.code.includes("scrollType: 'scrollToBottom'"),
         'Should include scrollType from sibling key');
     });
 
@@ -1404,10 +1404,10 @@ tasks:
       - aiScroll:
           locator: "feed"
           direction: "down"
-          scrollType: "once"
+          scrollType: "singleAction"
 `;
       const result = transpile(yaml);
-      assert.ok(result.code.includes("scrollType: 'once'"),
+      assert.ok(result.code.includes("scrollType: 'singleAction'"),
         'Should include scrollType from nested format');
     });
   });
@@ -2053,6 +2053,31 @@ tasks:
 `;
       const result = transpile(yaml);
       assert.ok(result.code.includes('3'));
+    });
+  });
+
+  describe('repeat loop with template variable count', () => {
+    it('resolves template variable in repeat count', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+variables:
+  maxRetries: 5
+tasks:
+  - name: test
+    flow:
+      - loop:
+          type: repeat
+          count: "\${maxRetries}"
+          flow:
+            - aiTap: "retry button"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('maxRetries'),
+        'Should resolve template variable in repeat count');
+      assert.ok(!result.code.includes('"${maxRetries}"'),
+        'Should not include raw template string in for-loop');
     });
   });
 

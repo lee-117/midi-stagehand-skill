@@ -97,7 +97,12 @@ const MAX_WALK_DEPTH = 50;
  */
 function walkFlow(flow, pathPrefix, visitor, _depth) {
   _depth = _depth || 0;
-  if (_depth >= MAX_WALK_DEPTH) return;
+  if (_depth >= MAX_WALK_DEPTH) {
+    if (typeof visitor._onDepthLimit === 'function') {
+      visitor._onDepthLimit(pathPrefix, MAX_WALK_DEPTH);
+    }
+    return;
+  }
   if (!Array.isArray(flow)) return;
 
   for (let i = 0; i < flow.length; i++) {
