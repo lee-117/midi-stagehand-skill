@@ -132,7 +132,7 @@ Options:
 │   │   └── templates/        # Handlebars 模板
 │   └── runner/               # 执行器
 ├── scripts/                  # CLI 入口
-├── skills/                   # Claude Code SKILL 定义
+├── skills/                   # AI Agent SKILL 定义
 ├── templates/                # YAML 模板库
 │   ├── native/               # 原生模板 (6个)
 │   └── extended/             # 扩展模板 (6个)
@@ -158,20 +158,20 @@ Options:
 通过 [Skills CLI](https://github.com/vercel-labs/skills) 一键安装到你的 AI 编码工具中：
 
 ```bash
-# 从 GitHub 安装（Claude Code / Cursor / Cline / Qoder 等）
-npx skills add https://github.com/lee-117/midi-stagehand-skill -a claude
+# 从 GitHub 安装（Trae / Qoder / Cursor / Cline 等）
+npx skills add https://github.com/lee-117/midi-stagehand-skill -a trae
 npx skills add https://github.com/lee-117/midi-stagehand-skill -a qoder
 
 # 仅安装指定技能
-npx skills add https://github.com/lee-117/midi-stagehand-skill --skill midscene-yaml-generator -a claude
-npx skills add https://github.com/lee-117/midi-stagehand-skill --skill midscene-runner -a claude
+npx skills add https://github.com/lee-117/midi-stagehand-skill --skill midscene-yaml-generator -a trae
+npx skills add https://github.com/lee-117/midi-stagehand-skill --skill midscene-runner -a trae
 ```
 
 从 Gitee 安装（Skills CLI 不支持 Gitee URL，需先 clone 到本地）：
 
 ```bash
 git clone https://gitee.com/lee-zh/midi-stagehand-skill.git
-npx skills add ./midi-stagehand-skill -a claude
+npx skills add ./midi-stagehand-skill -a trae
 npx skills add ./midi-stagehand-skill -a qoder
 ```
 
@@ -196,7 +196,7 @@ npx skills remove midscene-yaml-generator
 npx skills remove midscene-runner
 
 # 从指定 Agent 中卸载
-npx skills remove --agent claude midscene-yaml-generator
+npx skills remove --agent trae midscene-yaml-generator
 npx skills remove --agent qoder midscene-runner
 
 # 卸载所有技能（跳过确认）
@@ -210,12 +210,12 @@ npx skills remove --all
 npx skills list
 
 # 按 Agent 过滤
-npx skills list -a claude
+npx skills list -a trae
 ```
 
-## Claude Code Skills（AI 辅助工作流）
+## AI Skills（辅助工作流）
 
-项目内置两个 Claude Code Skill，支持从自然语言到自动化执行的完整链路：
+项目内置两个 AI Skill，支持从自然语言到自动化执行的完整链路（兼容 Trae / Qoder / Cursor / Cline 等 Agent）：
 
 ### YAML Generator — 自然语言 → YAML
 
@@ -258,7 +258,7 @@ npx skills list -a claude
 npm test
 ```
 
-当前共 **172** 个测试，覆盖模式检测、验证器、转译器、CLI 和报告解析。
+当前共 **279** 个测试，覆盖模式检测、验证器、转译器、CLI 和报告解析。
 
 ## 文档
 
