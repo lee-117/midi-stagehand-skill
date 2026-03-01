@@ -1475,4 +1475,216 @@ tasks:
       assert.equal(configWarnings.length, 0, 'Should not warn about valid new web config fields');
     });
   });
+
+  // =========================================================================
+  // Phase 4 — Missing validator tests (4.4)
+  // =========================================================================
+
+  describe('for loop missing items', () => {
+    it('rejects for loop without items field', () => {
+      const yaml = `
+engine: extended
+features: [loop]
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - loop:
+          type: for
+          flow:
+            - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(
+        result.errors.some(e => e.message.includes('items')) ||
+        result.warnings.some(w => w.message.includes('items')),
+        'Should flag missing items in for loop'
+      );
+    });
+  });
+
+  describe('external_call missing type', () => {
+    it('rejects external_call without type field', () => {
+      const yaml = `
+engine: extended
+features: [external_call]
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - external_call:
+          url: "https://api.example.com"
+`;
+      const result = validate(yaml);
+      assert.ok(
+        result.errors.some(e => e.message.toLowerCase().includes('type')),
+        'Should flag missing type in external_call'
+      );
+    });
+  });
+
+  describe('parallel empty tasks array', () => {
+    it('accepts parallel with empty tasks array (structurally valid)', () => {
+      const yaml = `
+engine: extended
+features: [parallel]
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - parallel:
+          tasks: []
+`;
+      const result = validate(yaml);
+      // Empty tasks array is structurally valid (has array, just no branches)
+      const parallelErrors = result.errors.filter(e => e.message.includes('parallel'));
+      assert.equal(parallelErrors.length, 0, 'Should not error on empty parallel tasks array');
+    });
+  });
+
+  describe('data_transform invalid operation (flat format)', () => {
+    it('rejects flat format with invalid operation type', () => {
+      const yaml = `
+engine: extended
+features: [data_transform]
+web:
+  url: "https://example.com"
+variables:
+  items:
+    - 1
+    - 2
+tasks:
+  - name: test
+    flow:
+      - data_transform:
+          source: "\${items}"
+          operation: nonexistent_op
+          name: result
+`;
+      const result = validate(yaml);
+      assert.ok(
+        result.errors.some(e => e.message.includes('nonexistent_op') || e.message.includes('operation')),
+        'Should flag invalid operation type in flat format'
+      );
+    });
+  });
+
+  describe('try without catch or finally', () => {
+    it('rejects try block without catch or finally', () => {
+      const yaml = `
+engine: extended
+features: [try_catch]
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - try:
+          flow:
+            - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(
+        result.errors.some(e => e.message.includes('catch') || e.message.includes('finally')),
+        'Should reject try without catch or finally'
+      );
+    });
+  });
+
+  describe('loop count upper bound', () => {
+    it('warns on repeat count exceeding 10000', () => {
+      const yaml = `
+engine: extended
+features: [loop]
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - loop:
+          type: repeat
+          count: 50000
+          flow:
+            - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(
+        result.warnings.some(w => w.message.includes('very high')),
+        'Should warn on very large loop count'
+      );
+    });
+  });
+
+  describe('maxIterations upper bound', () => {
+    it('warns on maxIterations exceeding 10000', () => {
+      const yaml = `
+engine: extended
+features: [loop]
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - loop:
+          type: while
+          condition: "true"
+          maxIterations: 99999
+          flow:
+            - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(
+        result.warnings.some(w => w.message.includes('very high')),
+        'Should warn on very large maxIterations'
+      );
+    });
+  });
+
+  describe('Android platform validation', () => {
+    it('validates Android platform config', () => {
+      const yaml = `
+android:
+  deviceId: "emulator-5554"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.equal(result.valid, true);
+    });
+  });
+
+  describe('iOS platform validation', () => {
+    it('validates iOS platform config', () => {
+      const yaml = `
+ios:
+  wdaPort: 8100
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.equal(result.valid, true);
+    });
+  });
+
+  describe('Computer platform validation', () => {
+    it('validates Computer platform config', () => {
+      const yaml = `
+computer:
+  launch: "notepad"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.equal(result.valid, true);
+    });
+  });
 });

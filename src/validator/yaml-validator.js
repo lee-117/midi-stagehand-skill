@@ -12,19 +12,13 @@ const {
   getLoopItemVar,
   walkFlow,
   walkAllFlows,
+  MAX_WALK_DEPTH,
 } = require('../utils/yaml-helpers');
 
-// Load keyword schemas once at module load time.
-const nativeKeywords = JSON.parse(
-  fs.readFileSync(path.resolve(__dirname, '../../schema/native-keywords.json'), 'utf8')
-);
+// Load keyword schema once at module load time.
 const extendedKeywords = JSON.parse(
   fs.readFileSync(path.resolve(__dirname, '../../schema/extended-keywords.json'), 'utf8')
 );
-
-// Build lookup sets from the schemas.
-const NATIVE_KEYWORD_SET = new Set(nativeKeywords.allKeywords);
-const EXTENDED_KEYWORD_SET = new Set(extendedKeywords.allExtendedKeywords);
 
 // Top-level extended feature keywords (the primary keys that trigger extended mode).
 const EXTENDED_FEATURE_KEYS = new Set(
@@ -83,6 +77,10 @@ const TEMPLATE_VAR_PATTERN = /\$\{([^}]+)\}/;
 function resolveContent(yamlInput) {
   if (looksLikeFilePath(yamlInput)) {
     const resolved = path.resolve(yamlInput);
+    const stat = fs.statSync(resolved);
+    if (stat.size > 1024 * 1024) {
+      throw new Error('YAML file exceeds 1MB size limit (' + Math.round(stat.size / 1024) + 'KB). Consider splitting into smaller files using import.');
+    }
     return {
       content: fs.readFileSync(resolved, 'utf8'),
       filePath: resolved,
@@ -119,7 +117,7 @@ function makeWarning(message, yamlPath) {
  */
 function validateSyntax(content, errors) {
   try {
-    const doc = yaml.load(content);
+    const doc = yaml.load(content, { maxAliases: 100 });
     return doc;
   } catch (err) {
     errors.push(makeError(
@@ -248,21 +246,23 @@ function validateStructure(doc, errors, warnings) {
  * @param {string} currentPath - JSON-pointer-like path for diagnostics.
  * @param {Array<{ key: string, path: string }>} result - Accumulator.
  */
-function collectKeys(node, currentPath, result) {
+function collectKeys(node, currentPath, result, _depth) {
+  if (_depth === undefined) _depth = 0;
+  if (_depth >= MAX_WALK_DEPTH) return;
   if (node === null || node === undefined || typeof node !== 'object') {
     return;
   }
 
   if (Array.isArray(node)) {
     node.forEach((item, i) => {
-      collectKeys(item, `${currentPath}[${i}]`, result);
+      collectKeys(item, `${currentPath}[${i}]`, result, _depth + 1);
     });
     return;
   }
 
   for (const key of Object.keys(node)) {
     result.push({ key, path: `${currentPath}/${key}` });
-    collectKeys(node[key], `${currentPath}/${key}`, result);
+    collectKeys(node[key], `${currentPath}/${key}`, result, _depth + 1);
   }
 }
 
@@ -444,6 +444,11 @@ function validateLoopStep(step, stepPath, errors, warnings) {
             `Loop count ${countVal} is invalid. Must be a positive number.`,
             `${loopPath}/count`
           ));
+        } else if (typeof countVal === 'number' && c > 10000) {
+          warnings.push(makeWarning(
+            `Loop count ${countVal} is very high. Consider reducing it or using a while loop with maxIterations.`,
+            `${loopPath}/count`
+          ));
         }
       }
     }
@@ -454,6 +459,11 @@ function validateLoopStep(step, stepPath, errors, warnings) {
       if (typeof m === 'number' && (m <= 0 || !Number.isFinite(m))) {
         warnings.push(makeWarning(
           `Loop maxIterations ${m} is invalid. Must be a positive number.`,
+          `${loopPath}/maxIterations`
+        ));
+      } else if (typeof m === 'number' && m > 10000) {
+        warnings.push(makeWarning(
+          `Loop maxIterations ${m} is very high. Consider a lower limit to prevent excessive resource usage.`,
           `${loopPath}/maxIterations`
         ));
       }
@@ -489,6 +499,11 @@ function validateTryStep(step, stepPath, errors) {
   const tryFlow = getNestedFlow(tryBlock);
   if (!Array.isArray(tryFlow)) {
     errors.push(makeError('"try" construct must have a "flow" (or "steps") array.', `${tryPath}/flow`));
+  }
+
+  // Warn if try has neither catch nor finally
+  if (!step.catch && !step.finally) {
+    errors.push(makeError('"try" must have a "catch" or "finally" block (or both). A bare try block is invalid JavaScript.', stepPath));
   }
 
   // Validate catch block structure (sibling of try)
@@ -820,7 +835,9 @@ function collectDefinedVariables(doc) {
  * @param {string} currentPath - Path for diagnostics.
  * @param {Array<{ varName: string, path: string }>} result - Accumulator.
  */
-function collectVariableReferences(node, currentPath, result) {
+function collectVariableReferences(node, currentPath, result, _depth) {
+  if (_depth === undefined) _depth = 0;
+  if (_depth >= MAX_WALK_DEPTH) return;
   if (node === null || node === undefined) {
     return;
   }
@@ -838,14 +855,14 @@ function collectVariableReferences(node, currentPath, result) {
 
   if (Array.isArray(node)) {
     node.forEach((item, i) => {
-      collectVariableReferences(item, `${currentPath}[${i}]`, result);
+      collectVariableReferences(item, `${currentPath}[${i}]`, result, _depth + 1);
     });
     return;
   }
 
   if (typeof node === 'object') {
     for (const key of Object.keys(node)) {
-      collectVariableReferences(node[key], `${currentPath}/${key}`, result);
+      collectVariableReferences(node[key], `${currentPath}/${key}`, result, _depth + 1);
     }
   }
 }

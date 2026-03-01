@@ -149,10 +149,10 @@ Native 模式的动作参数支持两种格式：
 | 自然语言模式 | YAML 映射 | 说明 |
 |-------------|-----------|------|
 | "打开/访问/进入 XXX 网站" | `web: { url: "XXX" }` | 平台配置 |
-| "自动规划并执行 XXX" | `ai: "XXX"` | AI 自动拆解为多步骤执行 |
+| "自动规划并执行 XXX" | `ai: "XXX"` | AI 自动拆解为多步骤执行；可选 `fileChooserAccept: "path"` 处理文件上传对话框 |
 | "点击/按/选择 XXX" | `aiTap: "XXX"` | 简写形式 |
 | "悬停/移到 XXX 上" | `aiHover: "XXX"` | 触发下拉菜单或 tooltip |
-| "在 XXX 输入 YYY" | `aiInput: "XXX"` + `value: "YYY"` | 扁平兄弟格式（见格式规范） |
+| "在 XXX 输入 YYY" | `aiInput: "XXX"` + `value: "YYY"` | 扁平兄弟格式；可选 `mode: "replace"\|"clear"\|"typeOnly"\|"append"` |
 | "按键盘 XXX 键" | `aiKeyboardPress: "XXX"` | 支持组合键如 "Control+A"；`keyName` 可作为替代参数 |
 | "向下/上/左/右滚动" | `aiScroll: "目标区域"` + `direction: "down"` | 扁平兄弟格式；可选 `distance`、`scrollType` |
 | "等待 XXX 出现" | `aiWaitFor: "XXX"` | 可选 timeout（毫秒） |
@@ -161,6 +161,15 @@ Native 模式的动作参数支持两种格式：
 | "暂停/等待 N 秒" | `sleep: N*1000` | 参数为毫秒 |
 | "执行 JS 代码" | `javascript: "代码内容"` | 直接执行 JavaScript |
 | "截图记录到报告" | `recordToReport: "标题"` + `content: "描述"` | 截图并记录描述到报告 |
+| "双击 XXX" | `aiDoubleClick: "XXX"` | 双击操作；可选 `deepThink: true` |
+| "右键点击 XXX" | `aiRightClick: "XXX"` | 右键操作；可选 `deepThink: true` |
+| "定位 XXX 元素" | `aiLocate: "XXX"` + `name: "elem"` | 定位元素，结果存入变量（Extended 模式可引用） |
+| "XXX 是否为真？" | `aiBoolean: "XXX"` + `name: "flag"` | 返回布尔值；可选 `domIncluded`/`screenshotIncluded` |
+| "获取 XXX 数量" | `aiNumber: "XXX"` + `name: "count"` | 返回数字；可选 `domIncluded`/`screenshotIncluded` |
+| "获取 XXX 文本" | `aiString: "XXX"` + `name: "text"` | 返回字符串；可选 `domIncluded`/`screenshotIncluded` |
+| "询问 AI XXX" | `aiAsk: "XXX"` + `name: "answer"` | 自由提问，返回文本答案 |
+| "拖拽 A 到 B" | `aiDragAndDrop: { from: "A", to: "B" }` | 拖放操作 |
+| "清空 XXX 输入框" | `aiClearInput: "XXX"` | 清除输入框内容 |
 | "执行 ADB 命令" | `runAdbShell: "命令"` | Android 平台特有 |
 | "执行 WDA 请求" | `runWdaRequest: { ... }` | iOS 平台特有 |
 | "启动应用" | `launch: "包名"` | 移动端启动应用 |
@@ -192,7 +201,6 @@ Native 模式的动作参数支持两种格式：
 - `templates/native/web-data-extract.yaml` — 数据提取
 - `templates/native/web-search.yaml` — 网页搜索流程
 - `templates/native/web-file-upload.yaml` — 文件上传表单
-- `templates/native/web-auth-flow.yaml` — OAuth/登录认证流程
 - `templates/native/android-app.yaml` — Android 测试
 - `templates/native/ios-app.yaml` — iOS 测试
 - `templates/native/computer-desktop.yaml` — 桌面应用自动化
@@ -207,6 +215,7 @@ Native 模式的动作参数支持两种格式：
 - `templates/extended/reusable-sub-flows.yaml` — 子流程复用（import/use）
 - `templates/extended/responsive-test.yaml` — 多视口响应式测试
 - `templates/extended/image-locator.yaml` — 图片辅助定位
+- `templates/extended/web-auth-flow.yaml` — OAuth/登录认证流程（使用变量和环境引用）
 
 **模板选择决策**：
 
@@ -217,7 +226,7 @@ Native 模式的动作参数支持两种格式：
 | 数据采集 / 信息提取 | `native/web-data-extract.yaml` |
 | 搜索 + 结果验证 | `native/web-search.yaml` |
 | 文件上传 / 附件提交 | `native/web-file-upload.yaml` |
-| OAuth/第三方认证登录 | `native/web-auth-flow.yaml` |
+| OAuth/第三方认证登录 | `extended/web-auth-flow.yaml` |
 | 桌面应用自动化（非浏览器） | `native/computer-desktop.yaml` |
 | 需要条件判断（如果登录了就...） | `extended/web-conditional-flow.yaml` |
 | 需要翻页 / 列表遍历 | `extended/web-pagination-loop.yaml` |
@@ -237,7 +246,8 @@ Native 模式的动作参数支持两种格式：
 2. **engine 字段**：Extended 模式必须显式声明 `engine: extended`
 3. **features 列表**：Extended 模式下声明使用的特性（如 `features: [logic, variables, loop]`），Native 模式可省略
 4. **agent 配置**（可选）：`testId` 用于标识测试、`groupName`/`groupDescription` 用于报告分类、`cache: true` 可缓存 AI 结果加速重复运行
-5. **continueOnError**（可选）：如需某个任务失败后继续执行后续任务，设置 `continueOnError: true`
+5. **aiActContext**（可选）：为 AI Agent 提供额外上下文信息（如多语言网站标注语言、特殊领域术语），设置在 `agent: { aiActContext: "描述" }`
+6. **continueOnError**（可选）：如需某个任务失败后继续执行后续任务，设置 `continueOnError: true`
 6. **output 导出**（可选）：将 `aiQuery` 等结果导出为 JSON 文件，供后续流程使用
 
 #### 输出格式
@@ -373,6 +383,27 @@ Extended 模式下 `data_transform` 支持的操作：
 
 ### Computer 平台
 - 用于通用桌面自动化场景
+
+## 常见错误模式（Anti-patterns）
+
+生成 YAML 时应避免以下常见错误：
+
+- **Native 模式中使用嵌套对象格式** — Native 模式推荐扁平格式（`aiInput: "搜索框"` + `value: "关键词"`），嵌套格式（`aiInput: { locator: "搜索框", value: "关键词" }`）仅在 Extended 模式中使用
+- **Extended 模式遗漏 `engine: extended`** — 使用任何扩展功能（变量、循环、条件等）时必须声明引擎
+- **循环忘记 `maxIterations`** — `while` 循环必须设置安全上限，`for` 和 `repeat` 循环的 count 不应超过 10000
+- **`aiWaitFor` 使用嵌套对象格式** — 应使用 `aiWaitFor: "条件"` + `timeout: 10000`，而非 `aiWaitFor: { condition: "条件" }`
+- **缺少 `features` 声明** — Extended 模式应列出使用的特性，便于检测和优化
+
+## 输出前自检清单
+
+生成 YAML 后，在输出前核验以下事项：
+
+- [ ] 每个 `aiInput` 都有对应的 `value` 参数？
+- [ ] 关键操作后有 `aiWaitFor` 确保页面状态就绪？
+- [ ] Extended 模式声明了 `engine: extended` 和 `features` 列表？
+- [ ] 循环有安全上限（`maxIterations` 或合理的 `count`）？
+- [ ] 敏感信息（密码、Token）使用 `${ENV:XXX}` 引用环境变量？
+- [ ] AI 指令描述足够精确（包含位置、文字、颜色等特征）？
 
 ## 注意事项
 

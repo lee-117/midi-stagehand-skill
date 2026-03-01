@@ -45,7 +45,7 @@ function run(yamlPath, options = {}) {
   const reportDir = options.reportDir || './midscene-report';
 
   // Prefer local installation over npx to avoid re-download
-  const cmd = resolveMidsceneCommand() + ' run ' + resolvedPath;
+  const cmd = resolveMidsceneCommand() + ' run "' + resolvedPath + '"';
 
   console.log('[native-runner] Executing: ' + cmd);
 

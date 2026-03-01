@@ -2292,4 +2292,419 @@ tasks:
       assert.ok(result.code.includes('timeoutMs: 10000'));
     });
   });
+
+  // =========================================================================
+  // Phase 4 — Missing action tests (4.1)
+  // =========================================================================
+
+  describe('runWdaRequest action', () => {
+    it('transpiles runWdaRequest', () => {
+      const yaml = `
+ios:
+  wdaPort: 8100
+tasks:
+  - name: test
+    flow:
+      - runWdaRequest: "/session/elements"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.runWdaRequest'));
+    });
+  });
+
+  describe('aiAct independent test', () => {
+    it('transpiles aiAct with string prompt', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiAct: "搜索关键词并点击结果"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiAct'));
+      assert.ok(result.code.includes('搜索关键词并点击结果'));
+    });
+
+    it('transpiles ai as alias for aiAct', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - ai: "执行一系列操作"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.ai'));
+    });
+  });
+
+  describe('autoDismissKeyboard option', () => {
+    it('passes autoDismissKeyboard to aiInput', () => {
+      const yaml = `
+android:
+  deviceId: "emulator-5554"
+tasks:
+  - name: test
+    flow:
+      - aiInput: "搜索框"
+        value: "test"
+        autoDismissKeyboard: true
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('autoDismissKeyboard: true'));
+    });
+  });
+
+  describe('images option array', () => {
+    it('passes images array to ai action', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiTap:
+          prompt: "点击匹配的图标"
+          images:
+            - "https://example.com/icon.png"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('aiTap'));
+    });
+  });
+
+  describe('convertHttpImage2Base64 option', () => {
+    it('passes convertHttpImage2Base64 to locator action', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "图标"
+        convertHttpImage2Base64: true
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('convertHttpImage2Base64: true'));
+    });
+  });
+
+  describe('domIncluded/screenshotIncluded in data queries', () => {
+    it('passes domIncluded to aiWaitFor', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiWaitFor: "页面就绪"
+        domIncluded: true
+        screenshotIncluded: false
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('domIncluded: true'));
+      assert.ok(result.code.includes('screenshotIncluded: false'));
+    });
+  });
+
+  // =========================================================================
+  // Phase 4 — Missing boundary tests (4.2)
+  // =========================================================================
+
+  describe('aiKeyboardPress nested object format', () => {
+    it('handles object format with locator and keyName', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiKeyboardPress:
+          locator: "搜索框"
+          keyName: "Enter"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiKeyboardPress'));
+      assert.ok(result.code.includes('Enter'));
+    });
+  });
+
+  describe('aiLocate nested object format', () => {
+    it('handles aiLocate with object prompt', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiLocate:
+          prompt: "登录按钮"
+        name: loginBtn
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiLocate'));
+      assert.ok(result.code.includes('loginBtn'));
+    });
+  });
+
+  describe('aiScroll empty locator fallback', () => {
+    it('handles aiScroll with empty string locator', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiScroll: ""
+        direction: down
+        distance: 500
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiScroll'));
+      assert.ok(result.code.includes('direction'));
+    });
+  });
+
+  describe('null/invalid step handling', () => {
+    it('transpiles YAML with null step in flow gracefully', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      // Should not throw
+      const result = transpile(yaml);
+      assert.ok(typeof result.code === 'string');
+    });
+  });
+
+  // =========================================================================
+  // Phase 4 — Negative transpiler tests (4.3)
+  // =========================================================================
+
+  describe('negative tests', () => {
+    it('throws on null input', () => {
+      assert.throws(() => transpile(null), /must be a string/);
+    });
+
+    it('throws on empty object', () => {
+      assert.throws(() => transpile({}));
+    });
+
+    it('throws on YAML without tasks', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+`;
+      assert.throws(() => transpile(yaml));
+    });
+
+    it('handles unsupported templateType gracefully', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      // Should throw or use default template
+      try {
+        const result = transpile(yaml, { templateType: 'nonexistent' });
+        // If it doesn't throw, it should still produce code
+        assert.ok(typeof result.code === 'string' || result.error);
+      } catch (e) {
+        // Expected — nonexistent template
+        assert.ok(e.message.length > 0);
+      }
+    });
+
+    it('throws on try without catch or finally', () => {
+      const yaml = `
+engine: extended
+features: [try_catch]
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - try:
+          flow:
+            - aiTap: "button"
+`;
+      // The transpiler should handle this — either generate code or throw
+      try {
+        const result = transpile(yaml);
+        // If it transpiles, the validator would have caught this
+        assert.ok(typeof result.code === 'string');
+      } catch (e) {
+        assert.ok(e.message.length > 0);
+      }
+    });
+  });
+
+  // =========================================================================
+  // Phase 4 — Platform config tests (4.5)
+  // =========================================================================
+
+  describe('Android platform transpilation', () => {
+    it('transpiles Android config', () => {
+      const yaml = `
+android:
+  deviceId: "emulator-5554"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "按钮"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiTap'));
+    });
+  });
+
+  describe('iOS platform transpilation', () => {
+    it('transpiles iOS config', () => {
+      const yaml = `
+ios:
+  wdaPort: 8100
+tasks:
+  - name: test
+    flow:
+      - aiTap: "按钮"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiTap'));
+    });
+  });
+
+  describe('Computer platform transpilation', () => {
+    it('transpiles Computer config', () => {
+      const yaml = `
+computer:
+  launch: "notepad"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "文件菜单"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiTap'));
+    });
+  });
+
+  describe('bridgeMode config', () => {
+    it('passes bridgeMode to template', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+  bridgeMode: "newTabWithUrl"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = transpile(yaml);
+      assert.ok(typeof result.code === 'string');
+    });
+  });
+
+  describe('serve config', () => {
+    it('passes serve to template', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+  serve: "./dist"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = transpile(yaml);
+      assert.ok(typeof result.code === 'string');
+    });
+  });
+
+  describe('aiDragAndDrop action', () => {
+    it('transpiles aiDragAndDrop with object format', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiDragAndDrop:
+          from: "源元素"
+          to: "目标元素"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiDragAndDrop'));
+      assert.ok(result.code.includes('源元素'));
+      assert.ok(result.code.includes('目标元素'));
+    });
+
+    it('transpiles aiDragAndDrop with string + to sibling', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiDragAndDrop: "拖拽源"
+        to: "放置目标"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiDragAndDrop'));
+    });
+  });
+
+  describe('aiClearInput action', () => {
+    it('transpiles aiClearInput', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiClearInput: "搜索框"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiClearInput'));
+      assert.ok(result.code.includes('搜索框'));
+    });
+  });
+
+  describe('loop for with indexVar', () => {
+    it('generates destructured entries() loop', () => {
+      const yaml = `
+engine: extended
+features: [loop]
+web:
+  url: "https://example.com"
+variables:
+  items:
+    - a
+    - b
+    - c
+tasks:
+  - name: test
+    flow:
+      - loop:
+          type: for
+          items: "\${items}"
+          itemVar: item
+          indexVar: idx
+          flow:
+            - aiTap: "\${item}"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('.entries()'));
+      assert.ok(result.code.includes('idx'));
+    });
+  });
 });

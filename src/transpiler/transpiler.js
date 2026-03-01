@@ -6,7 +6,8 @@ const path = require('path');
 const Handlebars = require('handlebars');
 
 const { looksLikeFilePath } = require('../utils/yaml-helpers');
-const { getPad, escapeStringLiteral, resolveEnvRefs } = require('./generators/utils');
+const { getPad, escapeStringLiteral, resolveEnvRefs, sanitizeIdentifier } = require('./generators/utils');
+const { MAX_WALK_DEPTH } = require('../utils/yaml-helpers');
 
 // ---------------------------------------------------------------------------
 // Generator imports
@@ -102,10 +103,14 @@ function resolveYaml(yamlInput) {
 
   let raw = yamlInput;
   if (looksLikeFilePath(yamlInput)) {
+    const stat = fs.statSync(yamlInput);
+    if (stat.size > 1024 * 1024) {
+      throw new Error('YAML file exceeds 1MB size limit (' + Math.round(stat.size / 1024) + 'KB). Consider splitting into smaller files using import.');
+    }
     raw = fs.readFileSync(yamlInput, 'utf8');
   }
 
-  return yaml.load(raw);
+  return yaml.load(raw, { maxAliases: 100 });
 }
 
 // ---------------------------------------------------------------------------
@@ -236,7 +241,6 @@ function extractAgentConfig(doc) {
     'testId', 'groupName', 'groupDescription', 'cache',
     'generateReport', 'autoPrintReportMsg', 'reportFileName',
     'replanningCycleLimit', 'aiActContext',
-    'waitAfterAction', 'outputFormat', 'screenshotShrinkFactor',
   ];
 
   const config = {};
@@ -362,6 +366,12 @@ function processStep(step, indent, varScope, _extra) {
   indent = indent || 0;
   varScope = varScope || new Set();
 
+  // Depth guard: prevent stack overflow from deeply nested YAML
+  const depth = (_extra && _extra.depth) || 0;
+  if (depth >= MAX_WALK_DEPTH) {
+    return getPad(indent) + '// Skipped: maximum nesting depth exceeded';
+  }
+
   const { generator, type } = detectStepType(step);
 
   // C1: Warn on unknown step types
@@ -371,8 +381,9 @@ function processStep(step, indent, varScope, _extra) {
   }
 
   // Bind _extra into the recursive callback so generators propagate it
-  // without needing to know about it.
-  const boundProcessStep = function (s, i, v) { return processStep(s, i, v, _extra); };
+  // without needing to know about it. Increment depth for child steps.
+  const childExtra = _extra ? Object.assign({}, _extra, { depth: depth + 1 }) : { depth: depth + 1 };
+  const boundProcessStep = function (s, i, v) { return processStep(s, i, v, childExtra); };
 
   const ctx = {
     indent: indent,
@@ -573,6 +584,9 @@ function transpile(yamlInput, options) {
     waitForNetworkIdleOpts: (typeof platformConfig.waitForNetworkIdle === 'object' && platformConfig.waitForNetworkIdle !== null)
       ? JSON.stringify(platformConfig.waitForNetworkIdle)
       : '',
+    waitForNetworkIdleTimeout: (typeof platformConfig.waitForNetworkIdle === 'object' && platformConfig.waitForNetworkIdle !== null && platformConfig.waitForNetworkIdle.timeout)
+      ? platformConfig.waitForNetworkIdle.timeout
+      : 0,
     hasAgentConfig: !!finalAgentConfig,
     agentConfigJson: finalAgentConfig ? JSON.stringify(finalAgentConfig) : '',
   };

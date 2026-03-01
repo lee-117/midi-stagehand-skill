@@ -20,7 +20,7 @@ src/transpiler/     → Extended YAML → TypeScript 转译器
 src/runner/         → 执行器（native-runner + ts-runner + runner-utils + report-parser）
 scripts/            → CLI 入口 (midscene-run.js)
 schema/             → 关键字 Schema 定义（native-keywords.json + extended-keywords.json）
-templates/          → 12 个 YAML 模板（native 6 个 + extended 6 个）
+templates/          → 18 个 YAML 模板（native 8 个 + extended 10 个）
 skills/             → Claude Code Skill 定义（见下方）
 guide/              → 渐进式指导手册（L1-L5）
 test/               → 198 个单元测试（detector + validator + transpiler + CLI + report-parser）

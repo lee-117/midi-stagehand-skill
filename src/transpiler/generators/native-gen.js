@@ -5,7 +5,7 @@
  * Converts native Midscene YAML actions into TypeScript agent calls.
  */
 
-const { resolveTemplate, toCodeString, escapeForTemplateLiteral, getPad } = require('./utils');
+const { resolveTemplate, toCodeString, escapeForTemplateLiteral, getPad, sanitizeIdentifier } = require('./utils');
 
 /**
  * Build an array of "key: value" option entries from action options like deepThink, xpath, timeout.
@@ -31,6 +31,8 @@ function buildOptionEntries(step, extra) {
       opts.push('fileChooserAccept: ' + toCodeString(resolveTemplate(step.fileChooserAccept)));
     }
   }
+  if (step.deepLocate !== undefined) opts.push('deepLocate: ' + step.deepLocate);
+  if (step.convertHttpImage2Base64 !== undefined) opts.push('convertHttpImage2Base64: ' + step.convertHttpImage2Base64);
   if (step.autoDismissKeyboard !== undefined) opts.push('autoDismissKeyboard: ' + step.autoDismissKeyboard);
   if (step.mode) opts.push('mode: ' + toCodeString(step.mode));
   if (Array.isArray(step.images)) {
@@ -86,6 +88,19 @@ function generateLocatorAction(actionName, actionValue, step, pad) {
     if (actionValue.xpath) {
       return pad + 'await agent.' + actionName + '({ xpath: ' + toCodeString(resolveTemplate(actionValue.xpath)) + ' });';
     }
+    // Support locate object format (image prompting): { prompt, images, convertHttpImage2Base64 }
+    if (actionValue.locate && typeof actionValue.locate === 'object') {
+      const locateEntries = [];
+      if (actionValue.locate.prompt) locateEntries.push('prompt: ' + toCodeString(resolveTemplate(actionValue.locate.prompt)));
+      if (Array.isArray(actionValue.locate.images)) locateEntries.push('images: ' + JSON.stringify(actionValue.locate.images));
+      if (actionValue.locate.convertHttpImage2Base64 !== undefined) locateEntries.push('convertHttpImage2Base64: ' + actionValue.locate.convertHttpImage2Base64);
+      const locateObj = '{ ' + locateEntries.join(', ') + ' }';
+      const opts = buildOptions(actionValue);
+      if (opts) {
+        return pad + 'await agent.' + actionName + '(' + locateObj + ', ' + opts + ');';
+      }
+      return pad + 'await agent.' + actionName + '(' + locateObj + ');';
+    }
     prompt = toCodeString(resolveTemplate(actionValue.locator || ''));
     const opts = buildOptions(actionValue);
     if (opts) {
@@ -125,8 +140,9 @@ function generate(step, ctx) {
     const code = escapeForTemplateLiteral(step.javascript);
     const jsVarName = step.name || step.output;
     if (jsVarName && typeof jsVarName === 'string') {
-      varScope.add(jsVarName);
-      return pad + 'const ' + jsVarName + ' = await agent.evaluateJavaScript(`' + code + '`);';
+      const safeVar = sanitizeIdentifier(jsVarName);
+      varScope.add(safeVar);
+      return pad + 'const ' + safeVar + ' = await agent.evaluateJavaScript(`' + code + '`);';
     }
     return pad + 'await agent.evaluateJavaScript(`' + code + '`);';
   }
@@ -146,11 +162,11 @@ function generate(step, ctx) {
     if (typeof step.aiQuery === 'object' && step.aiQuery !== null) {
       // Object syntax: aiQuery: { query: "...", name: "..." }
       prompt = toCodeString(resolveTemplate(step.aiQuery.query || ''));
-      varName = step.aiQuery.name || step.name || 'queryResult';
+      varName = sanitizeIdentifier(step.aiQuery.name || step.name || 'queryResult');
     } else {
       // String syntax: aiQuery: "..."
       prompt = toCodeString(resolveTemplate(step.aiQuery));
-      varName = step.name || 'queryResult';
+      varName = sanitizeIdentifier(step.name || 'queryResult');
     }
 
     varScope.add(varName);
@@ -220,6 +236,9 @@ function generate(step, ctx) {
     const waitOpts = [];
     if (timeout !== undefined) waitOpts.push('timeoutMs: ' + timeout);
     if (checkInterval !== undefined) waitOpts.push('checkIntervalMs: ' + checkInterval);
+    const waitOptSource = typeof step.aiWaitFor === 'object' ? step.aiWaitFor : step;
+    if (waitOptSource.domIncluded !== undefined) waitOpts.push('domIncluded: ' + (typeof waitOptSource.domIncluded === 'string' ? toCodeString(waitOptSource.domIncluded) : waitOptSource.domIncluded));
+    if (waitOptSource.screenshotIncluded !== undefined) waitOpts.push('screenshotIncluded: ' + waitOptSource.screenshotIncluded);
 
     if (waitOpts.length > 0) {
       return pad + 'await agent.aiWaitFor(' + prompt + ', { ' + waitOpts.join(', ') + ' });';
@@ -347,12 +366,35 @@ function generate(step, ctx) {
     return generateLocatorAction('aiRightClick', step.aiRightClick, step, pad);
   }
 
+  // --- aiDragAndDrop ---
+  if (step.aiDragAndDrop !== undefined) {
+    let from, to;
+    if (typeof step.aiDragAndDrop === 'object' && step.aiDragAndDrop !== null) {
+      from = toCodeString(resolveTemplate(step.aiDragAndDrop.from || ''));
+      to = toCodeString(resolveTemplate(step.aiDragAndDrop.to || ''));
+    } else {
+      from = toCodeString(resolveTemplate(step.aiDragAndDrop));
+      to = step.to ? toCodeString(resolveTemplate(step.to)) : "''";
+    }
+    return pad + 'await agent.aiDragAndDrop(' + from + ', ' + to + ');';
+  }
+
+  // --- aiClearInput ---
+  if (step.aiClearInput !== undefined) {
+    const prompt = toCodeString(resolveTemplate(step.aiClearInput));
+    const opts = buildOptions(step);
+    if (opts) {
+      return pad + 'await agent.aiClearInput(' + prompt + ', ' + opts + ');';
+    }
+    return pad + 'await agent.aiClearInput(' + prompt + ');';
+  }
+
   // --- aiLocate ---
   if (step.aiLocate !== undefined) {
     const prompt = toCodeString(resolveTemplate(
       typeof step.aiLocate === 'object' ? step.aiLocate.locator || '' : step.aiLocate
     ));
-    const varName = step.name || 'locateResult';
+    const varName = sanitizeIdentifier(step.name || 'locateResult');
     varScope.add(varName);
     const opts = buildOptions(step);
     if (opts) {
@@ -364,7 +406,7 @@ function generate(step, ctx) {
   // --- aiBoolean ---
   if (step.aiBoolean !== undefined) {
     const prompt = toCodeString(resolveTemplate(step.aiBoolean));
-    const varName = step.name || 'boolResult';
+    const varName = sanitizeIdentifier(step.name || 'boolResult');
     varScope.add(varName);
     const boolOpts = buildDataQueryOptions(step);
     if (boolOpts) {
@@ -376,7 +418,7 @@ function generate(step, ctx) {
   // --- aiNumber ---
   if (step.aiNumber !== undefined) {
     const prompt = toCodeString(resolveTemplate(step.aiNumber));
-    const varName = step.name || 'numResult';
+    const varName = sanitizeIdentifier(step.name || 'numResult');
     varScope.add(varName);
     const numOpts = buildDataQueryOptions(step);
     if (numOpts) {
@@ -388,7 +430,7 @@ function generate(step, ctx) {
   // --- aiString ---
   if (step.aiString !== undefined) {
     const prompt = toCodeString(resolveTemplate(step.aiString));
-    const varName = step.name || 'strResult';
+    const varName = sanitizeIdentifier(step.name || 'strResult');
     varScope.add(varName);
     const strOpts = buildDataQueryOptions(step);
     if (strOpts) {
@@ -403,7 +445,7 @@ function generate(step, ctx) {
     const prompt = toCodeString(resolveTemplate(
       typeof step.aiAsk === 'object' ? step.aiAsk.query || step.aiAsk.prompt || '' : step.aiAsk
     ));
-    const varName = (typeof step.aiAsk === 'object' && step.aiAsk.name) || step.name || 'askResult';
+    const varName = sanitizeIdentifier((typeof step.aiAsk === 'object' && step.aiAsk.name) || step.name || 'askResult');
     varScope.add(varName);
     const askOpts = buildDataQueryOptions(typeof step.aiAsk === 'object' ? step.aiAsk : step);
     if (askOpts) {

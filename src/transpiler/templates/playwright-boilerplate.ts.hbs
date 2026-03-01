@@ -26,8 +26,8 @@ async function main() {
   try {
     await page.goto('{{{url}}}');
 {{#if waitForNetworkIdle}}
-{{#if waitForNetworkIdleOpts}}
-    await page.waitForLoadState('networkidle', {{{waitForNetworkIdleOpts}}});
+{{#if waitForNetworkIdleTimeout}}
+    await page.waitForLoadState('networkidle', { timeout: {{waitForNetworkIdleTimeout}} });
 {{else}}
     await page.waitForLoadState('networkidle');
 {{/if}}

@@ -176,9 +176,6 @@
         "reportFileName": { "type": "string" },
         "replanningCycleLimit": { "type": "integer" },
         "aiActContext": { "type": "string" },
-        "waitAfterAction": { "type": "integer", "description": "Milliseconds to wait between actions (default 300)" },
-        "outputFormat": { "type": "string", "enum": ["single-html", "html-and-external-assets"], "description": "Report output format" },
-        "screenshotShrinkFactor": { "type": "number", "minimum": 1, "description": "Screenshot scaling factor (1-3 recommended)" }
       },
       "additionalProperties": false
     },
@@ -219,7 +216,13 @@
         { "$ref": "#/definitions/aiInputAction" },
         { "$ref": "#/definitions/aiKeyboardPressAction" },
         { "$ref": "#/definitions/aiScrollAction" },
+        { "$ref": "#/definitions/aiDragAndDropAction" },
+        { "$ref": "#/definitions/aiClearInputAction" },
         { "$ref": "#/definitions/aiQueryAction" },
+        { "$ref": "#/definitions/aiBooleanAction" },
+        { "$ref": "#/definitions/aiNumberAction" },
+        { "$ref": "#/definitions/aiStringAction" },
+        { "$ref": "#/definitions/aiLocateAction" },
         { "$ref": "#/definitions/aiAskAction" },
         { "$ref": "#/definitions/aiAssertAction" },
         { "$ref": "#/definitions/aiWaitForAction" },
@@ -277,13 +280,13 @@
                 "locator": { "type": "string" },
                 "locate": { "$ref": "#/definitions/locateObject" },
                 "xpath": { "type": "string" },
-                "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] }
+                "deepThink": { "type": "boolean" }
               },
               "additionalProperties": false
             }
           ]
         },
-        "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
+        "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
         "cacheable": { "type": "boolean" }
@@ -303,13 +306,13 @@
                 "locator": { "type": "string" },
                 "locate": { "$ref": "#/definitions/locateObject" },
                 "xpath": { "type": "string" },
-                "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] }
+                "deepThink": { "type": "boolean" }
               },
               "additionalProperties": false
             }
           ]
         },
-        "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
+        "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
         "cacheable": { "type": "boolean" }
@@ -329,13 +332,13 @@
                 "locator": { "type": "string" },
                 "locate": { "$ref": "#/definitions/locateObject" },
                 "xpath": { "type": "string" },
-                "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] }
+                "deepThink": { "type": "boolean" }
               },
               "additionalProperties": false
             }
           ]
         },
-        "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
+        "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
         "cacheable": { "type": "boolean" }
@@ -355,13 +358,13 @@
                 "locator": { "type": "string" },
                 "locate": { "$ref": "#/definitions/locateObject" },
                 "xpath": { "type": "string" },
-                "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] }
+                "deepThink": { "type": "boolean" }
               },
               "additionalProperties": false
             }
           ]
         },
-        "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
+        "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
         "cacheable": { "type": "boolean" }
@@ -389,7 +392,7 @@
           ]
         },
         "value": { "oneOf": [{ "type": "string" }, { "type": "number" }], "description": "Value to input (flat format)" },
-        "mode": { "type": "string", "enum": ["replace", "clear", "typeOnly"], "description": "Input mode" },
+        "mode": { "type": "string", "enum": ["replace", "clear", "typeOnly", "append"], "description": "Input mode" },
         "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
@@ -402,7 +405,20 @@
       "type": "object",
       "required": ["aiKeyboardPress"],
       "properties": {
-        "aiKeyboardPress": { "type": "string", "description": "Key or key combination to press" },
+        "aiKeyboardPress": {
+          "oneOf": [
+            { "type": "string", "description": "Key or key combination to press" },
+            {
+              "type": "object",
+              "properties": {
+                "locator": { "type": "string" },
+                "keyName": { "type": "string" },
+                "deepThink": { "type": "boolean" }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
         "keyName": { "type": "string", "description": "Key name (alternative to aiKeyboardPress value)" },
         "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
         "timeout": { "type": "integer" },
@@ -424,7 +440,7 @@
                 "direction": { "type": "string", "enum": ["up", "down", "left", "right"] },
                 "distance": { "type": "integer" },
 
-                "scrollType": { "type": "string", "enum": ["singleAction", "scrollToBottom", "scrollToTop", "scrollToRight", "scrollToLeft"] }
+                "scrollType": { "type": "string", "enum": ["once", "untilBottom", "untilTop", "untilRight", "untilLeft"] }
               },
               "additionalProperties": false
             }
@@ -438,10 +454,44 @@
         "distance": { "type": "integer", "description": "Scroll distance in pixels (flat format sibling key)" },
         "scrollType": {
           "type": "string",
-          "enum": ["singleAction", "scrollToBottom", "scrollToTop", "scrollToRight", "scrollToLeft"],
+          "enum": ["once", "untilBottom", "untilTop", "untilRight", "untilLeft"],
           "description": "Scroll behavior type (flat format sibling key)"
         },
-        "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
+        "deepThink": { "type": "boolean" },
+        "timeout": { "type": "integer" },
+        "cacheable": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "aiDragAndDropAction": {
+      "type": "object",
+      "required": ["aiDragAndDrop"],
+      "properties": {
+        "aiDragAndDrop": {
+          "oneOf": [
+            { "type": "string", "description": "Source element to drag from" },
+            {
+              "type": "object",
+              "properties": {
+                "from": { "type": "string", "description": "Source element" },
+                "to": { "type": "string", "description": "Target element" }
+              },
+              "required": ["from", "to"],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "to": { "type": "string", "description": "Target element (flat format)" }
+      },
+      "additionalProperties": false
+    },
+    "aiClearInputAction": {
+      "type": "object",
+      "required": ["aiClearInput"],
+      "properties": {
+        "aiClearInput": { "type": "string", "description": "Input field to clear" },
+        "deepThink": { "type": "boolean" },
+        "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
         "cacheable": { "type": "boolean" }
       },
@@ -466,6 +516,111 @@
         },
         "output": { "type": "string", "description": "Variable name to store the query result" },
         "name": { "type": "string" },
+        "timeout": { "type": "integer" },
+        "cacheable": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "aiBooleanAction": {
+      "type": "object",
+      "required": ["aiBoolean"],
+      "properties": {
+        "aiBoolean": {
+          "oneOf": [
+            { "type": "string", "description": "Boolean question about the page" },
+            {
+              "type": "object",
+              "properties": {
+                "query": { "type": "string" },
+                "prompt": { "type": "string" },
+                "name": { "type": "string" },
+                "domIncluded": { "oneOf": [{ "type": "boolean" }, { "const": "visible-only" }] },
+                "screenshotIncluded": { "type": "boolean" }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "name": { "type": "string", "description": "Variable name to store the boolean result" },
+        "domIncluded": { "oneOf": [{ "type": "boolean" }, { "const": "visible-only" }] },
+        "screenshotIncluded": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "aiNumberAction": {
+      "type": "object",
+      "required": ["aiNumber"],
+      "properties": {
+        "aiNumber": {
+          "oneOf": [
+            { "type": "string", "description": "Numeric question about the page" },
+            {
+              "type": "object",
+              "properties": {
+                "query": { "type": "string" },
+                "prompt": { "type": "string" },
+                "name": { "type": "string" },
+                "domIncluded": { "oneOf": [{ "type": "boolean" }, { "const": "visible-only" }] },
+                "screenshotIncluded": { "type": "boolean" }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "name": { "type": "string", "description": "Variable name to store the numeric result" },
+        "domIncluded": { "oneOf": [{ "type": "boolean" }, { "const": "visible-only" }] },
+        "screenshotIncluded": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "aiStringAction": {
+      "type": "object",
+      "required": ["aiString"],
+      "properties": {
+        "aiString": {
+          "oneOf": [
+            { "type": "string", "description": "String question about the page" },
+            {
+              "type": "object",
+              "properties": {
+                "query": { "type": "string" },
+                "prompt": { "type": "string" },
+                "name": { "type": "string" },
+                "domIncluded": { "oneOf": [{ "type": "boolean" }, { "const": "visible-only" }] },
+                "screenshotIncluded": { "type": "boolean" }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "name": { "type": "string", "description": "Variable name to store the string result" },
+        "domIncluded": { "oneOf": [{ "type": "boolean" }, { "const": "visible-only" }] },
+        "screenshotIncluded": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "aiLocateAction": {
+      "type": "object",
+      "required": ["aiLocate"],
+      "properties": {
+        "aiLocate": {
+          "oneOf": [
+            { "type": "string", "description": "Element to locate on the page" },
+            {
+              "type": "object",
+              "properties": {
+                "locator": { "type": "string" },
+                "locate": { "$ref": "#/definitions/locateObject" },
+                "xpath": { "type": "string" },
+                "deepThink": { "type": "boolean" }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "name": { "type": "string", "description": "Variable name to store the located element" },
+        "deepThink": { "type": "boolean" },
+        "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
         "cacheable": { "type": "boolean" }
       },
@@ -501,8 +656,20 @@
       "type": "object",
       "required": ["aiAssert"],
       "properties": {
-        "aiAssert": { "type": "string", "description": "Assertion condition in natural language" },
-        "errorMessage": { "type": "string", "description": "Custom error message on assertion failure" },
+        "aiAssert": {
+          "oneOf": [
+            { "type": "string", "description": "Assertion condition in natural language" },
+            {
+              "type": "object",
+              "properties": {
+                "assertion": { "type": "string" },
+                "errorMessage": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "errorMessage": { "type": "string", "description": "Custom error message on assertion failure (flat format)" },
         "name": { "type": "string", "description": "JSON output key for assertion result" },
         "timeout": { "type": "integer" },
         "cacheable": { "type": "boolean" }
@@ -528,6 +695,8 @@
         },
         "timeout": { "type": "integer" },
         "checkIntervalMs": { "type": "integer", "description": "Interval between checks in ms" },
+        "domIncluded": { "oneOf": [{ "type": "boolean" }, { "const": "visible-only" }] },
+        "screenshotIncluded": { "type": "boolean" },
         "cacheable": { "type": "boolean" }
       },
       "additionalProperties": false
@@ -957,7 +1126,8 @@
             },
             "required": ["name", "url"]
           }
-        }
+        },
+        "convertHttpImage2Base64": { "type": "boolean", "description": "Convert HTTP image URLs to base64 for prompting" }
       },
       "required": ["prompt"]
     }

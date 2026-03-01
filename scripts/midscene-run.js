@@ -64,9 +64,11 @@ function parseArgs(argv) {
           args.yamlPath = arg;
         } else if (!arg.startsWith('--') && !arg.startsWith('-')) {
           console.error(`[midscene-run] Unknown positional argument: ${arg}`);
+          console.error(`  Run "midscene-run --help" to see available options.`);
           process.exit(1);
         } else {
           console.error(`[midscene-run] Unknown option: ${arg}`);
+          console.error(`  Run "midscene-run --help" to see available options.`);
           process.exit(1);
         }
         break;
@@ -118,9 +120,13 @@ function tryValidate(yamlPath) {
   try {
     const { validate } = require('../src/validator/yaml-validator');
     return validate(yamlPath);
-  } catch (_e) {
-    // Validator module failed to load – skip validation
-    return { valid: true, errors: [], warnings: [] };
+  } catch (e) {
+    // Validator module failed to load – do NOT skip validation silently
+    return {
+      valid: false,
+      errors: [{ level: 'error', message: 'Validator module unavailable: ' + e.message, path: '' }],
+      warnings: [],
+    };
   }
 }
 
@@ -244,7 +250,21 @@ function processFile(yamlPath, args) {
 
   if (!validation.valid) {
     console.error('\n  Validation errors:');
-    (validation.errors || []).forEach(e => console.error(`    - ${typeof e === 'object' ? e.message : e}`));
+    (validation.errors || []).forEach(e => {
+      const msg = typeof e === 'object' ? e.message : e;
+      console.error(`    - ${msg}`);
+    });
+    // Print quick-fix hints for common errors.
+    const allMsgs = (validation.errors || []).map(e => typeof e === 'object' ? e.message : String(e)).join(' ');
+    if (/syntax|parse/i.test(allMsgs)) {
+      console.error('\n  Hint: Check YAML indentation (use 2 spaces, not tabs) and ensure proper quoting of special characters.');
+    }
+    if (/platform config/i.test(allMsgs)) {
+      console.error('  Hint: Add a platform key at the top level, e.g. web: { url: "https://example.com" }');
+    }
+    if (/tasks/i.test(allMsgs) && /required|missing|must/i.test(allMsgs)) {
+      console.error('  Hint: Add a "tasks" array with at least one task containing "name" and "flow".');
+    }
     console.error('\n[midscene-run] Validation failed. Aborting.');
     return 1;
   }
@@ -269,10 +289,26 @@ function processFile(yamlPath, args) {
   if (detection.mode === 'native') {
     if (args.dryRun) {
       console.log('[midscene-run] Dry-run: native YAML requires no transpilation.');
-      const content = fs.readFileSync(yamlPath, 'utf-8');
-      console.log('\n--- Native YAML content ---');
-      console.log(content);
-      console.log('--- End ---\n');
+      try {
+        const yaml = require('js-yaml');
+        const doc = yaml.load(fs.readFileSync(yamlPath, 'utf-8'));
+        const platform = ['web', 'android', 'ios', 'computer'].find(p => doc[p]) || 'unknown';
+        const tasks = Array.isArray(doc.tasks) ? doc.tasks : [];
+        console.log('\n  Summary:');
+        console.log(`    Platform : ${platform}`);
+        console.log(`    Tasks    : ${tasks.length}`);
+        tasks.forEach((t, i) => {
+          const flowLen = Array.isArray(t.flow || t.steps) ? (t.flow || t.steps).length : 0;
+          console.log(`      ${i + 1}. ${t.name || '(unnamed)'} — ${flowLen} steps`);
+        });
+        console.log('');
+      } catch (_e) {
+        // Fallback: just print raw content
+        const content = fs.readFileSync(yamlPath, 'utf-8');
+        console.log('\n--- Native YAML content ---');
+        console.log(content);
+        console.log('--- End ---\n');
+      }
       return 0;
     }
 

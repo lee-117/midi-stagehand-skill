@@ -135,7 +135,7 @@ web:
   acceptInsecureCerts: true           # 接受不安全的 HTTPS 证书
   waitForNetworkIdle: true            # 页面加载后等待网络空闲
   serve: "./dist"                     # 本地静态文件目录，自动启动本地服务器
-  bridgeMode: true                    # 桥接模式，复用已有浏览器实例
+  bridgeMode: "newTabWithUrl"          # 桥接模式: false | "newTabWithUrl" | "currentTab"
   forceSameTabNavigation: true        # 强制在同一标签页内导航
   chromeArgs:                         # Chrome 启动参数
     - "--disable-gpu"
@@ -154,7 +154,7 @@ web:
 
 > **`serve` 用法**: 指定本地目录后，Midscene 会自动启动一个本地 HTTP 服务器，`url` 中可使用相对路径。适合测试本地构建产物。
 
-> **`bridgeMode` 用法**: 桥接模式不会启动新浏览器，而是连接到已有的浏览器实例。适用于需要保留浏览器状态或与其他工具共享浏览器的场景。
+> **`bridgeMode` 用法**: 桥接模式不会启动新浏览器，而是连接到已有的浏览器实例。值为 `"newTabWithUrl"` 时在新标签页打开 URL，`"currentTab"` 使用当前标签页，`false` 禁用（默认）。适用于需要保留浏览器状态或与其他工具共享浏览器的场景。
 
 > **snake_case 兼容**: 所有字段同时支持 camelCase 和 snake_case 写法，例如 `viewportWidth` 等同于 `viewport_width`，`acceptInsecureCerts` 等同于 `accept_insecure_certs`。
 

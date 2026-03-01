@@ -5,7 +5,7 @@
  * Converts `variables` declarations from YAML into TypeScript const/let declarations.
  */
 
-const { resolveTemplate, escapeStringLiteral, getPad } = require('./utils');
+const { resolveTemplate, escapeStringLiteral, getPad, sanitizeIdentifier } = require('./utils');
 
 /**
  * Convert a value into a TypeScript code representation.
@@ -57,7 +57,8 @@ function generate(step, ctx) {
 
   const lines = [];
 
-  for (const [name, value] of Object.entries(variables)) {
+  for (const [rawName, value] of Object.entries(variables)) {
+    const name = sanitizeIdentifier(rawName);
     const codeValue = valueToCode(value);
 
     // Use `let` if the variable was already declared (reassignment), otherwise `const`

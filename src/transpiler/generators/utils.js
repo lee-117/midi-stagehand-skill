@@ -93,9 +93,38 @@ function escapeStringLiteral(str) {
   return str
     .replace(/\\/g, '\\\\')
     .replace(/'/g, "\\'")
+    .replace(/`/g, '\\`')
+    .replace(/\$\{/g, '\\${')
     .replace(/\n/g, '\\n')
     .replace(/\r/g, '\\r')
     .replace(/\t/g, '\\t');
+}
+
+/**
+ * Validate that a string is a safe JavaScript identifier.
+ * Used to prevent code injection via variable names from YAML.
+ *
+ * @param {string} name - The candidate identifier.
+ * @returns {boolean}
+ */
+function isValidIdentifier(name) {
+  return typeof name === 'string' && /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(name);
+}
+
+/**
+ * Sanitize a string to be a valid JavaScript identifier.
+ * Replaces invalid characters with underscores.
+ *
+ * @param {string} name - The candidate identifier.
+ * @returns {string} A valid identifier.
+ */
+function sanitizeIdentifier(name) {
+  if (typeof name !== 'string' || name.trim() === '') return '_unnamed';
+  if (isValidIdentifier(name)) return name;
+  // Replace invalid chars with underscore, ensure starts with letter/_/$
+  let sanitized = name.replace(/[^a-zA-Z0-9_$]/g, '_');
+  if (/^[0-9]/.test(sanitized)) sanitized = '_' + sanitized;
+  return sanitized || '_unnamed';
 }
 
 /**
@@ -139,4 +168,6 @@ module.exports = {
   escapeForTemplateLiteral,
   escapeRegExp,
   getPad,
+  isValidIdentifier,
+  sanitizeIdentifier,
 };

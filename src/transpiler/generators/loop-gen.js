@@ -35,13 +35,20 @@ function generate(step, ctx, processStep) {
   switch (loop.type) {
     case 'for': {
       // for (const item of items) { ...flow }
+      // or for (const [index, item] of items.entries()) when indexVar is specified
       const itemVar = getLoopItemVar(loop);
       varScope.add(itemVar);
       const iterableRaw = loop.items || loop.in || loop.collection;
       const varRef = extractVarRef(iterableRaw);
       const iterable = varRef || toCodeString(resolveTemplate(iterableRaw));
 
-      lines.push(pad + 'for (const ' + itemVar + ' of ' + iterable + ') {');
+      if (loop.indexVar) {
+        const indexVar = loop.indexVar;
+        varScope.add(indexVar);
+        lines.push(pad + 'for (const [' + indexVar + ', ' + itemVar + '] of ' + iterable + '.entries()) {');
+      } else {
+        lines.push(pad + 'for (const ' + itemVar + ' of ' + iterable + ') {');
+      }
 
       for (const subStep of flow) {
         const code = processStep(subStep, indent + 1);

@@ -5,7 +5,7 @@
  * Converts `try/catch/finally` blocks from YAML into TypeScript try/catch/finally.
  */
 
-const { getPad } = require('./utils');
+const { getPad, sanitizeIdentifier } = require('./utils');
 const { getNestedFlow } = require('../../utils/yaml-helpers');
 
 /**
@@ -39,7 +39,7 @@ function generate(step, ctx, processStep) {
   const catchBlock = step.catch;
   if (catchBlock) {
     const catchFlow = getNestedFlow(catchBlock) || (Array.isArray(catchBlock) ? catchBlock : []);
-    const errorVar = catchBlock.error || catchBlock.as || 'e';
+    const errorVar = sanitizeIdentifier(catchBlock.error || catchBlock.as || 'e');
 
     lines.push(pad + '} catch (' + errorVar + ') {');
     for (const subStep of catchFlow) {
@@ -48,8 +48,14 @@ function generate(step, ctx, processStep) {
     }
   }
 
-  // --- finally block ---
+  // If no catch and no finally, add an empty catch to avoid syntax error
   const finallyBlock = step.finally;
+  if (!catchBlock && !finallyBlock) {
+    lines.push(pad + '} catch (_e) { /* no catch/finally defined */ }');
+    return lines.join('\n');
+  }
+
+  // --- finally block ---
   if (finallyBlock) {
     const finallyFlow = getNestedFlow(finallyBlock) || (Array.isArray(finallyBlock) ? finallyBlock : []);
 

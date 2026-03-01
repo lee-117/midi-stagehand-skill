@@ -197,18 +197,39 @@ node scripts/midscene-run.js test.yaml --output-ts ./debug-output.ts
 - 如果有 `output` 导出，确认文件生成位置
 
 #### 失败
-分析错误类型并提供修复建议：
+按以下决策树分析错误并修复：
 
-| 错误类型 | 典型表现 | 修复建议 |
-|---------|---------|---------|
-| 模型未配置 | `API key` / `401 Unauthorized` | 设置 `MIDSCENE_MODEL_API_KEY` 环境变量或 `.env` 文件 |
-| 超时错误 | `Timeout exceeded` | 页面慢：增加 `timeout`；页面不可达：检查网络和 URL |
-| 元素未找到 | `Element not found` | 修改 AI 描述更精确，或使用 `deepThink: true` |
-| 断言失败 | `Assertion failed` | 查看报告截图，对比实际页面状态 vs 预期描述 |
-| 网络错误 | `Navigation failed` | 检查 URL 是否可访问，确认协议（`https://`） |
-| 转换错误 | `Transpiler error` | 使用 `--output-ts` 查看生成的 TS 代码排查语法问题 |
-| 权限错误 | `Permission denied` | 检查页面是否需要登录或特殊权限 |
-| 脚本错误 | `javascript` 步骤报错 | 检查 JS 代码语法和运行环境 |
+```
+错误消息包含什么？
+├─ "API key" / "401" / "Unauthorized"
+│   → 模型未配置。设置 MIDSCENE_MODEL_API_KEY 环境变量或 .env 文件
+│
+├─ "Timeout" / "exceeded"
+│   ├─ 页面能在浏览器中正常打开？
+│   │   ├─ 是 → 页面加载慢，增加 timeout 值（如 timeout: 30000）
+│   │   └─ 否 → 检查 URL 是否正确、网络是否可达
+│   └─ 出现在 aiWaitFor？→ 条件描述可能不准确，检查 assertion 文本
+│
+├─ "Element not found" / "not found"
+│   ├─ 第一次就失败？→ AI 描述不够精确，改用更具体的文字描述
+│   ├─ 之前能成功？→ 页面结构可能变了，查看报告截图对比
+│   └─ 仍然失败？→ 尝试 deepThink: true 或改用 xpath 定位
+│
+├─ "Assertion failed"
+│   → 查看报告截图，对比实际页面状态 vs 预期描述，调整 aiAssert 文本
+│
+├─ "Navigation failed" / "net::ERR_"
+│   → 检查 URL 协议（https://）和可访问性
+│
+├─ "Transpiler error"
+│   → 使用 --dry-run --output-ts ./debug.ts 查看生成的代码排查语法问题
+│
+├─ "Permission denied"
+│   → 页面需要登录或特殊权限，添加登录步骤或 cookie 配置
+│
+└─ "javascript" 步骤报错
+    → 检查 JS 代码语法，注意浏览器环境 vs Node 环境的 API 差异
+```
 
 **迭代修复流程**：
 1. 分析错误原因

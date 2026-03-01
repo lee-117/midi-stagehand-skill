@@ -135,7 +135,7 @@ function generate(step, ctx) {
     case 'shell': {
       const command = toCodeString(resolveTemplate(call.command));
       varScope.add(responseVar);
-      return pad + "const " + responseVar + " = require('child_process').execSync(" + command + ").toString();";
+      return pad + "const " + responseVar + " = execSync(" + command + ").toString();";
     }
 
     default:

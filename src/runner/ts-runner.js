@@ -49,7 +49,7 @@ function run(tsCode, options = {}) {
   }
 
   // Prefer local tsx installation over npx to avoid re-download
-  const cmd = resolveTsxCommand() + ' ' + tsPath;
+  const cmd = resolveTsxCommand() + ' "' + tsPath + '"';
 
   console.log('[ts-runner] Executing: ' + cmd);
 
