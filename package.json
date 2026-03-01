@@ -11,19 +11,43 @@
     "setup": "node scripts/setup.js",
     "postinstall": "node scripts/setup.js --postinstall",
     "test": "node --test test/*.test.js",
+    "test:coverage": "npx c8 --reporter=text --reporter=lcov node --test test/*.test.js",
+    "lint": "npx eslint src/ scripts/ test/",
     "validate": "node -e \"const v = require('./src/validator/yaml-validator'); console.log(v.validate(process.argv[1]))\"",
     "detect": "node -e \"const d = require('./src/detector/mode-detector'); console.log(d.detect(process.argv[1]))\""
   },
   "dependencies": {
     "handlebars": "^4.7.8",
-    "js-yaml": "^4.1.1"
+    "js-yaml": "^4.1.1",
+    "tsx": "^4.19.0"
   },
   "devDependencies": {
-    "@midscene/web": "^1.0.0",
-    "tsx": "^4.19.0"
+    "@midscene/web": "^1.0.0"
   },
   "engines": {
     "node": ">=22.0.0"
   },
+  "files": [
+    "scripts/",
+    "src/",
+    "schema/",
+    "templates/",
+    "guide/"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lee-117/midi-stagehand-skill.git"
+  },
+  "homepage": "https://github.com/lee-117/midi-stagehand-skill#readme",
+  "bugs": {
+    "url": "https://github.com/lee-117/midi-stagehand-skill/issues"
+  },
+  "keywords": [
+    "midscene",
+    "yaml",
+    "browser-automation",
+    "transpiler",
+    "low-code"
+  ],
   "license": "MIT"
 }

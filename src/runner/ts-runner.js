@@ -1,7 +1,7 @@
 const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const { resolveLocalBin, normaliseExecError } = require('./runner-utils');
+const { resolveLocalBin, normaliseExecError, findSystemChrome } = require('./runner-utils');
 
 /**
  * Run transpiled TypeScript code using tsx.
@@ -57,7 +57,10 @@ function run(tsCode, options = {}) {
     execSync(cmd, {
       stdio: 'inherit',
       cwd: options.cwd || process.cwd(),
-      env: Object.assign({}, process.env, { MIDSCENE_REPORT_DIR: reportDir }),
+      env: Object.assign({}, process.env, {
+        MIDSCENE_REPORT_DIR: reportDir,
+        PUPPETEER_EXECUTABLE_PATH: process.env.PUPPETEER_EXECUTABLE_PATH || findSystemChrome() || '',
+      }),
       timeout: options.timeout || 300000
     });
 

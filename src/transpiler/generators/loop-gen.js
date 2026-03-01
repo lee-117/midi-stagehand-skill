@@ -51,7 +51,7 @@ function generate(step, ctx, processStep) {
       }
 
       for (const subStep of flow) {
-        const code = processStep(subStep, indent + 1);
+        const code = processStep(subStep, indent + 1, varScope);
         if (code) lines.push(code);
       }
 
@@ -79,7 +79,7 @@ function generate(step, ctx, processStep) {
       lines.push(pad + 'while (await agent.aiBoolean(' + condition + ') && ' + iterVar + ' < ' + maxIterations + ') {');
 
       for (const subStep of flow) {
-        const code = processStep(subStep, indent + 1);
+        const code = processStep(subStep, indent + 1, varScope);
         if (code) lines.push(code);
       }
 
@@ -91,12 +91,23 @@ function generate(step, ctx, processStep) {
     case 'repeat': {
       // for (let i = 0; i < count; i++) { ...flow }
       const count = loop.count || loop.times || 1;
-      const indexVar = loop.indexVar || 'i';
+
+      // Generate a unique index counter to avoid collisions with sibling repeat loops
+      let repeatSuffix = 0;
+      const baseVar = loop.indexVar || 'i';
+      let indexVar = baseVar;
+      if (!loop.indexVar) {
+        while (varScope.has(indexVar)) {
+          repeatSuffix++;
+          indexVar = '_r' + repeatSuffix;
+        }
+      }
+      varScope.add(indexVar);
 
       lines.push(pad + 'for (let ' + indexVar + ' = 0; ' + indexVar + ' < ' + count + '; ' + indexVar + '++) {');
 
       for (const subStep of flow) {
-        const code = processStep(subStep, indent + 1);
+        const code = processStep(subStep, indent + 1, varScope);
         if (code) lines.push(code);
       }
 

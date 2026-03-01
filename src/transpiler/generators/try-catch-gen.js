@@ -27,11 +27,12 @@ function generate(step, ctx, processStep) {
     return pad + '// Invalid try-catch block: missing "try"';
   }
 
+  const varScope = ctx && ctx.varScope || new Set();
   const tryFlow = getNestedFlow(tryBlock) || (Array.isArray(tryBlock) ? tryBlock : []);
 
   lines.push(pad + 'try {');
   for (const subStep of tryFlow) {
-    const code = processStep(subStep, indent + 1);
+    const code = processStep(subStep, indent + 1, varScope);
     if (code) lines.push(code);
   }
 
@@ -43,7 +44,7 @@ function generate(step, ctx, processStep) {
 
     lines.push(pad + '} catch (' + errorVar + ') {');
     for (const subStep of catchFlow) {
-      const code = processStep(subStep, indent + 1);
+      const code = processStep(subStep, indent + 1, varScope);
       if (code) lines.push(code);
     }
   }
@@ -62,7 +63,7 @@ function generate(step, ctx, processStep) {
     lines.push(pad + '} finally {');
 
     for (const subStep of finallyFlow) {
-      const code = processStep(subStep, indent + 1);
+      const code = processStep(subStep, indent + 1, varScope);
       if (code) lines.push(code);
     }
   }

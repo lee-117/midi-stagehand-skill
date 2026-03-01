@@ -122,11 +122,15 @@ function generate(step, ctx) {
 
       varScope.add(responseVar);
 
+      // Support responseType: 'text' | 'json' (default: 'json')
+      const responseType = (call.responseType || call.response_type || 'json').toLowerCase();
+      const parseMethod = responseType === 'text' ? 'text' : 'json';
+
       if (method === 'GET' && !call.headers && !call.body) {
         // Simple GET request
-        lines.push(pad + 'const ' + responseVar + ' = await fetch(' + url + ').then(r => r.json());');
+        lines.push(pad + 'const ' + responseVar + ' = await fetch(' + url + ').then(r => r.' + parseMethod + '());');
       } else {
-        lines.push(pad + 'const ' + responseVar + ' = await fetch(' + url + ', ' + optionsStr + ').then(r => r.json());');
+        lines.push(pad + 'const ' + responseVar + ' = await fetch(' + url + ', ' + optionsStr + ').then(r => r.' + parseMethod + '());');
       }
 
       return lines.join('\n');

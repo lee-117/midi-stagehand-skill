@@ -31,10 +31,12 @@ function generate(step, ctx, processStep) {
   // Opening if statement
   lines.push(pad + 'if (await agent.aiBoolean(' + condition + ')) {');
 
+  const varScope = ctx && ctx.varScope || new Set();
+
   // Process "then" flow
   if (logic.then && Array.isArray(logic.then)) {
     for (const subStep of logic.then) {
-      const code = processStep(subStep, indent + 1);
+      const code = processStep(subStep, indent + 1, varScope);
       if (code) lines.push(code);
     }
   }
@@ -43,7 +45,7 @@ function generate(step, ctx, processStep) {
   if (logic.else && Array.isArray(logic.else)) {
     lines.push(pad + '} else {');
     for (const subStep of logic.else) {
-      const code = processStep(subStep, indent + 1);
+      const code = processStep(subStep, indent + 1, varScope);
       if (code) lines.push(code);
     }
   }

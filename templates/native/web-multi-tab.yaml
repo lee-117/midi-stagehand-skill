@@ -1,0 +1,64 @@
+# 多标签页处理模板 — 演示跨标签页操作场景
+# 适用场景: 链接在新标签页打开、需要在多个页面间切换
+# 使用方式: node scripts/midscene-run.js templates/native/web-multi-tab.yaml
+# 兼容性: @midscene/web >= 1.x
+# 说明: Midscene 原生 YAML 通过 javascript 步骤管理标签页切换
+
+engine: native
+
+web:
+  url: "https://example.com"
+  headless: false
+  viewportWidth: 1280
+  viewportHeight: 720
+  forceSameTabNavigation: false
+  closeNewTabsAfterDisconnect: true
+
+tasks:
+  - name: "多标签页操作演示"
+    flow:
+      # 1. 在主页面验证初始状态
+      - aiWaitFor: "页面加载完成"
+      - aiAssert: "页面包含 'Example Domain' 文字"
+
+      # 2. 通过 JS 打开新标签页并导航
+      - javascript: |
+          const newPage = await browser.newPage();
+          await newPage.goto('https://example.com/newpage');
+          return 'new tab opened';
+        name: "tabResult"
+
+      # 3. 获取所有打开的标签页信息
+      - javascript: |
+          const pages = await browser.pages();
+          return { count: pages.length, urls: pages.map(p => p.url()) };
+        name: "tabInfo"
+
+      # 4. 切换到最新打开的标签页
+      - javascript: |
+          const pages = await browser.pages();
+          const lastPage = pages[pages.length - 1];
+          await lastPage.bringToFront();
+          return lastPage.url();
+        name: "activeTab"
+
+      # 5. 在新标签页中执行操作
+      - ai: "查看当前页面内容"
+
+      # 6. 切回第一个标签页
+      - javascript: |
+          const pages = await browser.pages();
+          await pages[0].bringToFront();
+          return pages[0].url();
+        name: "backToFirst"
+
+      # 7. 关闭额外的标签页
+      - javascript: |
+          const pages = await browser.pages();
+          for (let i = pages.length - 1; i > 0; i--) {
+            await pages[i].close();
+          }
+          return 'closed extra tabs';
+
+      - recordToReport: "多标签页操作完成"
+        content: "成功演示了多标签页的打开、切换和关闭操作"

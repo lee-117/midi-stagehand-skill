@@ -330,7 +330,7 @@ tasks:
 
 # 使用 scrollType 控制滚动行为
 - aiScroll: "长列表"
-  scrollType: "scrollToBottom"
+  scrollType: "untilBottom"
 
 # 使用 distance 精确控制滚动距离（像素）
 - aiScroll: "商品详情页"
@@ -340,7 +340,7 @@ tasks:
 
 支持的方向：`up`、`down`、`left`、`right`。
 
-支持的 `scrollType`：`singleAction`、`scrollToBottom`、`scrollToTop`、`scrollToRight`、`scrollToLeft`。
+支持的 `scrollType`：`once`、`untilBottom`、`untilTop`、`untilRight`、`untilLeft`。
 
 `distance`：可选，以像素为单位指定滚动距离。未指定时由引擎自动决定滚动量。
 
@@ -498,6 +498,7 @@ tasks:
 | `replace` | 先清除再输入（默认） |
 | `clear` | 仅清除输入框内容 |
 | `typeOnly` | 直接输入，不清除已有内容 |
+| `append` | 在已有内容后追加输入 |
 
 ### `images` 选项 — 图片辅助定位
 
@@ -1625,11 +1626,15 @@ tasks:
 
 ```yaml
 # 获取设备信息
-- runWdaRequest: "/status"
+- runWdaRequest:
+    method: GET
+    endpoint: "/status"
   name: "deviceStatus"
 
 # 回到主屏幕
-- runWdaRequest: "/wda/homescreen"
+- runWdaRequest:
+    method: POST
+    endpoint: "/wda/homescreen"
 ```
 
 ### Computer 平台（桌面应用）
@@ -1707,7 +1712,9 @@ tasks:
 
   - name: 获取设备状态
     flow:
-      - runWdaRequest: "/status"
+      - runWdaRequest:
+          method: GET
+          endpoint: "/status"
         name: "wdaStatus"
       - recordToReport: "设备状态"
         content: "WDA 状态查询完成"
@@ -1753,7 +1760,7 @@ tasks:
 | `runWdaRequest` | 平台 | 发送 WDA 请求（iOS 专用） |
 | `deepThink` | 选项 | 启用深度分析，提高复杂元素定位准确率 |
 | `cacheable` | 选项 | 控制单个步骤是否使用 AI 缓存 |
-| `mode` | 选项 | aiInput 输入模式（`replace`/`clear`/`typeOnly`） |
+| `mode` | 选项 | aiInput 输入模式（`replace`/`clear`/`typeOnly`/`append`） |
 | `images` | 选项 | 图片辅助定位，提供参考图片数组 |
 | `xpath` | 选项 | 使用 XPath 选择器精确定位元素 |
 | `userAgent` | web 配置 | 自定义浏览器 User-Agent |

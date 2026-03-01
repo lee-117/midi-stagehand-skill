@@ -1,8 +1,7 @@
 const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
-const { resolveLocalBin, normaliseExecError } = require('./runner-utils');
+const { resolveLocalBin, normaliseExecError, findSystemChrome } = require('./runner-utils');
 
 /**
  * Check if a YAML file exists and is readable.
@@ -84,31 +83,6 @@ function run(yamlPath, options = {}) {
  */
 function resolveMidsceneCommand() {
   return resolveLocalBin('midscene', 'npx @midscene/web@1');
-}
-
-/**
- * Find system Chrome/Chromium for Puppeteer.
- * @returns {string|null}
- */
-function findSystemChrome() {
-  const isWin = os.platform() === 'win32';
-  const candidates = [];
-
-  if (isWin) {
-    const bases = [process.env['PROGRAMFILES'], process.env['PROGRAMFILES(X86)'], process.env['LOCALAPPDATA']].filter(Boolean);
-    for (const base of bases) {
-      candidates.push(path.join(base, 'Google', 'Chrome', 'Application', 'chrome.exe'));
-    }
-  } else if (os.platform() === 'darwin') {
-    candidates.push('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome');
-  } else {
-    candidates.push('/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser');
-  }
-
-  for (const p of candidates) {
-    if (fs.existsSync(p)) return p;
-  }
-  return null;
 }
 
 module.exports = { run };

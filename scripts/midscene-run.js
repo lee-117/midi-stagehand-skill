@@ -19,11 +19,12 @@ const reportParser = require('../src/runner/report-parser');
 function parseArgs(argv) {
   const args = {
     yamlPath: null,
-    platform: null,
     dryRun: false,
     outputTs: null,
     reportDir: './midscene-report',
     template: 'puppeteer',
+    timeout: 300000,
+    verbose: false,
     help: false,
   };
 
@@ -38,12 +39,17 @@ function parseArgs(argv) {
         args.help = true;
         break;
 
-      case '--platform':
-        args.platform = rawArgs[++i];
+      case '--timeout':
+        args.timeout = parseInt(rawArgs[++i], 10) || 300000;
         break;
 
       case '--dry-run':
         args.dryRun = true;
+        break;
+
+      case '--verbose':
+      case '-v':
+        args.verbose = true;
         break;
 
       case '--output-ts':
@@ -94,22 +100,24 @@ Positional arguments:
                            (e.g. "tests/**/*.yaml").
 
 Options:
-  --platform <target>      Target platform: web | android | ios | computer
-                           (auto-detected from YAML if omitted)
   --dry-run                Transpile only; do not execute
   --output-ts <path>       Save the generated TypeScript file to <path>
   --report-dir <path>      Directory for Midscene reports
                            (default: ./midscene-report)
   --template <name>        Boilerplate template: puppeteer | playwright
                            (default: puppeteer)
+  --timeout <ms>           Execution timeout in milliseconds
+                           (default: 300000 = 5 minutes)
+  --verbose, -v            Show detailed output (validation details,
+                           detection info, environment)
   --help, -h               Show this help message
 
 Examples:
   midscene-run tests/login.yaml
-  midscene-run tests/checkout.yaml --platform web --template playwright
+  midscene-run tests/checkout.yaml --template playwright
   midscene-run tests/extended.yaml --dry-run --output-ts ./generated.ts
   midscene-run "tests/**/*.yaml"             # batch: run all YAML files
-  midscene-run "tests/smoke-*.yaml"          # batch: run matching files
+  midscene-run "tests/smoke-*.yaml" -v       # batch with verbose output
 `);
 }
 
@@ -248,6 +256,10 @@ function processFile(yamlPath, args) {
     validation.warnings.forEach(w => console.log(`    - ${typeof w === 'object' ? w.message : w}`));
   }
 
+  if (args.verbose && validation.warnings && validation.warnings.length === 0) {
+    console.log('[midscene-run] No validation warnings.');
+  }
+
   if (!validation.valid) {
     console.error('\n  Validation errors:');
     (validation.errors || []).forEach(e => {
@@ -279,6 +291,14 @@ function processFile(yamlPath, args) {
 
   if (detection.features.length > 0) {
     console.log(`[midscene-run] Features: ${detection.features.join(', ')}`);
+  }
+
+  if (args.verbose) {
+    console.log(`[midscene-run] Timeout: ${args.timeout}ms`);
+    console.log(`[midscene-run] Report dir: ${args.reportDir}`);
+    if (detection.mode === 'extended') {
+      console.log(`[midscene-run] Template: ${args.template}`);
+    }
   }
 
   let result;
@@ -316,6 +336,7 @@ function processFile(yamlPath, args) {
     result = nativeRunner.run(yamlPath, {
       reportDir: args.reportDir,
       cwd: path.dirname(yamlPath),
+      timeout: args.timeout,
     });
 
   // -----------------------------------------------------------------------
@@ -366,6 +387,8 @@ function processFile(yamlPath, args) {
     console.log('[midscene-run] Running transpiled TypeScript...');
     result = tsRunner.run(tsCode, {
       reportDir: args.reportDir,
+      cwd: path.dirname(yamlPath),
+      timeout: args.timeout,
       keepTs: !!args.outputTs,
     });
   }
@@ -398,12 +421,13 @@ function processFile(yamlPath, args) {
     return 0;
   } else {
     console.error(`[midscene-run] Execution failed: ${result.error || 'unknown error'}`);
-    return result.exitCode || 1;
+    const exitCode = typeof result.exitCode === 'number' ? result.exitCode : 1;
+    return exitCode || 1;
   }
 }
 
-// Export parseArgs for testability; run main() only when executed directly.
-module.exports = { parseArgs };
+// Export parseArgs and resolveYamlFiles for testability; run main() only when executed directly.
+module.exports = { parseArgs, resolveYamlFiles };
 
 if (require.main === module) {
   main();

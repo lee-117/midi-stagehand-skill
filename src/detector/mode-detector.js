@@ -110,8 +110,14 @@ function scan(node, foundKeywords, flags) {
  * @param {string} yamlInput - File path or raw YAML string.
  * @returns {string} The raw YAML text.
  */
+const MAX_FILE_SIZE = 1024 * 1024; // 1MB
+
 function resolveContent(yamlInput) {
   if (looksLikeFilePath(yamlInput)) {
+    const stat = fs.statSync(yamlInput);
+    if (stat.size > MAX_FILE_SIZE) {
+      throw new Error('File exceeds 1MB size limit (' + Math.round(stat.size / 1024) + 'KB)');
+    }
     return fs.readFileSync(yamlInput, 'utf8');
   }
   return yamlInput;

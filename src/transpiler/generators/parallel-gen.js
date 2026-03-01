@@ -107,8 +107,10 @@ function generate(step, ctx, processStep) {
 
   // Emit `let` declarations before Promise.all so vars are accessible afterwards
   for (const name of allHoisted) {
-    lines.push(pad + 'let ' + name + ';');
-    varScope.add(name);
+    if (!varScope.has(name)) {
+      lines.push(pad + 'let ' + name + ';');
+      varScope.add(name);
+    }
   }
 
   // Build each async IIFE for Promise.all
@@ -119,7 +121,7 @@ function generate(step, ctx, processStep) {
     taskLines.push(innerPad + '(async () => {');
 
     for (const subStep of flow) {
-      let code = processStep(subStep, indent + 2);
+      let code = processStep(subStep, indent + 2, varScope);
       if (code) {
         // Rewrite "const hoistedVar = ..." to "hoistedVar = ..."
         code = rewriteHoistedDeclarations(code, allHoisted);

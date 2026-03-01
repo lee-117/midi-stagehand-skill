@@ -166,11 +166,11 @@ npx @midscene/web <yaml-file> --headed
 npx @midscene/web "tests/**/*.yaml" --concurrent --continue-on-error
 ```
 
-> **注意**: 包名是 `@midscene/web`（不是 `@midscene/cli`），文件路径直接跟在命令后面，不需要 `run` 子命令。
+> **注意**: 包名是 `@midscene/web`（不是 `@midscene/cli`）。官方 CLI 语法是 `npx @midscene/web <yaml-file>`，支持 `run` 子命令（`npx @midscene/web run <yaml-file>`），两种形式均可。
 
 **可用选项**（方式 1）：
-- `--platform web|android|ios|computer` — 强制指定平台（默认根据 YAML 中的 `web`/`android`/`ios`/`computer` 键自动检测）
 - `--dry-run` — 仅验证和转换，不实际执行（注意：不检测模型配置，AI 操作需配置 `MIDSCENE_MODEL_API_KEY`）
+- `--timeout <ms>` — 执行超时（默认 300000 = 5 分钟）。长时间自动化场景可增大此值
 - `--output-ts <path>` — 保存转换后的 TypeScript 文件（仅 Extended 模式）。排查转译错误时，建议配合 `--dry-run` 一起使用
 - `--report-dir <path>` — 报告输出目录（默认 `./midscene-report`）
 - `--template puppeteer|playwright` — 选择 TS 模板（默认 puppeteer；playwright 适合需要多浏览器兼容的场景）
@@ -275,8 +275,8 @@ node scripts/midscene-run.js test.yaml --template playwright
 # 指定报告目录
 node scripts/midscene-run.js test.yaml --report-dir ./reports
 
-# 强制指定平台
-node scripts/midscene-run.js test.yaml --platform web
+# 设置超时为 10 分钟
+node scripts/midscene-run.js test.yaml --timeout 600000
 
 # 验证 + 保存 TS（排查转译问题）
 node scripts/midscene-run.js test.yaml --dry-run --output-ts ./debug.ts
@@ -369,7 +369,7 @@ ios:
 - 环境变量通过系统环境或 `.env` 文件传入，在 YAML 中用 `${ENV:NAME}` 或 `${ENV.NAME}` 引用（两种语法等价）
 - `parallel` 分支在独立浏览器上下文中运行，执行期间互不影响；各分支的 `aiQuery` 结果在全部完成后可合并访问（通过 `merge_results: true`）
 - `--dry-run` 仅检查 YAML 语法和结构，不检测模型配置和网络可达性
-- 如果 `npx skills check` 检测不到已有更新，可能是 lock 文件格式过旧（v1），需要重新安装以升级为 v3 格式：`npx skills add https://github.com/lee-117/midi-stagehand-skill -a claude`
+- 如果 `npx skills check` 检测不到已有更新，可能是 lock 文件格式过旧（v1），需要重新安装以升级为 v3 格式：`npx skills add https://github.com/lee-117/midi-stagehand-skill -a claude-code`
 
 ## 协作协议
 

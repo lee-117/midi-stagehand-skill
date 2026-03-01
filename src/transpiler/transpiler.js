@@ -128,58 +128,42 @@ function resolveYaml(yamlInput) {
  * Extract common fields (url, headless, viewport) from a platform config object.
  * Handles both camelCase and snake_case field names.
  */
+// Table-driven platform field mappings: [camelCase, snake_case (optional)]
+// Fields with boolean semantics (where false is a valid value) use undefined-check.
+const PLATFORM_FIELD_MAP = [
+  // snake_case aliases (truthy-check: value is a string/number/object)
+  ['viewportWidth', 'viewport_width'],
+  ['viewportHeight', 'viewport_height'],
+  ['userAgent', 'user_agent'],
+  ['deviceScaleFactor', 'device_scale_factor'],
+  // snake_case aliases (undefined-check: boolean fields)
+  ['acceptInsecureCerts', 'accept_insecure_certs'],
+  ['waitForNetworkIdle', 'wait_for_network_idle'],
+  ['bridgeMode', 'bridge_mode'],
+  ['forceSameTabNavigation', 'force_same_tab_navigation'],
+  // camelCase-only fields (truthy-check)
+  ['cookie'],
+  ['serve'],
+  ['output'],
+  // camelCase-only fields (undefined-check)
+  ['waitForNavigationTimeout'],
+  ['waitForNetworkIdleTimeout'],
+  ['enableTouchEventsInActionSpace'],
+  ['forceChromeSelectRendering'],
+  ['closeNewTabsAfterDisconnect'],
+];
+
 function normalizePlatformFields(obj, config) {
   config.url = escapeStringLiteral(obj.url || '');
   config.headless = obj.headless !== undefined ? obj.headless : false;
-  if (obj.viewportWidth || obj.viewport_width) {
-    config.viewportWidth = obj.viewportWidth || obj.viewport_width;
-  }
-  if (obj.viewportHeight || obj.viewport_height) {
-    config.viewportHeight = obj.viewportHeight || obj.viewport_height;
-  }
-  // Additional platform fields
-  if (obj.userAgent || obj.user_agent) {
-    config.userAgent = obj.userAgent || obj.user_agent;
-  }
-  if (obj.deviceScaleFactor || obj.device_scale_factor) {
-    config.deviceScaleFactor = obj.deviceScaleFactor || obj.device_scale_factor;
-  }
-  if (obj.cookie) {
-    config.cookie = obj.cookie;
-  }
-  if (obj.acceptInsecureCerts !== undefined || obj.accept_insecure_certs !== undefined) {
-    config.acceptInsecureCerts = obj.acceptInsecureCerts !== undefined ? obj.acceptInsecureCerts : obj.accept_insecure_certs;
-  }
-  if (obj.waitForNetworkIdle !== undefined || obj.wait_for_network_idle !== undefined) {
-    config.waitForNetworkIdle = obj.waitForNetworkIdle !== undefined ? obj.waitForNetworkIdle : obj.wait_for_network_idle;
-  }
-  if (obj.bridgeMode !== undefined || obj.bridge_mode !== undefined) {
-    config.bridgeMode = obj.bridgeMode !== undefined ? obj.bridgeMode : obj.bridge_mode;
-  }
-  if (obj.forceSameTabNavigation !== undefined || obj.force_same_tab_navigation !== undefined) {
-    config.forceSameTabNavigation = obj.forceSameTabNavigation !== undefined ? obj.forceSameTabNavigation : obj.force_same_tab_navigation;
-  }
-  if (obj.serve) {
-    config.serve = obj.serve;
-  }
-  if (obj.output) {
-    config.output = obj.output;
-  }
-  // Web Agent constructor config options
-  if (obj.waitForNavigationTimeout !== undefined) {
-    config.waitForNavigationTimeout = obj.waitForNavigationTimeout;
-  }
-  if (obj.waitForNetworkIdleTimeout !== undefined) {
-    config.waitForNetworkIdleTimeout = obj.waitForNetworkIdleTimeout;
-  }
-  if (obj.enableTouchEventsInActionSpace !== undefined) {
-    config.enableTouchEventsInActionSpace = obj.enableTouchEventsInActionSpace;
-  }
-  if (obj.forceChromeSelectRendering !== undefined) {
-    config.forceChromeSelectRendering = obj.forceChromeSelectRendering;
-  }
-  if (obj.closeNewTabsAfterDisconnect !== undefined) {
-    config.closeNewTabsAfterDisconnect = obj.closeNewTabsAfterDisconnect;
+
+  for (const mapping of PLATFORM_FIELD_MAP) {
+    const camel = mapping[0];
+    const snake = mapping[1];
+    const value = obj[camel] !== undefined ? obj[camel] : (snake ? obj[snake] : undefined);
+    if (value !== undefined) {
+      config[camel] = value;
+    }
   }
 }
 

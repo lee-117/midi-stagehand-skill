@@ -87,9 +87,16 @@ English trigger phrases:
 
 **Web 平台额外配置选项**：
 - `headless: true/false` — 是否无头模式运行（默认 false）
-- `viewportWidth` / `viewportHeight` — 视口大小
+- `viewportWidth` / `viewportHeight` — 视口大小（默认 1280×960）
 - `userAgent` — 自定义 User-Agent
+- `deviceScaleFactor` — 设备像素比（如 Retina 屏设 2）
 - `waitForNetworkIdle` — 网络空闲等待配置，支持 `true` 或对象格式 `{ timeout: 2000, continueOnNetworkIdleError: true }`
+- `cookie` — Cookie JSON 文件路径（实现免登录会话恢复）
+- `bridgeMode` — Bridge 模式：`false`（默认）| `'newTabWithUrl'` | `'currentTab'`，复用已登录的桌面浏览器
+- `chromeArgs` — 自定义 Chrome 启动参数数组（如 `['--disable-gpu', '--proxy-server=...']`）
+- `serve` — 本地静态文件目录，启动内置服务器
+- `acceptInsecureCerts` — 忽略 HTTPS 证书错误（默认 false）
+- `forceSameTabNavigation` — 限制导航在当前标签页（默认 true）
 
 ### 第 3 步：自然语言 → YAML 转换
 
@@ -168,7 +175,7 @@ Native 模式的动作参数支持两种格式：
 | "获取 XXX 数量" | `aiNumber: "XXX"` + `name: "count"` | 返回数字；可选 `domIncluded`/`screenshotIncluded` |
 | "获取 XXX 文本" | `aiString: "XXX"` + `name: "text"` | 返回字符串；可选 `domIncluded`/`screenshotIncluded` |
 | "询问 AI XXX" | `aiAsk: "XXX"` + `name: "answer"` | 自由提问，返回文本答案 |
-| "拖拽 A 到 B" | `aiDragAndDrop: { from: "A", to: "B" }` | 拖放操作 |
+| "拖拽 A 到 B" | `aiDragAndDrop: "A"` + `to: "B"` | 扁平格式；或嵌套 `{ from: "A", to: "B" }` |
 | "清空 XXX 输入框" | `aiClearInput: "XXX"` | 清除输入框内容 |
 | "执行 ADB 命令" | `runAdbShell: "命令"` | Android 平台特有 |
 | "执行 WDA 请求" | `runWdaRequest: { ... }` | iOS 平台特有 |
@@ -214,7 +221,7 @@ Native 模式的动作参数支持两种格式：
 - `templates/extended/e2e-workflow.yaml` — 端到端完整工作流
 - `templates/extended/reusable-sub-flows.yaml` — 子流程复用（import/use）
 - `templates/extended/responsive-test.yaml` — 多视口响应式测试
-- `templates/extended/image-locator.yaml` — 图片辅助定位
+- `templates/extended/deep-think-locator.yaml` — 图片辅助定位
 - `templates/extended/web-auth-flow.yaml` — OAuth/登录认证流程（使用变量和环境引用）
 
 **模板选择决策**：
@@ -236,7 +243,7 @@ Native 模式的动作参数支持两种格式：
 | 完整业务流程（多步骤 + 变量 + 导出） | `extended/e2e-workflow.yaml` |
 | 子流程复用 / 模块化 | `extended/reusable-sub-flows.yaml` |
 | 多屏幕尺寸响应式验证 | `extended/responsive-test.yaml` |
-| 复杂元素定位 / deepThink | `extended/image-locator.yaml` |
+| 复杂元素定位 / deepThink | `extended/deep-think-locator.yaml` |
 
 ### 第 5 步：生成 YAML
 
@@ -322,6 +329,26 @@ tasks:
   xpath: "//table/tbody/tr[3]//button[@class='edit']"
 ```
 
+### 图片辅助定位（locate 对象）
+
+当自然语言描述不够精确时，可通过 `locate` 对象提供参考图片：
+
+```yaml
+# 使用图片辅助 AI 识别目标元素
+- aiTap:
+    locate:
+      prompt: "与参考图片相似的图标按钮"
+      images:
+        - name: "target-icon"
+          url: "https://example.com/icon.png"
+      convertHttpImage2Base64: true
+
+# 简化形式：直接在 images 选项中提供
+- aiTap: "与参考图片相似的图标按钮"
+  images:
+    - "./images/target-icon.png"
+```
+
 ### aiQuery 结果格式化
 
 在 `query` 中明确指定期望的数据结构：
@@ -388,7 +415,7 @@ Extended 模式下 `data_transform` 支持的操作：
 
 生成 YAML 时应避免以下常见错误：
 
-- **Native 模式中使用嵌套对象格式** — Native 模式推荐扁平格式（`aiInput: "搜索框"` + `value: "关键词"`），嵌套格式（`aiInput: { locator: "搜索框", value: "关键词" }`）仅在 Extended 模式中使用
+- **不必要地使用嵌套对象格式** — 推荐扁平格式（`aiInput: "搜索框"` + `value: "关键词"`），更简洁可读。嵌套格式（`aiInput: { locator: "搜索框", value: "关键词" }`）在两种模式中均有效，但通常只在需要 `locate` 图片定位等复杂参数时才使用
 - **Extended 模式遗漏 `engine: extended`** — 使用任何扩展功能（变量、循环、条件等）时必须声明引擎
 - **循环忘记 `maxIterations`** — `while` 循环必须设置安全上限，`for` 和 `repeat` 循环的 count 不应超过 10000
 - **`aiWaitFor` 使用嵌套对象格式** — 应使用 `aiWaitFor: "条件"` + `timeout: 10000`，而非 `aiWaitFor: { condition: "条件" }`
@@ -418,6 +445,14 @@ Extended 模式下 `data_transform` 支持的操作：
 - 避免循环导入：A.yaml 导入 B.yaml、B.yaml 又导入 A.yaml 会导致运行时错误
 - 生成后务必通过 `--dry-run` 验证语法和结构（注意：`--dry-run` 不检测模型配置，AI 操作需要配置 `MIDSCENE_MODEL_API_KEY` 才能实际执行）
 - 提示用户可以用 **Midscene Runner** skill 来执行生成的文件
+
+## 迭代修复流程
+
+当生成的 YAML 执行失败时：
+
+1. **Runner 可自行修复**：如果错误可以通过修改 YAML 解决（如定位描述不够精确、等待时间不足），Runner Skill 会直接修改并重试
+2. **需要重新生成时**：如果错误涉及根本性设计问题（如选错模式、缺少关键步骤），用户可以向 Generator 描述失败情况，Generator 会基于错误信息重新生成改进版 YAML
+3. **推荐流程**：生成 → dry-run 验证 → 执行 → 如失败，描述错误让 Generator 修复 → 重新执行
 
 ## 协作协议
 

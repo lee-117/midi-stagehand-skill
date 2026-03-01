@@ -30,10 +30,10 @@ function check(label, fn) {
 console.log('\nMidscene Environment Health Check\n');
 
 // 1. Node.js version
-check('Node.js >= 18', () => {
+check('Node.js >= 22', () => {
   const ver = process.versions.node;
   const major = parseInt(ver.split('.')[0], 10);
-  if (major < 18) throw new Error('Found v' + ver + ', need >= 18');
+  if (major < 22) throw new Error('Found v' + ver + ', need >= 22 (required for fs.globSync)');
   return 'v' + ver;
 });
 

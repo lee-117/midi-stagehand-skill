@@ -141,12 +141,12 @@ function generateFlatTransform(transform, pad, varScope) {
   const outputVar = transform.name || 'transformedData';
   const operation = transform.operation;
 
-  // Declare output variable
+  // Declare output variable (use Array.from for safe copy — handles non-array iterables)
   if (varScope.has(outputVar)) {
-    lines.push(pad + outputVar + ' = [...' + inputRef + '];');
+    lines.push(pad + outputVar + ' = Array.isArray(' + inputRef + ') ? [...' + inputRef + '] : ' + inputRef + ';');
   } else {
     varScope.add(outputVar);
-    lines.push(pad + 'let ' + outputVar + ' = [...' + inputRef + '];');
+    lines.push(pad + 'let ' + outputVar + ' = Array.isArray(' + inputRef + ') ? [...' + inputRef + '] : ' + inputRef + ';');
   }
 
   if (operation === 'filter') {

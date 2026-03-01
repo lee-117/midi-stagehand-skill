@@ -139,11 +139,11 @@ tasks:
       - ai: "navigate to \${siteUrl}"
 `;
       const result = transpile(yaml);
-      assert.ok(result.code.includes("const siteUrl = 'https://example.com'"),
+      assert.ok(result.code.includes("let siteUrl = 'https://example.com'"),
         'Should declare top-level siteUrl variable');
-      assert.ok(result.code.includes('const maxPages = 10'),
+      assert.ok(result.code.includes('let maxPages = 10'),
         'Should declare top-level maxPages variable');
-      assert.ok(result.code.includes("const username = 'admin'"),
+      assert.ok(result.code.includes("let username = 'admin'"),
         'Should declare top-level username variable');
       // Verify variables appear before the task code
       const siteUrlIdx = result.code.indexOf('siteUrl');
@@ -1385,12 +1385,12 @@ tasks:
   - name: test
     flow:
       - aiScroll: "长列表"
-        scrollType: "scrollToBottom"
+        scrollType: "untilBottom"
 `;
       const result = transpile(yaml);
       assert.ok(result.code.includes('aiScroll'),
         'Should generate aiScroll call');
-      assert.ok(result.code.includes("scrollType: 'scrollToBottom'"),
+      assert.ok(result.code.includes("scrollType: 'untilBottom'"),
         'Should include scrollType from sibling key');
     });
 
@@ -1404,10 +1404,10 @@ tasks:
       - aiScroll:
           locator: "feed"
           direction: "down"
-          scrollType: "singleAction"
+          scrollType: "once"
 `;
       const result = transpile(yaml);
-      assert.ok(result.code.includes("scrollType: 'singleAction'"),
+      assert.ok(result.code.includes("scrollType: 'once'"),
         'Should include scrollType from nested format');
     });
   });

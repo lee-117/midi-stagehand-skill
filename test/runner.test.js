@@ -234,9 +234,9 @@ describe('CLI Argument Parsing', () => {
     assert.equal(args.help, true);
   });
 
-  it('parses --platform option', () => {
-    const args = parseArgs(['node', 'script', 'test.yaml', '--platform', 'android']);
-    assert.equal(args.platform, 'android');
+  it('parses --timeout option', () => {
+    const args = parseArgs(['node', 'script', 'test.yaml', '--timeout', '600000']);
+    assert.equal(args.timeout, 600000);
   });
 
   it('parses --output-ts option', () => {
@@ -257,27 +257,40 @@ describe('CLI Argument Parsing', () => {
   it('parses all options combined', () => {
     const args = parseArgs([
       'node', 'script', 'flow.yaml',
-      '--platform', 'web',
       '--dry-run',
       '--output-ts', './gen.ts',
       '--report-dir', './my-reports',
       '--template', 'playwright',
+      '--timeout', '600000',
+      '--verbose',
     ]);
     assert.equal(args.yamlPath, 'flow.yaml');
-    assert.equal(args.platform, 'web');
     assert.equal(args.dryRun, true);
     assert.equal(args.outputTs, './gen.ts');
     assert.equal(args.reportDir, './my-reports');
     assert.equal(args.template, 'playwright');
+    assert.equal(args.timeout, 600000);
+    assert.equal(args.verbose, true);
+  });
+
+  it('parses --verbose flag', () => {
+    const args = parseArgs(['node', 'script', 'test.yaml', '--verbose']);
+    assert.equal(args.verbose, true);
+  });
+
+  it('parses -v shorthand for verbose', () => {
+    const args = parseArgs(['node', 'script', 'test.yaml', '-v']);
+    assert.equal(args.verbose, true);
   });
 
   it('uses default values when no options given', () => {
     const args = parseArgs(['node', 'script', 'test.yaml']);
-    assert.equal(args.platform, null);
     assert.equal(args.dryRun, false);
     assert.equal(args.outputTs, null);
     assert.equal(args.reportDir, './midscene-report');
     assert.equal(args.template, 'puppeteer');
+    assert.equal(args.timeout, 300000);
+    assert.equal(args.verbose, false);
     assert.equal(args.help, false);
   });
 
@@ -288,26 +301,11 @@ describe('CLI Argument Parsing', () => {
 });
 
 // ---------------------------------------------------------------------------
-// CLI glob resolution tests (re-implemented from midscene-run.js)
+// CLI glob resolution tests (using real resolveYamlFiles from midscene-run.js)
 // ---------------------------------------------------------------------------
 describe('CLI Glob Resolution', () => {
   const globTmpDir = path.join(__dirname, '.tmp-glob-test');
-
-  function resolveYamlFiles(inputPath) {
-    if (inputPath.includes('*') || inputPath.includes('?') || inputPath.includes('{')) {
-      const matched = fs.globSync(inputPath, { cwd: process.cwd() })
-        .map(f => path.resolve(f))
-        .filter(f => {
-          const ext = path.extname(f).toLowerCase();
-          return ext === '.yaml' || ext === '.yml';
-        })
-        .sort();
-      return matched;
-    }
-    const resolved = path.resolve(inputPath);
-    if (!fs.existsSync(resolved)) return [];
-    return [resolved];
-  }
+  const { resolveYamlFiles } = require('../scripts/midscene-run');
 
   beforeEach(() => {
     fs.mkdirSync(globTmpDir, { recursive: true });

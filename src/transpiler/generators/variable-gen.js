@@ -66,7 +66,7 @@ function generate(step, ctx) {
       lines.push(pad + name + ' = ' + codeValue + ';');
     } else {
       varScope.add(name);
-      lines.push(pad + 'const ' + name + ' = ' + codeValue + ';');
+      lines.push(pad + 'let ' + name + ' = ' + codeValue + ';');
     }
   }
 

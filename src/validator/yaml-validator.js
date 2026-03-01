@@ -289,12 +289,13 @@ function validateNativeMode(allKeys, warnings) {
  * well-formed.
  *
  * @param {object} doc - Parsed document.
+ * @param {string} rawContent - Raw YAML content string (avoids re-serialization).
  * @param {Array} errors - Error accumulator.
  * @param {Array} warnings - Warning accumulator.
  */
-function validateExtendedMode(doc, errors, warnings) {
+function validateExtendedMode(doc, rawContent, errors, warnings) {
   // Check that features declaration exists and matches actual usage.
-  validateFeaturesDeclaration(doc, warnings);
+  validateFeaturesDeclaration(doc, rawContent, warnings);
 
   // Walk every flow in every task and validate extended constructs.
   // walkAllFlows handles recursion into nested constructs automatically,
@@ -310,11 +311,12 @@ function validateExtendedMode(doc, errors, warnings) {
  * exists and is consistent with the features actually used.
  *
  * @param {object} doc - Parsed document.
+ * @param {string} rawContent - Raw YAML content string (avoids JSON.stringify re-serialization).
  * @param {Array} warnings - Warning accumulator.
  */
-function validateFeaturesDeclaration(doc, warnings) {
+function validateFeaturesDeclaration(doc, rawContent, warnings) {
   // Detect actually used features by scanning keywords.
-  const detection = detect(JSON.stringify(doc));
+  const detection = detect(rawContent);
   const usedFeatures = new Set(detection.features);
 
   const declaredFeatures = doc.features;
@@ -621,6 +623,19 @@ function validateDataTransformStep(step, stepPath, errors, warnings) {
 
   if (transform.operations && !Array.isArray(transform.operations)) {
     errors.push(makeError('"data_transform.operations" must be an array.', `${transformPath}/operations`));
+  }
+
+  // Security: warn on suspicious JS patterns in condition/reducer expressions
+  const SUSPICIOUS_JS = /\b(require|import|eval|Function|execSync|exec|spawn)\s*\(/;
+  const exprFields = ['condition', 'reducer', 'template'];
+  for (const field of exprFields) {
+    const val = transform[field];
+    if (typeof val === 'string' && SUSPICIOUS_JS.test(val)) {
+      warnings.push(makeWarning(
+        `data_transform "${field}" contains potentially dangerous code pattern. Avoid using require/eval/exec in expressions.`,
+        `${transformPath}/${field}`
+      ));
+    }
   }
 }
 
@@ -992,6 +1007,20 @@ function validateImportChain(filePath, warnings, errors, visitedPaths) {
 function validateImportPaths(doc, basePath, warnings, errors) {
   const imports = [];
 
+  // Collect from top-level `import` block (flow, data, js/json imports)
+  if (doc.import && Array.isArray(doc.import)) {
+    for (let idx = 0; idx < doc.import.length; idx++) {
+      const imp = doc.import[idx];
+      const importPath = imp.flow || imp.data || imp.file;
+      if (importPath && typeof importPath === 'string') {
+        imports.push({
+          importPath: importPath,
+          path: `import[${idx}]/${imp.flow ? 'flow' : imp.data ? 'data' : 'file'}`,
+        });
+      }
+    }
+  }
+
   // Walk all flow steps to collect import paths.
   walkAllFlows(doc, function (step, stepPath) {
     if (step.import !== undefined && typeof step.import === 'string') {
@@ -1129,7 +1158,7 @@ function validate(yamlInput, options) {
     // Level 3b: Check that native actions use the flat/sibling format.
     validateNativeActionFormats(doc, warnings);
   } else if (mode === 'extended') {
-    validateExtendedMode(doc, errors, warnings);
+    validateExtendedMode(doc, content, errors, warnings);
   }
 
   // ------------------------------------------------------------------
