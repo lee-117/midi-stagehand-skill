@@ -7,5 +7,6 @@ midscene-output/
 
 # Claude Code dev-process files
 .claude/
+CLAUDE.md
 SKILL-IMPROVEMENT-PLAN*.md
 skills-lock.json
