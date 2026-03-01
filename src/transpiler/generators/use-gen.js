@@ -15,7 +15,7 @@
  *   await agent.runYaml(loginFlow, { username: 'admin', password: 'secret' });
  */
 
-const { resolveTemplate, toCodeString } = require('./utils');
+const { resolveTemplate, toCodeString, getPad } = require('./utils');
 
 /**
  * Generate TypeScript code for a `use` step.
@@ -26,7 +26,7 @@ const { resolveTemplate, toCodeString } = require('./utils');
  */
 function generate(step, ctx) {
   const indent = (ctx && ctx.indent) || 0;
-  const pad = '  '.repeat(indent);
+  const pad = getPad(indent);
 
   const useRef = step.use;
   if (!useRef) {
@@ -40,9 +40,7 @@ function generate(step, ctx) {
   const withParams = step.with;
 
   if (withParams && typeof withParams === 'object') {
-    const paramEntries = Object.entries(withParams).map(function (entry) {
-      var k = entry[0];
-      var v = entry[1];
+    const paramEntries = Object.entries(withParams).map(([k, v]) => {
       return k + ': ' + toCodeString(resolveTemplate(v));
     });
     const paramsStr = '{ ' + paramEntries.join(', ') + ' }';

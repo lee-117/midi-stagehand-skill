@@ -363,6 +363,32 @@ tasks:
       assert.ok(!result.code.includes('"${collectedData}"'),
         'Should not have raw template string in body');
     });
+
+    it('handles deeply nested body without stack overflow', () => {
+      // Build a body 12 levels deep (exceeds MAX_BODY_DEPTH=10)
+      let body = '            value: "leaf"';
+      for (let i = 0; i < 12; i++) {
+        body = '            level' + i + ':\n              ' + body.trim();
+      }
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - external_call:
+          type: http
+          method: POST
+          url: "https://api.example.com/deep"
+          body:
+${body}
+          response_as: deepResult
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('deepResult'),
+        'Should transpile deeply nested body without error');
+    });
   });
 
   describe('extended: external_call name alias', () => {
@@ -605,7 +631,7 @@ tasks:
       assert.ok(result.code.includes('xpath'));
     });
 
-    it('transpiles aiAssert with errorMessage', () => {
+    it('transpiles aiAssert with errorMessage as positional arg', () => {
       const yaml = `
 web:
   url: "https://example.com"
@@ -618,7 +644,10 @@ tasks:
 `;
       const result = transpile(yaml);
       assert.ok(result.code.includes('agent.aiAssert'));
-      assert.ok(result.code.includes('errorMessage'));
+      assert.ok(result.code.includes('数量不正确'));
+      // errorMessage is now a positional arg, not in options object
+      assert.ok(!result.code.includes('{ errorMessage:'),
+        'Should NOT wrap errorMessage in options object');
     });
 
     it('transpiles aiQuery with object syntax', () => {
@@ -653,7 +682,7 @@ tasks:
       assert.ok(result.code.includes('15000'));
     });
 
-    it('transpiles aiScroll with locator and scrollCount', () => {
+    it('transpiles aiScroll with two-arg signature (locate, options)', () => {
       const yaml = `
 web:
   url: "https://example.com"
@@ -663,12 +692,13 @@ tasks:
       - aiScroll:
           locator: "商品列表"
           direction: "down"
-          scrollCount: 3
+          distance: 300
 `;
       const result = transpile(yaml);
       assert.ok(result.code.includes('agent.aiScroll'));
-      assert.ok(result.code.includes('scrollCount: 3'));
       assert.ok(result.code.includes('商品列表'));
+      assert.ok(result.code.includes("direction: '"));
+      assert.ok(result.code.includes('distance: 300'));
     });
 
     it('escapes backticks in javascript step', () => {
@@ -720,7 +750,7 @@ tasks:
   });
 
   describe('native action: aiKeyboardPress', () => {
-    it('transpiles aiKeyboardPress', () => {
+    it('transpiles aiKeyboardPress shorthand (value as keyName)', () => {
       const yaml = `
 web:
   url: "https://example.com"
@@ -731,7 +761,29 @@ tasks:
 `;
       const result = transpile(yaml);
       assert.ok(result.code.includes('agent.aiKeyboardPress'));
-      assert.ok(result.code.includes('Enter'));
+      assert.ok(result.code.includes("keyName: 'Enter'"),
+        'Should put Enter in keyName option');
+      assert.ok(result.code.includes('undefined,'),
+        'Shorthand should pass undefined as locate');
+    });
+
+    it('uses keyName sibling — aiKeyboardPress value as locate', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiKeyboardPress: "搜索框"
+        keyName: "Tab"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiKeyboardPress'),
+        'Should generate aiKeyboardPress call');
+      assert.ok(result.code.includes("keyName: 'Tab'"),
+        'Should use keyName option value');
+      assert.ok(result.code.includes('搜索框'),
+        'Should use aiKeyboardPress value as locate');
     });
   });
 
@@ -938,6 +990,45 @@ tasks:
       assert.ok(result.code.includes('top10'));
       assert.ok(result.code.includes('.slice(0, 10)'));
     });
+
+    it('transpiles flatten operation in flat format', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - data_transform:
+          source: "\${nested}"
+          operation: flatten
+          depth: 3
+          name: "flatList"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('flatList'));
+      assert.ok(result.code.includes('.flat(3)'));
+    });
+
+    it('transpiles groupBy operation in flat format', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - data_transform:
+          source: "\${products}"
+          operation: groupBy
+          by: "category"
+          name: "grouped"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('grouped'));
+      assert.ok(result.code.includes('.reduce('));
+      assert.ok(result.code.includes('item.category'));
+    });
   });
 
   describe('data_transform nested format', () => {
@@ -1049,7 +1140,7 @@ tasks:
   });
 
   describe('extended: while loop counter uniqueness', () => {
-    it('generates unique _iter counters for sibling while loops', () => {
+    it('generates unique _iN counters for sibling while loops', () => {
       const yaml = `
 engine: extended
 web:
@@ -1071,10 +1162,10 @@ tasks:
             - aiTap: "下一页"
 `;
       const result = transpile(yaml);
-      assert.ok(result.code.includes('let _iter = 0'),
-        'First while loop should use _iter');
-      assert.ok(result.code.includes('let _iter0 = 0'),
-        'Second while loop should use _iter0 to avoid collision');
+      assert.ok(result.code.includes('let _i0 = 0'),
+        'First while loop should use _i0');
+      assert.ok(result.code.includes('let _i1 = 0'),
+        'Second while loop should use _i1 to avoid collision');
     });
   });
 
@@ -1247,7 +1338,7 @@ tasks:
   });
 
   describe('aiScroll edge cases', () => {
-    it('handles object syntax without direction', () => {
+    it('handles object syntax with locator only', () => {
       const yaml = `
 web:
   url: "https://example.com"
@@ -1256,13 +1347,68 @@ tasks:
     flow:
       - aiScroll:
           locator: "main content"
-          scrollCount: 3
 `;
       const result = transpile(yaml);
       assert.ok(result.code.includes('aiScroll'),
         'Should generate aiScroll call');
-      assert.ok(result.code.includes('scrollCount: 3'),
-        'Should include scrollCount');
+      assert.ok(result.code.includes('main content'),
+        'Should include locator as first arg');
+    });
+
+    it('handles flat/sibling format with direction and distance', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiScroll: "商品列表"
+        direction: "down"
+        distance: 300
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('aiScroll'),
+        'Should generate aiScroll call');
+      assert.ok(result.code.includes('商品列表'),
+        'Should include locator from flat format');
+      assert.ok(result.code.includes("direction: 'down'"),
+        'Should include direction from sibling key');
+      assert.ok(result.code.includes('distance: 300'),
+        'Should include distance from sibling key');
+    });
+
+    it('handles flat format with scrollType', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiScroll: "长列表"
+        scrollType: "scrollToBottom"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('aiScroll'),
+        'Should generate aiScroll call');
+      assert.ok(result.code.includes("scrollType: 'scrollToBottom'"),
+        'Should include scrollType from sibling key');
+    });
+
+    it('handles nested object format with scrollType', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiScroll:
+          locator: "feed"
+          direction: "down"
+          scrollType: "singleAction"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes("scrollType: 'singleAction'"),
+        'Should include scrollType from nested format');
     });
   });
 
@@ -1352,6 +1498,798 @@ tasks:
       const result = transpile(yaml);
       assert.ok(result.code.includes('catch (myError)'),
         'Should use custom error variable name');
+    });
+  });
+
+  describe('schema/transpiler consistency', () => {
+    it('aiAssert flat format with errorMessage sibling', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiAssert: "页面包含欢迎信息"
+        errorMessage: "欢迎信息未找到"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiAssert'),
+        'Should generate aiAssert call');
+      assert.ok(result.code.includes('欢迎信息未找到'),
+        'Should include error message text');
+      assert.ok(!result.code.includes('{ errorMessage:'),
+        'errorMessage should be positional arg, not in options');
+    });
+
+    it('aiKeyboardPress with options (deepThink, timeout)', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiKeyboardPress: "Enter"
+        deepThink: true
+        timeout: 5000
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiKeyboardPress'),
+        'Should generate aiKeyboardPress call');
+      assert.ok(result.code.includes("keyName: 'Enter'"),
+        'Should put Enter in keyName option');
+      assert.ok(result.code.includes('deepThink: true'),
+        'Should pass deepThink option');
+      assert.ok(result.code.includes('timeoutMs: 5000'),
+        'Should pass timeout option');
+    });
+
+    it('aiTap nested object with locator and deepThink', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiTap:
+          locator: "编辑按钮"
+          deepThink: true
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiTap'),
+        'Should generate aiTap call');
+      assert.ok(result.code.includes('编辑按钮'),
+        'Should include locator text');
+      assert.ok(result.code.includes('deepThink: true'),
+        'Should pass deepThink from nested object');
+    });
+
+    it('aiInput nested object format with locator and value', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiInput:
+          locator: "用户名输入框"
+          value: "admin"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiInput'),
+        'Should generate aiInput call');
+      assert.ok(result.code.includes('用户名输入框'),
+        'Should include locator');
+      assert.ok(result.code.includes('admin'),
+        'Should include value');
+    });
+
+    it('recordToReport with content sibling', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - recordToReport: "测试截图"
+        content: "登录后的页面状态"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.recordToReport'),
+        'Should generate recordToReport call');
+      assert.ok(result.code.includes('测试截图'),
+        'Should include title');
+      assert.ok(result.code.includes('登录后的页面状态'),
+        'Should include content text');
+    });
+  });
+
+  describe('platform config extraction (B1)', () => {
+    it('passes userAgent to template', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+  userAgent: "Mozilla/5.0 Custom"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('setUserAgent'),
+        'Should include setUserAgent call for puppeteer');
+      assert.ok(result.code.includes('Mozilla/5.0 Custom'),
+        'Should include the user agent string');
+    });
+
+    it('passes cookie to template and triggers fs import', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+  cookie: "./cookies.json"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('setCookie'),
+        'Should include setCookie call');
+      assert.ok(result.code.includes("import * as fs from 'fs'"),
+        'Should import fs for cookie file reading');
+    });
+
+    it('passes acceptInsecureCerts to template', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+  acceptInsecureCerts: true
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('ignoreHTTPSErrors'),
+        'Should include ignoreHTTPSErrors');
+    });
+
+    it('passes deviceScaleFactor to viewport', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+  deviceScaleFactor: 2
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('deviceScaleFactor'),
+        'Should include deviceScaleFactor in viewport');
+    });
+
+    it('passes waitForNetworkIdle to template', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+  waitForNetworkIdle: true
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('waitForNetworkIdle'),
+        'Should include waitForNetworkIdle call');
+    });
+  });
+
+  describe('playwright template (B2)', () => {
+    it('cookie uses context.addCookies in playwright', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+  cookie: "./cookies.json"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = transpile(yaml, { templateType: 'playwright' });
+      assert.ok(result.code.includes('addCookies'),
+        'Should use context.addCookies for playwright');
+    });
+
+    it('acceptInsecureCerts in playwright context', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+  acceptInsecureCerts: true
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = transpile(yaml, { templateType: 'playwright' });
+      assert.ok(result.code.includes('ignoreHTTPSErrors'),
+        'Should include ignoreHTTPSErrors in playwright context');
+    });
+  });
+
+  describe('agent config (B3)', () => {
+    it('passes agent config to constructor when present', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+agent:
+  testId: "my-test"
+  groupName: "login-tests"
+  generateReport: true
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('my-test'),
+        'Should include testId in agent config');
+      assert.ok(result.code.includes('login-tests'),
+        'Should include groupName in agent config');
+      assert.ok(result.code.includes('PuppeteerAgent(page,'),
+        'Should pass config to PuppeteerAgent constructor');
+    });
+
+    it('does not pass config when agent key is absent', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('PuppeteerAgent(page)'),
+        'Should not pass config when no agent key');
+    });
+  });
+
+  describe('unknown step warnings (C1)', () => {
+    it('produces warning for unknown step type', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - unknownAction: "something"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.warnings && result.warnings.length > 0,
+        'Should produce warnings for unknown step');
+      assert.ok(result.warnings[0].includes('Unknown step type'),
+        'Warning should mention unknown step type');
+    });
+
+    it('does not warn for known step types', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = transpile(yaml);
+      assert.ok(!result.warnings || result.warnings.length === 0,
+        'Should not produce warnings for known steps');
+    });
+  });
+
+  // ===========================================================================
+  // Phase 4 — New transpiler tests (4.2)
+  // ===========================================================================
+
+  describe('new native actions (Phase 2)', () => {
+    it('transpiles aiDoubleClick', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiDoubleClick: "cell A1"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiDoubleClick'));
+      assert.ok(result.code.includes('cell A1'));
+    });
+
+    it('transpiles aiRightClick', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiRightClick: "file icon"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiRightClick'));
+      assert.ok(result.code.includes('file icon'));
+    });
+
+    it('transpiles aiLocate with name', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiLocate: "submit button"
+        name: submitBtn
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiLocate'));
+      assert.ok(result.code.includes('submitBtn'));
+    });
+
+    it('transpiles aiBoolean', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiBoolean: "Is user logged in?"
+        name: isLoggedIn
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiBoolean'));
+      assert.ok(result.code.includes('isLoggedIn'));
+    });
+
+    it('transpiles aiNumber', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiNumber: "How many items in the cart?"
+        name: cartCount
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiNumber'));
+      assert.ok(result.code.includes('cartCount'));
+    });
+
+    it('transpiles aiString', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiString: "What is the page title?"
+        name: pageTitle
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiString'));
+      assert.ok(result.code.includes('pageTitle'));
+    });
+  });
+
+  describe('native action options passthrough', () => {
+    it('passes deepThink to aiTap', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "complex button"
+        deepThink: true
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('deepThink: true'));
+    });
+
+    it('passes cacheable to ai action', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - ai: "do something"
+        cacheable: true
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('cacheable: true'));
+    });
+
+    it('passes mode to aiInput', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiInput: "search box"
+        value: "hello"
+        mode: "replace"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes("mode: 'replace'"));
+    });
+  });
+
+  describe('aiScroll flat/sibling format', () => {
+    it('transpiles aiScroll with sibling direction', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiScroll: "main content"
+        direction: "down"
+        distance: 500
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiScroll'));
+      assert.ok(result.code.includes("direction: 'down'"));
+      assert.ok(result.code.includes('distance: 500'));
+    });
+  });
+
+  describe('aiAssert flat/sibling format', () => {
+    it('transpiles aiAssert with sibling errorMessage as positional arg', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiAssert: "page shows welcome"
+        errorMessage: "Welcome message not found"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiAssert'));
+      assert.ok(result.code.includes('Welcome message not found'));
+      assert.ok(!result.code.includes('{ errorMessage:'),
+        'errorMessage should be positional arg, not in options');
+    });
+  });
+
+  describe('javascript action with name/output', () => {
+    it('captures javascript result with name', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - javascript: "document.title"
+        name: pageTitle
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('const pageTitle'));
+      assert.ok(result.code.includes('evaluateJavaScript'));
+    });
+
+    it('captures javascript result with output', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - javascript: "window.location.href"
+        output: currentUrl
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('const currentUrl'));
+    });
+  });
+
+  describe('use step transpilation', () => {
+    it('transpiles use step without parameters', () => {
+      const yaml = `
+engine: extended
+features: [import]
+web:
+  url: "https://example.com"
+import:
+  - flow: "./login.yaml"
+    as: loginFlow
+tasks:
+  - name: test
+    flow:
+      - use: "\${loginFlow}"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('loginFlow'));
+    });
+  });
+
+  describe('escapeStringLiteral handles special chars', () => {
+    it('escapes newlines, carriage returns, and tabs in string values', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiAssert: "line1\\nline2"
+`;
+      const result = transpile(yaml);
+      // The literal backslash-n in YAML becomes \n in the generated code
+      assert.ok(result.code.includes('agent.aiAssert'));
+    });
+  });
+
+  describe('loop times alias', () => {
+    it('transpiles repeat loop with times alias', () => {
+      const yaml = `
+engine: extended
+features: [loop]
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - loop:
+          type: repeat
+          times: 3
+          flow:
+            - aiTap: "next"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('3'));
+    });
+  });
+
+  // ===== V2 Plan Tests =====
+
+  describe('aiAssert positional errorMessage signature', () => {
+    it('generates errorMessage as second positional arg (not in options)', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiAssert: "购物车有3件商品"
+        errorMessage: "商品数量不对"
+`;
+      const result = transpile(yaml);
+      // Should be: aiAssert('...', '商品数量不对')
+      assert.ok(result.code.includes("'商品数量不对'"));
+      assert.ok(!result.code.includes('{ errorMessage'));
+    });
+  });
+
+  describe('aiKeyboardPress two-arg signature', () => {
+    it('puts keyName in options, locate as first arg', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiKeyboardPress: "搜索框"
+        keyName: "Enter"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes("'搜索框'"));
+      assert.ok(result.code.includes("keyName: 'Enter'"));
+    });
+
+    it('shorthand without keyName uses value as keyName', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiKeyboardPress: "Tab"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('undefined'));
+      assert.ok(result.code.includes("keyName: 'Tab'"));
+    });
+  });
+
+  describe('aiScroll two-arg signature', () => {
+    it('generates (locate, { direction, distance }) format', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiScroll: "列表区域"
+        direction: "down"
+        distance: 500
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes("'列表区域'"));
+      assert.ok(result.code.includes("direction: 'down'"));
+      assert.ok(result.code.includes('distance: 500'));
+      // Should NOT have locator inside options
+      assert.ok(!result.code.includes('locator:'));
+    });
+  });
+
+  describe('deepThink three-state', () => {
+    it('handles deepThink: false', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "按钮"
+        deepThink: false
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('deepThink: false'));
+    });
+
+    it('handles deepThink: unset', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "按钮"
+        deepThink: "unset"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes("deepThink: 'unset'"));
+    });
+  });
+
+  describe('aiAsk action', () => {
+    it('transpiles aiAsk with string prompt', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiAsk: "这个页面是关于什么的？"
+        name: "answer"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiAsk'));
+      assert.ok(result.code.includes('answer'));
+    });
+  });
+
+  describe('fileChooserAccept option', () => {
+    it('adds fileChooserAccept to aiAct', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiAct: "点击上传按钮"
+        fileChooserAccept: "/tmp/file.pdf"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('fileChooserAccept'));
+      assert.ok(result.code.includes('/tmp/file.pdf'));
+    });
+  });
+
+  describe('platform-specific actions', () => {
+    it('transpiles runAdbShell', () => {
+      const yaml = `
+android:
+  deviceId: "emulator-5554"
+tasks:
+  - name: test
+    flow:
+      - runAdbShell: "input keyevent 3"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.runAdbShell'));
+      assert.ok(result.code.includes('input keyevent 3'));
+    });
+
+    it('transpiles launch action', () => {
+      const yaml = `
+android:
+  deviceId: "emulator-5554"
+tasks:
+  - name: test
+    flow:
+      - launch: "com.example.app"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.launch'));
+      assert.ok(result.code.includes('com.example.app'));
+    });
+  });
+
+  describe('task steps alias in transpiler', () => {
+    it('transpiles task with steps instead of flow', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    steps:
+      - aiTap: "login"
+      - aiAssert: "logged in"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('agent.aiTap'));
+      assert.ok(result.code.includes('agent.aiAssert'));
+    });
+  });
+
+  describe('agent config with new fields', () => {
+    it('passes replanningCycleLimit and aiActContext', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+agent:
+  testId: "test-1"
+  replanningCycleLimit: 10
+  aiActContext: "这是一个电商网站"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "按钮"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('replanningCycleLimit'));
+      assert.ok(result.code.includes('aiActContext'));
+    });
+  });
+
+  describe('URL security escaping', () => {
+    it('escapes single quotes in URL', () => {
+      const yaml = `
+web:
+  url: "https://example.com/path?name=test'value"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes("\\'value"));
+      assert.ok(!result.code.includes("test'value"));
+    });
+  });
+
+  describe('checkIntervalMs in aiWaitFor', () => {
+    it('passes checkIntervalMs option', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiWaitFor: "页面加载完成"
+        timeout: 10000
+        checkIntervalMs: 2000
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('checkIntervalMs: 2000'));
+      assert.ok(result.code.includes('timeoutMs: 10000'));
     });
   });
 });

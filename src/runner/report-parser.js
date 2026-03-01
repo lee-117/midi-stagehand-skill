@@ -43,20 +43,26 @@ function parse(reportDir) {
   };
 }
 
+function isPassed(task) {
+  return task.status === 'passed' || task.success === true;
+}
+
+function summarizeTasks(tasks) {
+  const total = tasks.length;
+  const passed = tasks.filter(isPassed).length;
+  return { total, passed, failed: total - passed };
+}
+
 function extractSummary(content) {
   // Handle various Midscene report formats
   if (Array.isArray(content)) {
-    const total = content.length;
-    const passed = content.filter(t => t.status === 'passed' || t.success === true).length;
-    const failed = total - passed;
-    return { total, passed, failed };
+    return summarizeTasks(content);
   }
   if (content.tasks) {
-    const total = content.tasks.length;
-    const passed = content.tasks.filter(t => t.status === 'passed' || t.success).length;
-    return { total, passed, failed: total - passed };
+    return summarizeTasks(content.tasks);
   }
-  return { raw: typeof content === 'object' ? Object.keys(content) : 'unknown format' };
+  // Unknown format — return zero counts so callers get a consistent shape
+  return { total: 0, passed: 0, failed: 0 };
 }
 
 function buildOverallSummary(reports) {

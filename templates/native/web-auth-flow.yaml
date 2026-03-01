@@ -1,0 +1,45 @@
+# OAuth/认证流程模板
+# 场景: 第三方 OAuth 登录、多步认证、SSO 流程
+# 注意: 本模板使用 ${ENV:...} 变量引用，需要 extended 模式
+engine: extended
+features: [variables]
+
+web:
+  url: "https://example.com/login"
+  headless: false
+  viewportWidth: 1280
+  viewportHeight: 720
+
+tasks:
+  - name: "OAuth 认证流程"
+    flow:
+      # 等待登录页加载
+      - aiWaitFor: "登录页面加载完成，显示了第三方登录选项"
+        timeout: 10000
+
+      # 选择第三方登录方式
+      - aiTap: "使用 Google 账号登录 按钮"
+
+      # 等待 OAuth 授权页面
+      - aiWaitFor: "Google 登录页面或授权确认页面出现"
+        timeout: 15000
+
+      # 填写认证信息
+      - aiInput: "邮箱或手机号输入框"
+        value: "${ENV:TEST_EMAIL}"
+      - aiTap: "下一步按钮"
+      - aiWaitFor: "密码输入页面出现"
+        timeout: 10000
+
+      - aiInput: "密码输入框"
+        value: "${ENV:TEST_PASSWORD}"
+      - aiTap: "登录按钮"
+
+      # 等待授权确认（如果需要）
+      - aiWaitFor: "回到原网站，或出现授权确认页面"
+        timeout: 20000
+
+      # 验证登录成功
+      - aiAssert: "用户已成功登录，能看到用户头像或用户名"
+      - recordToReport: "认证流程完成"
+        content: "OAuth 登录验证通过"

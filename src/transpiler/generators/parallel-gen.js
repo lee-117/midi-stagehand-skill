@@ -9,22 +9,23 @@
  * to the outer scope so they remain accessible after Promise.all completes.
  */
 
-const { escapeRegExp } = require('./utils');
+const { escapeRegExp, getPad } = require('./utils');
+const { walkFlow, getNestedFlow, getParallelBranches } = require('../../utils/yaml-helpers');
 
 /**
  * Collect variable names that would be declared inside a flow.
  * These are steps like `aiQuery` with a `name` field, `import` with `as`,
  * or `external_call` with `response_as`.
  *
+ * Uses the shared walkFlow utility to handle recursion into nested
+ * constructs (logic, loop, try, parallel) automatically.
+ *
  * @param {Array} flow - Array of YAML step objects.
  * @returns {string[]} Variable names that need hoisting.
  */
 function collectDeclaredVars(flow) {
   const vars = [];
-  for (const step of flow) {
-    if (!step || typeof step !== 'object') continue;
-
-    // Direct variable producers
+  walkFlow(flow, '', function (step) {
     if (step.aiQuery !== undefined && step.name) {
       vars.push(step.name);
     }
@@ -45,46 +46,7 @@ function collectDeclaredVars(flow) {
         vars.push(name);
       }
     }
-
-    // Recurse into nested flows
-    if (step.logic && typeof step.logic === 'object') {
-      if (Array.isArray(step.logic.then)) {
-        vars.push(...collectDeclaredVars(step.logic.then));
-      }
-      if (Array.isArray(step.logic.else)) {
-        vars.push(...collectDeclaredVars(step.logic.else));
-      }
-    }
-    if (step.loop && typeof step.loop === 'object') {
-      const loopFlow = step.loop.flow || step.loop.steps;
-      if (Array.isArray(loopFlow)) {
-        vars.push(...collectDeclaredVars(loopFlow));
-      }
-    }
-    if (step.try && typeof step.try === 'object') {
-      const tryFlow = step.try.flow || step.try.steps;
-      if (Array.isArray(tryFlow)) {
-        vars.push(...collectDeclaredVars(tryFlow));
-      }
-    }
-    if (step.catch && typeof step.catch === 'object') {
-      const catchFlow = step.catch.flow || step.catch.steps;
-      if (Array.isArray(catchFlow)) {
-        vars.push(...collectDeclaredVars(catchFlow));
-      }
-    }
-    if (step.parallel && typeof step.parallel === 'object') {
-      const parTasks = step.parallel.tasks || step.parallel.branches;
-      if (Array.isArray(parTasks)) {
-        for (const t of parTasks) {
-          const tFlow = t && (t.flow || t.steps || (Array.isArray(t) ? t : []));
-          if (Array.isArray(tFlow)) {
-            vars.push(...collectDeclaredVars(tFlow));
-          }
-        }
-      }
-    }
-  }
+  });
   return vars;
 }
 
@@ -118,20 +80,18 @@ function rewriteHoistedDeclarations(code, hoisted) {
  */
 function generate(step, ctx, processStep) {
   const indent = ctx && ctx.indent || 0;
-  const pad = '  '.repeat(indent);
-  const innerPad = '  '.repeat(indent + 1);
+  const pad = getPad(indent);
+  const innerPad = getPad(indent + 1);
   const varScope = ctx && ctx.varScope || new Set();
   const parallel = step.parallel;
 
   if (!parallel) {
     return pad + '// Invalid parallel block: missing definition';
   }
-  const tasksArray = parallel.tasks || parallel.branches;
-  if (!tasksArray || !Array.isArray(tasksArray)) {
+  const tasks = getParallelBranches(parallel);
+  if (!tasks || !Array.isArray(tasks)) {
     return pad + '// Invalid parallel block: missing "tasks" or "branches" array';
   }
-
-  const tasks = tasksArray;
   const mergeResults = parallel.merge_results !== undefined ? parallel.merge_results
     : parallel.waitAll !== undefined ? parallel.waitAll : false;
   const lines = [];
@@ -139,7 +99,7 @@ function generate(step, ctx, processStep) {
   // --- Hoist variable declarations from inside IIFEs to outer scope ---
   const allHoisted = new Set();
   for (const task of tasks) {
-    const flow = task.flow || task.steps || (Array.isArray(task) ? task : [task]);
+    const flow = getNestedFlow(task) || (Array.isArray(task) ? task : [task]);
     for (const name of collectDeclaredVars(flow)) {
       allHoisted.add(name);
     }
@@ -153,7 +113,7 @@ function generate(step, ctx, processStep) {
 
   // Build each async IIFE for Promise.all
   const taskBlocks = tasks.map((task, index) => {
-    const flow = task.flow || task.steps || (Array.isArray(task) ? task : [task]);
+    const flow = getNestedFlow(task) || (Array.isArray(task) ? task : [task]);
     const taskLines = [];
 
     taskLines.push(innerPad + '(async () => {');

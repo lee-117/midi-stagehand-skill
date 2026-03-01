@@ -11,18 +11,19 @@
 ## 项目结构
 
 ```
+src/utils/          → 共享工具模块 (yaml-helpers.js)：文件路径检测、flow/steps 别名解析、通用递归 walker
 src/detector/       → 模式检测器 (mode-detector.js)，判断 YAML 是 native 还是 extended
 src/validator/      → 4 层 YAML 验证（语法→结构→模式→语义）
 src/transpiler/     → Extended YAML → TypeScript 转译器
   generators/       → 10 个代码生成器 + 共享工具模块
                       (native/variable/logic/loop/import/use/data-transform/try-catch/external-call/parallel + utils)
-src/runner/         → 执行器（native-runner + ts-runner + report-parser）
+src/runner/         → 执行器（native-runner + ts-runner + runner-utils + report-parser）
 scripts/            → CLI 入口 (midscene-run.js)
 schema/             → 关键字 Schema 定义（native-keywords.json + extended-keywords.json）
 templates/          → 12 个 YAML 模板（native 6 个 + extended 6 个）
 skills/             → Claude Code Skill 定义（见下方）
 guide/              → 渐进式指导手册（L1-L5）
-test/               → 172 个单元测试（detector + validator + transpiler + CLI + report-parser）
+test/               → 198 个单元测试（detector + validator + transpiler + CLI + report-parser）
 ```
 
 ## Skills（技能）
@@ -83,10 +84,12 @@ npm test
 | 文件 | 用途 |
 |------|------|
 | `scripts/midscene-run.js` | CLI 主入口 |
+| `src/utils/yaml-helpers.js` | 共享工具：looksLikeFilePath, getNestedFlow, getParallelBranches, getLoopItemVar, walkFlow, walkAllFlows |
 | `src/detector/mode-detector.js` | 模式检测 |
 | `src/validator/yaml-validator.js` | 验证逻辑 |
 | `src/transpiler/transpiler.js` | 转译核心 |
-| `src/transpiler/generators/utils.js` | 生成器共享工具（resolveTemplate, toCodeString 等） |
+| `src/transpiler/generators/utils.js` | 生成器共享工具（resolveEnvRefs, resolveTemplate, toCodeString, escapeStringLiteral, getPad 等） |
+| `src/runner/runner-utils.js` | 执行器共享工具（resolveLocalBin, normaliseExecError） |
 | `schema/native-keywords.json` | Native 关键字定义 |
 | `schema/extended-keywords.json` | Extended 关键字定义 |
 | `schema/yaml-superset-schema.json` | 完整 JSON Schema |

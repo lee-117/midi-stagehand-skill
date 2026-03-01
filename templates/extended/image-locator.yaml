@@ -1,0 +1,34 @@
+# 复杂元素定位模板
+# 场景: 当文字描述不足以定位元素时，使用 deepThink 或 xpath 辅助 AI 定位
+engine: extended
+
+web:
+  url: "https://example.com/dashboard"
+  headless: false
+
+tasks:
+  - name: "图片辅助定位示例"
+    flow:
+      - aiWaitFor: "仪表盘页面加载完成"
+        timeout: 10000
+
+      # 使用 deepThink 进行复杂元素定位
+      - aiTap: "仪表盘右上角的齿轮形设置图标"
+        deepThink: true
+
+      # 使用自然语言精确描述 + deepThink
+      - aiTap: "数据表格第三行中的蓝色编辑图标按钮"
+        deepThink: true
+
+      # 当自然语言定位仍不精确时，最后手段使用 xpath
+      - aiTap: "编辑按钮"
+        xpath: "//table/tbody/tr[3]//button[contains(@class, 'edit')]"
+
+      # 使用 aiLocate 获取元素位置信息
+      - aiLocate: "页面右下角的浮动操作按钮"
+        name: fabLocation
+
+      # 验证定位结果
+      - aiAssert: "成功点击并打开了对应的编辑界面"
+      - recordToReport: "图片辅助定位测试"
+        content: "复杂元素定位验证完成"

@@ -1,0 +1,13 @@
+# Native iOS test fixture
+ios:
+  wdaPort: 8100
+  wdaHost: "localhost"
+
+tasks:
+  - name: Basic iOS operations
+    flow:
+      - launch: "com.example.app"
+      - aiWaitFor: "app home screen is visible"
+        timeout: 10000
+      - aiTap: "Profile tab"
+      - aiAssert: "Profile page is displayed"

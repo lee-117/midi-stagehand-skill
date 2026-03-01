@@ -54,39 +54,97 @@
         "viewportWidth": { "type": "integer", "minimum": 1 },
         "viewportHeight": { "type": "integer", "minimum": 1 },
         "userAgent": { "type": "string" },
+        "deviceScaleFactor": { "type": "number", "minimum": 0 },
+        "cookie": { "type": "string", "description": "Cookie file path" },
+        "acceptInsecureCerts": { "type": "boolean" },
+        "chromeArgs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Additional Chrome launch arguments"
+        },
         "waitForNetworkIdle": {
-          "type": "object",
-          "properties": {
-            "timeout": { "type": "integer" },
-            "continueOnNetworkReqeusts": { "type": "boolean" }
-          },
-          "additionalProperties": false
-        }
+          "oneOf": [
+            { "type": "boolean" },
+            {
+              "type": "object",
+              "properties": {
+                "timeout": { "type": "integer" },
+                "continueOnNetworkIdleError": { "type": "boolean" }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "output": { "type": "string", "description": "JSON output file path" },
+        "serve": { "type": "string", "description": "Local static server directory" },
+        "bridgeMode": {
+          "oneOf": [
+            { "const": false },
+            { "type": "string", "enum": ["newTabWithUrl", "currentTab"] }
+          ]
+        },
+        "forceSameTabNavigation": { "type": "boolean" },
+        "waitForNavigationTimeout": { "type": "integer", "description": "Navigation completion wait time in ms (default 5000, 0 to disable)" },
+        "waitForNetworkIdleTimeout": { "type": "integer", "description": "Network idle wait time in ms (default 2000, 0 to disable)" },
+        "enableTouchEventsInActionSpace": { "type": "boolean", "description": "Enable touch gestures (default false)" },
+        "forceChromeSelectRendering": { "type": "boolean", "description": "Force Chrome base-select styling for <select> elements" },
+        "unstableLogContent": {
+          "oneOf": [
+            { "type": "boolean" },
+            { "type": "string" }
+          ]
+        },
+        "closeNewTabsAfterDisconnect": { "type": "boolean" }
       },
       "additionalProperties": false
     },
     "androidPlatform": {
       "type": "object",
       "properties": {
-        "device": { "type": "string" },
-        "pkg": { "type": "string" },
-        "launch": { "type": "boolean" }
+        "deviceId": { "type": "string", "description": "ADB device ID (e.g. emulator-5554)" },
+        "launch": {
+          "oneOf": [
+            { "type": "boolean" },
+            { "type": "string", "description": "URL or package name to launch" }
+          ]
+        },
+        "output": { "type": "string", "description": "JSON output file path" }
       },
       "additionalProperties": false
     },
     "iosPlatform": {
       "type": "object",
       "properties": {
-        "device": { "type": "string" },
-        "bundleId": { "type": "string" },
-        "launch": { "type": "boolean" }
+        "wdaPort": { "type": "integer", "description": "WebDriverAgent port (default 8100)" },
+        "wdaHost": { "type": "string", "description": "WebDriverAgent host (default localhost)" },
+        "launch": {
+          "oneOf": [
+            { "type": "boolean" },
+            { "type": "string", "description": "URL or bundle ID to launch" }
+          ]
+        },
+        "autoDismissKeyboard": { "type": "boolean" },
+        "output": { "type": "string", "description": "JSON output file path" },
+        "unstableLogContent": {
+          "oneOf": [
+            { "type": "boolean" },
+            { "type": "string" }
+          ]
+        }
       },
       "additionalProperties": false
     },
     "computerPlatform": {
       "type": "object",
       "properties": {
-        "launch": { "type": "string" }
+        "launch": { "type": "string" },
+        "displayId": {
+          "oneOf": [
+            { "type": "integer" },
+            { "type": "string" }
+          ]
+        },
+        "output": { "type": "string", "description": "JSON output file path" }
       },
       "additionalProperties": false
     },
@@ -96,20 +154,57 @@
         "testId": { "type": "string" },
         "groupName": { "type": "string" },
         "groupDescription": { "type": "string" },
-        "cache": { "type": "boolean" }
+        "cache": {
+          "oneOf": [
+            { "type": "boolean" },
+            {
+              "type": "object",
+              "properties": {
+                "strategy": {
+                  "type": "string",
+                  "enum": ["read-write", "read-only", "write-only"],
+                  "description": "Cache strategy"
+                },
+                "id": { "type": "string", "description": "Cache identifier" }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "generateReport": { "type": "boolean" },
+        "autoPrintReportMsg": { "type": "boolean" },
+        "reportFileName": { "type": "string" },
+        "replanningCycleLimit": { "type": "integer" },
+        "aiActContext": { "type": "string" },
+        "waitAfterAction": { "type": "integer", "description": "Milliseconds to wait between actions (default 300)" },
+        "outputFormat": { "type": "string", "enum": ["single-html", "html-and-external-assets"], "description": "Report output format" },
+        "screenshotShrinkFactor": { "type": "number", "minimum": 1, "description": "Screenshot scaling factor (1-3 recommended)" }
       },
       "additionalProperties": false
     },
     "task": {
       "type": "object",
-      "required": ["name", "flow"],
+      "required": ["name"],
       "properties": {
         "name": { "type": "string" },
         "flow": {
           "type": "array",
           "items": { "$ref": "#/definitions/flowStep" }
         },
-        "continueOnError": { "type": "boolean" }
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/flowStep" },
+          "description": "Alias for flow"
+        },
+        "continueOnError": { "type": "boolean" },
+        "output": {
+          "type": "object",
+          "properties": {
+            "filePath": { "type": "string", "description": "Output file path for exported data" },
+            "dataName": { "type": "string", "description": "Variable name for exported data" }
+          },
+          "description": "Export task results to a file"
+        }
       },
       "additionalProperties": false
     },
@@ -119,10 +214,13 @@
         { "$ref": "#/definitions/aiActAction" },
         { "$ref": "#/definitions/aiTapAction" },
         { "$ref": "#/definitions/aiHoverAction" },
+        { "$ref": "#/definitions/aiDoubleClickAction" },
+        { "$ref": "#/definitions/aiRightClickAction" },
         { "$ref": "#/definitions/aiInputAction" },
         { "$ref": "#/definitions/aiKeyboardPressAction" },
         { "$ref": "#/definitions/aiScrollAction" },
         { "$ref": "#/definitions/aiQueryAction" },
+        { "$ref": "#/definitions/aiAskAction" },
         { "$ref": "#/definitions/aiAssertAction" },
         { "$ref": "#/definitions/aiWaitForAction" },
         { "$ref": "#/definitions/sleepAction" },
@@ -138,14 +236,19 @@
         { "$ref": "#/definitions/dataTransformStep" },
         { "$ref": "#/definitions/tryCatchStep" },
         { "$ref": "#/definitions/externalCallStep" },
-        { "$ref": "#/definitions/parallelStep" }
+        { "$ref": "#/definitions/parallelStep" },
+        { "$ref": "#/definitions/useStep" }
       ]
     },
     "aiAction": {
       "type": "object",
       "required": ["ai"],
       "properties": {
-        "ai": { "type": "string", "description": "Natural language instruction for the AI to plan and execute" }
+        "ai": { "type": "string", "description": "Natural language instruction for the AI to plan and execute" },
+        "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
+        "cacheable": { "type": "boolean" },
+        "fileChooserAccept": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }], "description": "File path(s) for file chooser dialog" },
+        "timeout": { "type": "integer" }
       },
       "additionalProperties": false
     },
@@ -153,7 +256,11 @@
       "type": "object",
       "required": ["aiAct"],
       "properties": {
-        "aiAct": { "type": "string", "description": "Natural language action instruction" }
+        "aiAct": { "type": "string", "description": "Natural language action instruction" },
+        "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
+        "cacheable": { "type": "boolean" },
+        "fileChooserAccept": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }], "description": "File path(s) for file chooser dialog" },
+        "timeout": { "type": "integer" }
       },
       "additionalProperties": false
     },
@@ -161,10 +268,25 @@
       "type": "object",
       "required": ["aiTap"],
       "properties": {
-        "aiTap": { "type": "string", "description": "Element to tap/click" },
-        "deepThink": { "type": "boolean" },
+        "aiTap": {
+          "oneOf": [
+            { "type": "string", "description": "Element to tap/click" },
+            {
+              "type": "object",
+              "properties": {
+                "locator": { "type": "string" },
+                "locate": { "$ref": "#/definitions/locateObject" },
+                "xpath": { "type": "string" },
+                "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
         "xpath": { "type": "string" },
-        "timeout": { "type": "integer" }
+        "timeout": { "type": "integer" },
+        "cacheable": { "type": "boolean" }
       },
       "additionalProperties": false
     },
@@ -172,22 +294,107 @@
       "type": "object",
       "required": ["aiHover"],
       "properties": {
-        "aiHover": { "type": "string", "description": "Element to hover over" },
-        "deepThink": { "type": "boolean" },
+        "aiHover": {
+          "oneOf": [
+            { "type": "string", "description": "Element to hover over" },
+            {
+              "type": "object",
+              "properties": {
+                "locator": { "type": "string" },
+                "locate": { "$ref": "#/definitions/locateObject" },
+                "xpath": { "type": "string" },
+                "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
         "xpath": { "type": "string" },
-        "timeout": { "type": "integer" }
+        "timeout": { "type": "integer" },
+        "cacheable": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "aiDoubleClickAction": {
+      "type": "object",
+      "required": ["aiDoubleClick"],
+      "properties": {
+        "aiDoubleClick": {
+          "oneOf": [
+            { "type": "string", "description": "Element to double-click" },
+            {
+              "type": "object",
+              "properties": {
+                "locator": { "type": "string" },
+                "locate": { "$ref": "#/definitions/locateObject" },
+                "xpath": { "type": "string" },
+                "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
+        "xpath": { "type": "string" },
+        "timeout": { "type": "integer" },
+        "cacheable": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "aiRightClickAction": {
+      "type": "object",
+      "required": ["aiRightClick"],
+      "properties": {
+        "aiRightClick": {
+          "oneOf": [
+            { "type": "string", "description": "Element to right-click" },
+            {
+              "type": "object",
+              "properties": {
+                "locator": { "type": "string" },
+                "locate": { "$ref": "#/definitions/locateObject" },
+                "xpath": { "type": "string" },
+                "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
+        "xpath": { "type": "string" },
+        "timeout": { "type": "integer" },
+        "cacheable": { "type": "boolean" }
       },
       "additionalProperties": false
     },
     "aiInputAction": {
       "type": "object",
-      "required": ["aiInput", "value"],
+      "required": ["aiInput"],
       "properties": {
-        "aiInput": { "type": "string", "description": "Input field to target" },
-        "value": { "type": "string", "description": "Value to input" },
-        "deepThink": { "type": "boolean" },
+        "aiInput": {
+          "oneOf": [
+            { "type": "string", "description": "Input field to target" },
+            {
+              "type": "object",
+              "properties": {
+                "locator": { "type": "string" },
+                "locate": { "$ref": "#/definitions/locateObject" },
+                "value": { "oneOf": [{ "type": "string" }, { "type": "number" }] },
+                "xpath": { "type": "string" },
+                "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "value": { "oneOf": [{ "type": "string" }, { "type": "number" }], "description": "Value to input (flat format)" },
+        "mode": { "type": "string", "enum": ["replace", "clear", "typeOnly"], "description": "Input mode" },
+        "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
         "xpath": { "type": "string" },
-        "timeout": { "type": "integer" }
+        "timeout": { "type": "integer" },
+        "cacheable": { "type": "boolean" },
+        "images": { "type": "array", "items": { "type": "object" }, "description": "Image prompts for visual element matching" }
       },
       "additionalProperties": false
     },
@@ -196,9 +403,10 @@
       "required": ["aiKeyboardPress"],
       "properties": {
         "aiKeyboardPress": { "type": "string", "description": "Key or key combination to press" },
-        "key": { "type": "string" },
-        "deepThink": { "type": "boolean" },
-        "timeout": { "type": "integer" }
+        "keyName": { "type": "string", "description": "Key name (alternative to aiKeyboardPress value)" },
+        "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
+        "timeout": { "type": "integer" },
+        "cacheable": { "type": "boolean" }
       },
       "additionalProperties": false
     },
@@ -206,14 +414,36 @@
       "type": "object",
       "required": ["aiScroll"],
       "properties": {
-        "aiScroll": { "type": "string", "description": "Target or area to scroll" },
+        "aiScroll": {
+          "oneOf": [
+            { "type": "string", "description": "Target or area to scroll (flat format)" },
+            {
+              "type": "object",
+              "properties": {
+                "locator": { "type": "string" },
+                "direction": { "type": "string", "enum": ["up", "down", "left", "right"] },
+                "distance": { "type": "integer" },
+
+                "scrollType": { "type": "string", "enum": ["singleAction", "scrollToBottom", "scrollToTop", "scrollToRight", "scrollToLeft"] }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
         "direction": {
           "type": "string",
-          "enum": ["up", "down", "left", "right"]
+          "enum": ["up", "down", "left", "right"],
+          "description": "Scroll direction (flat format sibling key)"
         },
-        "distance": { "type": "integer" },
-        "deepThink": { "type": "boolean" },
-        "timeout": { "type": "integer" }
+        "distance": { "type": "integer", "description": "Scroll distance in pixels (flat format sibling key)" },
+        "scrollType": {
+          "type": "string",
+          "enum": ["singleAction", "scrollToBottom", "scrollToTop", "scrollToRight", "scrollToLeft"],
+          "description": "Scroll behavior type (flat format sibling key)"
+        },
+        "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
+        "timeout": { "type": "integer" },
+        "cacheable": { "type": "boolean" }
       },
       "additionalProperties": false
     },
@@ -221,10 +451,49 @@
       "type": "object",
       "required": ["aiQuery"],
       "properties": {
-        "aiQuery": { "type": "string", "description": "Data query in natural language" },
+        "aiQuery": {
+          "oneOf": [
+            { "type": "string", "description": "Data query in natural language" },
+            {
+              "type": "object",
+              "properties": {
+                "query": { "type": "string" },
+                "name": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
         "output": { "type": "string", "description": "Variable name to store the query result" },
         "name": { "type": "string" },
-        "timeout": { "type": "integer" }
+        "timeout": { "type": "integer" },
+        "cacheable": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "aiAskAction": {
+      "type": "object",
+      "required": ["aiAsk"],
+      "properties": {
+        "aiAsk": {
+          "oneOf": [
+            { "type": "string", "description": "Question to ask about the page" },
+            {
+              "type": "object",
+              "properties": {
+                "query": { "type": "string" },
+                "prompt": { "type": "string" },
+                "name": { "type": "string" },
+                "domIncluded": { "oneOf": [{ "type": "boolean" }, { "const": "visible-only" }] },
+                "screenshotIncluded": { "type": "boolean" }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "name": { "type": "string", "description": "Variable name to store the answer" },
+        "domIncluded": { "oneOf": [{ "type": "boolean" }, { "const": "visible-only" }] },
+        "screenshotIncluded": { "type": "boolean" }
       },
       "additionalProperties": false
     },
@@ -233,7 +502,10 @@
       "required": ["aiAssert"],
       "properties": {
         "aiAssert": { "type": "string", "description": "Assertion condition in natural language" },
-        "timeout": { "type": "integer" }
+        "errorMessage": { "type": "string", "description": "Custom error message on assertion failure" },
+        "name": { "type": "string", "description": "JSON output key for assertion result" },
+        "timeout": { "type": "integer" },
+        "cacheable": { "type": "boolean" }
       },
       "additionalProperties": false
     },
@@ -241,8 +513,22 @@
       "type": "object",
       "required": ["aiWaitFor"],
       "properties": {
-        "aiWaitFor": { "type": "string", "description": "Condition to wait for" },
-        "timeout": { "type": "integer" }
+        "aiWaitFor": {
+          "oneOf": [
+            { "type": "string", "description": "Condition to wait for" },
+            {
+              "type": "object",
+              "properties": {
+                "condition": { "type": "string" },
+                "timeout": { "type": "integer" }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "timeout": { "type": "integer" },
+        "checkIntervalMs": { "type": "integer", "description": "Interval between checks in ms" },
+        "cacheable": { "type": "boolean" }
       },
       "additionalProperties": false
     },
@@ -259,7 +545,8 @@
       "required": ["javascript"],
       "properties": {
         "javascript": { "type": "string", "description": "JavaScript code to execute" },
-        "output": { "type": "string", "description": "Variable name to store the result" }
+        "output": { "type": "string", "description": "Variable name to store the result" },
+        "name": { "type": "string", "description": "Alias for output" }
       },
       "additionalProperties": false
     },
@@ -267,7 +554,8 @@
       "type": "object",
       "required": ["recordToReport"],
       "properties": {
-        "recordToReport": { "type": "string", "description": "Description or data to record in the report" }
+        "recordToReport": { "type": "string", "description": "Description or data to record in the report" },
+        "content": { "type": "string", "description": "Description text for the report entry" }
       },
       "additionalProperties": false
     },
@@ -356,7 +644,7 @@
       "properties": {
         "loop": {
           "type": "object",
-          "required": ["type", "flow"],
+          "required": ["type"],
           "properties": {
             "type": {
               "type": "string",
@@ -371,16 +659,37 @@
               "description": "Items to iterate over (for loops)"
             },
             "as": { "type": "string", "description": "Variable name for current item in iteration" },
+            "itemVar": { "type": "string", "description": "Alias for as" },
+            "item": { "type": "string", "description": "Alias for as" },
+            "indexVar": { "type": "string", "description": "Custom index variable name" },
             "condition": { "type": "string", "description": "Loop condition (while loops)" },
             "maxIterations": { "type": "integer", "minimum": 1, "description": "Maximum number of iterations (safety limit)" },
-            "count": { "type": "integer", "minimum": 1, "description": "Number of repetitions (repeat loops)" },
+            "max_iterations": { "type": "integer", "minimum": 1, "description": "Alias for maxIterations" },
+            "count": {
+              "oneOf": [
+                { "type": "integer", "minimum": 1 },
+                { "type": "string" }
+              ],
+              "description": "Number of repetitions (repeat loops), supports variable references"
+            },
+            "times": {
+              "oneOf": [
+                { "type": "integer", "minimum": 1 },
+                { "type": "string" }
+              ],
+              "description": "Alias for count"
+            },
             "flow": {
               "type": "array",
               "items": { "$ref": "#/definitions/flowStep" },
               "description": "Steps to execute in each iteration"
+            },
+            "steps": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/flowStep" },
+              "description": "Alias for flow"
             }
-          },
-          "additionalProperties": false
+          }
         }
       },
       "additionalProperties": false
@@ -418,18 +727,46 @@
       "required": ["data_transform"],
       "properties": {
         "data_transform": {
-          "type": "object",
-          "required": ["input", "operations"],
-          "properties": {
-            "input": { "type": "string", "description": "Source variable or expression for transformation" },
-            "operations": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/dataOperation" },
-              "description": "Ordered list of transformation operations"
+          "oneOf": [
+            {
+              "type": "object",
+              "required": ["input", "operations"],
+              "properties": {
+                "input": { "type": "string", "description": "Source variable or expression for transformation" },
+                "operations": {
+                  "type": "array",
+                  "items": { "$ref": "#/definitions/dataOperation" },
+                  "description": "Ordered list of transformation operations"
+                },
+                "output": { "type": "string", "description": "Variable name to store the result" }
+              },
+              "additionalProperties": false
             },
-            "output": { "type": "string", "description": "Variable name to store the result" }
-          },
-          "additionalProperties": false
+            {
+              "type": "object",
+              "required": ["operation", "name"],
+              "properties": {
+                "source": { "type": "string", "description": "Source variable for transformation" },
+                "operation": {
+                  "type": "string",
+                  "enum": ["filter", "sort", "map", "reduce", "unique", "distinct", "slice", "flatten", "groupBy"],
+                  "description": "Transformation operation to apply"
+                },
+                "name": { "type": "string", "description": "Variable name to store the result" },
+                "condition": { "type": "string", "description": "Filter condition (JS expression using item)" },
+                "by": { "type": "string", "description": "Field name for sort/unique/groupBy" },
+                "field": { "type": "string", "description": "Alias for by" },
+                "order": { "type": "string", "enum": ["asc", "desc"], "description": "Sort order" },
+                "template": { "description": "Map template object or expression" },
+                "reducer": { "type": "string", "description": "Reduce expression (uses acc, item)" },
+                "initial": { "description": "Initial value for reduce" },
+                "start": { "type": "integer", "description": "Slice start index" },
+                "end": { "type": "integer", "description": "Slice end index" },
+                "depth": { "type": "integer", "description": "Flatten depth (default 1)" }
+              },
+              "additionalProperties": false
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -452,7 +789,27 @@
           ],
           "description": "Sort expression or configuration"
         },
-        "map": { "type": "string", "description": "Map/transform expression" }
+        "map": { "type": "string", "description": "Map/transform expression" },
+        "reduce": {
+          "type": "object",
+          "properties": {
+            "reducer": { "type": "string" },
+            "initial": {}
+          },
+          "additionalProperties": false
+        },
+        "unique": { "type": "string", "description": "Field for deduplication" },
+        "distinct": { "type": "string", "description": "Alias for unique" },
+        "slice": {
+          "type": "object",
+          "properties": {
+            "start": { "type": "integer" },
+            "end": { "type": "integer" }
+          },
+          "additionalProperties": false
+        },
+        "flatten": { "type": "integer", "description": "Flatten depth" },
+        "groupBy": { "type": "string", "description": "Field to group by" }
       },
       "additionalProperties": false
     },
@@ -461,18 +818,29 @@
       "required": ["try"],
       "properties": {
         "try": {
-          "type": "array",
-          "items": { "$ref": "#/definitions/flowStep" },
-          "description": "Steps to attempt"
+          "type": "object",
+          "properties": {
+            "flow": { "type": "array", "items": { "$ref": "#/definitions/flowStep" } },
+            "steps": { "type": "array", "items": { "$ref": "#/definitions/flowStep" } }
+          },
+          "description": "Steps to attempt (use flow or steps array)"
         },
         "catch": {
-          "type": "array",
-          "items": { "$ref": "#/definitions/flowStep" },
+          "type": "object",
+          "properties": {
+            "flow": { "type": "array", "items": { "$ref": "#/definitions/flowStep" } },
+            "steps": { "type": "array", "items": { "$ref": "#/definitions/flowStep" } },
+            "error": { "type": "string", "description": "Variable name for caught error" },
+            "as": { "type": "string", "description": "Alias for error variable name" }
+          },
           "description": "Steps to execute if an error occurs"
         },
         "finally": {
-          "type": "array",
-          "items": { "$ref": "#/definitions/flowStep" },
+          "type": "object",
+          "properties": {
+            "flow": { "type": "array", "items": { "$ref": "#/definitions/flowStep" } },
+            "steps": { "type": "array", "items": { "$ref": "#/definitions/flowStep" } }
+          },
           "description": "Steps to always execute regardless of success or failure"
         }
       },
@@ -484,12 +852,17 @@
       "properties": {
         "external_call": {
           "type": "object",
-          "required": ["method"],
+          "required": ["type"],
           "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["http", "shell"],
+              "description": "Call type: http for API requests, shell for system commands"
+            },
             "method": {
               "type": "string",
-              "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "shell"],
-              "description": "HTTP method or 'shell' for system commands"
+              "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
+              "description": "HTTP method (when type is http)"
             },
             "url": { "type": "string", "description": "URL for HTTP requests" },
             "headers": {
@@ -505,7 +878,9 @@
               ]
             },
             "response_as": { "type": "string", "description": "Variable name to store the response" },
-            "command": { "type": "string", "description": "Shell command to execute (when method is 'shell')" }
+            "as": { "type": "string", "description": "Alias for response_as" },
+            "name": { "type": "string", "description": "Alias for response_as" },
+            "command": { "type": "string", "description": "Shell command to execute (when type is shell)" }
           },
           "additionalProperties": false
         }
@@ -517,16 +892,74 @@
       "required": ["parallel"],
       "properties": {
         "parallel": {
-          "type": "array",
-          "items": {
-            "type": "array",
-            "items": { "$ref": "#/definitions/flowStep" }
+          "type": "object",
+          "properties": {
+            "tasks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "flow": { "type": "array", "items": { "$ref": "#/definitions/flowStep" } },
+                  "steps": { "type": "array", "items": { "$ref": "#/definitions/flowStep" } }
+                }
+              },
+              "description": "Array of task branches to execute in parallel"
+            },
+            "branches": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "flow": { "type": "array", "items": { "$ref": "#/definitions/flowStep" } },
+                  "steps": { "type": "array", "items": { "$ref": "#/definitions/flowStep" } }
+                }
+              },
+              "description": "Alias for tasks"
+            },
+            "waitAll": { "type": "boolean", "description": "Wait for all branches to complete" },
+            "merge_results": {
+              "oneOf": [
+                { "type": "boolean" },
+                { "type": "string" }
+              ],
+              "description": "Merge results from parallel branches"
+            }
           },
-          "description": "Array of flow arrays to execute in parallel"
-        },
-        "merge_results": { "type": "string", "description": "Variable name to store merged results from all parallel branches" }
+          "description": "Parallel execution branches"
+        }
       },
       "additionalProperties": false
+    },
+    "useStep": {
+      "type": "object",
+      "required": ["use"],
+      "properties": {
+        "use": { "type": "string", "description": "Reference to an imported flow to invoke" },
+        "with": {
+          "type": "object",
+          "description": "Parameters to pass to the invoked flow",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "locateObject": {
+      "type": "object",
+      "properties": {
+        "prompt": { "type": "string" },
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "url": { "type": "string" }
+            },
+            "required": ["name", "url"]
+          }
+        }
+      },
+      "required": ["prompt"]
     }
   }
 }

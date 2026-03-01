@@ -5,6 +5,14 @@ const fs = require('fs');
 const path = require('path');
 
 const { detect } = require('../detector/mode-detector');
+const {
+  looksLikeFilePath,
+  getNestedFlow,
+  getParallelBranches,
+  getLoopItemVar,
+  walkFlow,
+  walkAllFlows,
+} = require('../utils/yaml-helpers');
 
 // Load keyword schemas once at module load time.
 const nativeKeywords = JSON.parse(
@@ -33,6 +41,19 @@ const PLATFORM_KEYS = new Set(['web', 'android', 'ios', 'computer']);
 // Valid loop types.
 const LOOP_TYPES = new Set(['for', 'while', 'repeat']);
 
+// Valid HTTP methods for external_call.
+const VALID_HTTP_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']);
+
+// Valid web platform config sub-fields.
+const VALID_WEB_CONFIG_FIELDS = new Set([
+  'url', 'headless', 'viewportWidth', 'viewportHeight', 'userAgent',
+  'waitForNetworkIdle', 'acceptInsecureCerts', 'serve', 'bridgeMode',
+  'chromeArgs', 'deviceScaleFactor', 'cookie', 'forceSameTabNavigation', 'output',
+  'waitForNavigationTimeout', 'waitForNetworkIdleTimeout',
+  'enableTouchEventsInActionSpace', 'forceChromeSelectRendering',
+  'closeNewTabsAfterDisconnect',
+]);
+
 // Required fields per loop type.
 const LOOP_REQUIRED_FIELDS = {
   for: ['items'],
@@ -40,28 +61,17 @@ const LOOP_REQUIRED_FIELDS = {
   repeat: ['count'],
 };
 
-// Regex for template variable references: ${varName} or ${varName.prop}
-const TEMPLATE_VAR_REGEX = /\$\{([^}]+)\}/g;
+// Valid data_transform operations.
+const VALID_OPERATIONS = ['filter', 'sort', 'map', 'reduce', 'unique', 'distinct', 'slice', 'flatten', 'groupBy'];
+
+// Pattern for template variable references: ${varName} or ${varName.prop}
+// Non-global — avoids stateful lastIndex issues. Use matchAll or new RegExp for
+// iteration.
+const TEMPLATE_VAR_PATTERN = /\$\{([^}]+)\}/;
 
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Determine whether `input` looks like a file path rather than raw YAML
- * content. A string is treated as a path when it does not contain a newline
- * and ends with `.yaml` or `.yml`.
- *
- * @param {string} input
- * @returns {boolean}
- */
-function looksLikeFilePath(input) {
-  if (input.includes('\n')) {
-    return false;
-  }
-  const ext = path.extname(input).toLowerCase();
-  return ext === '.yaml' || ext === '.yml';
-}
 
 /**
  * Read YAML content - either from a file path or treat the input as a raw
@@ -156,15 +166,27 @@ function validateStructure(doc, errors, warnings) {
   const hasPlatform = rootKeys.some((key) => PLATFORM_KEYS.has(key));
   if (!hasPlatform) {
     errors.push(makeError(
-      'Document must contain at least one platform config key at root level: web, android, ios, or computer.',
+      'Document must contain at least one platform config key at root level: web, android, ios, or computer. Example: web:\n  url: "https://example.com"',
       '/'
     ));
+  }
+
+  // Validate web config sub-fields if present.
+  if (doc.web && typeof doc.web === 'object' && !Array.isArray(doc.web)) {
+    for (const key of Object.keys(doc.web)) {
+      if (!VALID_WEB_CONFIG_FIELDS.has(key)) {
+        warnings.push(makeWarning(
+          `Unknown web config field "${key}". Known fields: ${[...VALID_WEB_CONFIG_FIELDS].join(', ')}.`,
+          `/web/${key}`
+        ));
+      }
+    }
   }
 
   // Check for tasks array.
   if (!doc.tasks) {
     errors.push(makeError(
-      'Document must contain a "tasks" array at root level.',
+      'Document must contain a "tasks" array at root level. Example: tasks:\n  - name: "my task"\n    flow:\n      - aiTap: "button"',
       '/tasks'
     ));
     return; // Cannot validate individual tasks if there is no tasks key.
@@ -205,9 +227,10 @@ function validateStructure(doc, errors, warnings) {
       ));
     }
 
-    if (!Array.isArray(task.flow)) {
+    const taskFlow = getNestedFlow(task);
+    if (!Array.isArray(taskFlow)) {
       errors.push(makeError(
-        `Task must have a "flow" property of type array.`,
+        `Task must have a "flow" (or "steps") property of type array.`,
         `${taskPath}/flow`
       ));
     }
@@ -270,20 +293,74 @@ function validateNativeMode(allKeys, warnings) {
  * @param {Array} warnings - Warning accumulator.
  */
 function validateExtendedMode(doc, errors, warnings) {
+  // Check that features declaration exists and matches actual usage.
+  validateFeaturesDeclaration(doc, warnings);
+
   // Walk every flow in every task and validate extended constructs.
-  if (!doc.tasks || !Array.isArray(doc.tasks)) {
+  // walkAllFlows handles recursion into nested constructs automatically,
+  // so validateExtendedStep no longer needs to recurse on its own.
+  walkAllFlows(doc, function (step, stepPath) {
+    validateExtendedStep(step, stepPath, errors, warnings);
+    validateCommonStepValues(step, stepPath, warnings);
+  });
+}
+
+/**
+ * Validate that the `features` declaration in an extended mode document
+ * exists and is consistent with the features actually used.
+ *
+ * @param {object} doc - Parsed document.
+ * @param {Array} warnings - Warning accumulator.
+ */
+function validateFeaturesDeclaration(doc, warnings) {
+  // Detect actually used features by scanning keywords.
+  const detection = detect(JSON.stringify(doc));
+  const usedFeatures = new Set(detection.features);
+
+  const declaredFeatures = doc.features;
+
+  // Check if features declaration is missing.
+  if (!declaredFeatures) {
+    if (usedFeatures.size > 0) {
+      warnings.push(makeWarning(
+        'Extended mode document is missing "features" declaration. ' +
+        'Detected features: [' + Array.from(usedFeatures).join(', ') + ']. ' +
+        'Add: features: [' + Array.from(usedFeatures).join(', ') + ']',
+        '/features'
+      ));
+    }
     return;
   }
 
-  doc.tasks.forEach((task, taskIndex) => {
-    if (!task || !Array.isArray(task.flow)) {
-      return;
+  if (!Array.isArray(declaredFeatures)) {
+    warnings.push(makeWarning(
+      '"features" should be an array of feature names.',
+      '/features'
+    ));
+    return;
+  }
+
+  const declaredSet = new Set(declaredFeatures);
+
+  // Check for used but undeclared features.
+  for (const feature of usedFeatures) {
+    if (!declaredSet.has(feature)) {
+      warnings.push(makeWarning(
+        'Feature "' + feature + '" is used in the document but not declared in "features" array.',
+        '/features'
+      ));
     }
-    task.flow.forEach((step, stepIndex) => {
-      const stepPath = `/tasks[${taskIndex}]/flow[${stepIndex}]`;
-      validateExtendedStep(step, stepPath, errors, warnings);
-    });
-  });
+  }
+
+  // Check for declared but unused features.
+  for (const feature of declaredSet) {
+    if (!usedFeatures.has(feature)) {
+      warnings.push(makeWarning(
+        'Feature "' + feature + '" is declared in "features" but does not appear to be used.',
+        '/features'
+      ));
+    }
+  }
 }
 
 /**
@@ -300,220 +377,353 @@ function validateExtendedStep(step, stepPath, errors, warnings) {
     return;
   }
 
-  // --- logic ---
-  if (step.logic !== undefined) {
-    const logic = step.logic;
-    const logicPath = `${stepPath}/logic`;
-
-    if (logic === null || typeof logic !== 'object' || Array.isArray(logic)) {
-      errors.push(makeError('"logic" must be an object.', logicPath));
-    } else {
-      if (logic.if === undefined) {
-        errors.push(makeError('"logic" construct must have an "if" condition.', `${logicPath}/if`));
-      }
-      if (logic.then === undefined) {
-        errors.push(makeError('"logic" construct must have a "then" branch.', `${logicPath}/then`));
-      }
-
-      // Recurse into then/else branches.
-      if (Array.isArray(logic.then)) {
-        logic.then.forEach((s, i) => {
-          validateExtendedStep(s, `${logicPath}/then[${i}]`, errors, warnings);
-        });
-      }
-      if (Array.isArray(logic.else)) {
-        logic.else.forEach((s, i) => {
-          validateExtendedStep(s, `${logicPath}/else[${i}]`, errors, warnings);
-        });
-      }
+  for (const [key, validator] of EXTENDED_STEP_VALIDATORS) {
+    if (step[key] !== undefined) {
+      validator(step, stepPath, errors, warnings);
     }
   }
+}
 
-  // --- loop ---
-  if (step.loop !== undefined) {
-    const loop = step.loop;
-    const loopPath = `${stepPath}/loop`;
+// ---------------------------------------------------------------------------
+// Per-construct validators (dispatched from validateExtendedStep)
+// ---------------------------------------------------------------------------
 
-    if (loop === null || typeof loop !== 'object' || Array.isArray(loop)) {
-      errors.push(makeError('"loop" must be an object.', loopPath));
-    } else {
-      if (!loop.type) {
-        errors.push(makeError('"loop" construct must have a "type" (for, while, or repeat).', `${loopPath}/type`));
-      } else if (!LOOP_TYPES.has(loop.type)) {
+function validateLogicStep(step, stepPath, errors) {
+  const logic = step.logic;
+  const logicPath = `${stepPath}/logic`;
+
+  if (logic === null || typeof logic !== 'object' || Array.isArray(logic)) {
+    errors.push(makeError('"logic" must be an object.', logicPath));
+    return;
+  }
+  if (logic.if === undefined) {
+    errors.push(makeError('"logic" construct must have an "if" condition.', `${logicPath}/if`));
+  }
+  if (logic.then === undefined) {
+    errors.push(makeError('"logic" construct must have a "then" branch.', `${logicPath}/then`));
+  }
+}
+
+function validateLoopStep(step, stepPath, errors, warnings) {
+  const loop = step.loop;
+  const loopPath = `${stepPath}/loop`;
+
+  if (loop === null || typeof loop !== 'object' || Array.isArray(loop)) {
+    errors.push(makeError('"loop" must be an object.', loopPath));
+    return;
+  }
+
+  if (!loop.type) {
+    errors.push(makeError('"loop" construct must have a "type". Valid types: for (iterate items), while (condition-based), repeat (fixed count). Add: type: for', `${loopPath}/type`));
+  } else if (!LOOP_TYPES.has(loop.type)) {
+    errors.push(makeError(
+      `Invalid loop type "${loop.type}". Must be one of: for, while, repeat.`,
+      `${loopPath}/type`
+    ));
+  } else {
+    const required = LOOP_REQUIRED_FIELDS[loop.type] || [];
+    for (const field of required) {
+      // For repeat loops, accept `times` as alias for `count`
+      const satisfied = loop[field] !== undefined ||
+        (field === 'count' && loop.times !== undefined);
+      if (!satisfied) {
         errors.push(makeError(
-          `Invalid loop type "${loop.type}". Must be one of: for, while, repeat.`,
-          `${loopPath}/type`
+          `Loop of type "${loop.type}" requires a "${field}" field.`,
+          `${loopPath}/${field}`
         ));
-      } else {
-        // Check required fields for the specific loop type.
-        const required = LOOP_REQUIRED_FIELDS[loop.type] || [];
-        for (const field of required) {
-          if (loop[field] === undefined) {
-            errors.push(makeError(
-              `Loop of type "${loop.type}" requires a "${field}" field.`,
-              `${loopPath}/${field}`
-            ));
-          }
-        }
       }
+    }
 
-      // Recurse into the loop's flow (accept both "flow" and "steps" keys).
-      const loopFlow = loop.flow || loop.steps;
-      if (Array.isArray(loopFlow)) {
-        if (loopFlow.length === 0) {
+    // Warn on non-positive count for repeat loops (count or times alias).
+    if (loop.type === 'repeat') {
+      const countVal = loop.count !== undefined ? loop.count : loop.times;
+      if (countVal !== undefined) {
+        const c = typeof countVal === 'number' ? countVal : Number(countVal);
+        if (typeof countVal === 'number' && (c <= 0 || !Number.isFinite(c))) {
           warnings.push(makeWarning(
-            '"loop" has an empty flow/steps array.',
-            `${loopPath}/flow`
+            `Loop count ${countVal} is invalid. Must be a positive number.`,
+            `${loopPath}/count`
           ));
         }
-        loopFlow.forEach((s, i) => {
-          validateExtendedStep(s, `${loopPath}/flow[${i}]`, errors, warnings);
-        });
-      } else if (!loopFlow) {
+      }
+    }
+
+    // Warn on non-positive maxIterations.
+    if (loop.maxIterations !== undefined) {
+      const m = loop.maxIterations;
+      if (typeof m === 'number' && (m <= 0 || !Number.isFinite(m))) {
         warnings.push(makeWarning(
-          '"loop" is missing a "flow" or "steps" array.',
-          `${loopPath}/flow`
+          `Loop maxIterations ${m} is invalid. Must be a positive number.`,
+          `${loopPath}/maxIterations`
         ));
       }
     }
-  }
 
-  // --- try ---
-  if (step.try !== undefined) {
-    const tryBlock = step.try;
-    const tryPath = `${stepPath}/try`;
-
-    if (tryBlock === null || typeof tryBlock !== 'object' || Array.isArray(tryBlock)) {
-      // try can also be expressed as an object with a flow key, or the value
-      // itself can be the flow array in some schemas. We require an object with
-      // a flow array.
-      errors.push(makeError('"try" must be an object with a "flow" array.', tryPath));
-    } else {
-      // Accept both "flow" and "steps" keys for try/catch/finally blocks.
-      const tryFlow = tryBlock.flow || tryBlock.steps;
-      if (!Array.isArray(tryFlow)) {
-        errors.push(makeError('"try" construct must have a "flow" (or "steps") array.', `${tryPath}/flow`));
-      } else {
-        tryFlow.forEach((s, i) => {
-          validateExtendedStep(s, `${tryPath}/flow[${i}]`, errors, warnings);
-        });
-      }
-
-      // Recurse into catch/finally if present (accept both "flow" and "steps").
-      const catchBlock = tryBlock.catch;
-      if (catchBlock) {
-        const catchFlow = catchBlock.flow || catchBlock.steps;
-        if (Array.isArray(catchFlow)) {
-          catchFlow.forEach((s, i) => {
-            validateExtendedStep(s, `${tryPath}/catch/flow[${i}]`, errors, warnings);
-          });
-        }
-      }
-      const finallyBlock = tryBlock.finally;
-      if (finallyBlock) {
-        const finallyFlow = finallyBlock.flow || finallyBlock.steps;
-        if (Array.isArray(finallyFlow)) {
-          finallyFlow.forEach((s, i) => {
-            validateExtendedStep(s, `${tryPath}/finally/flow[${i}]`, errors, warnings);
-          });
-        }
-      }
+    // Warn if while loop has no maxIterations (safety best practice).
+    if (loop.type === 'while' && loop.maxIterations === undefined) {
+      warnings.push(makeWarning(
+        'While loop has no "maxIterations" safety limit. Consider adding one to prevent infinite loops.',
+        `${loopPath}/maxIterations`
+      ));
     }
   }
 
-  // --- external_call ---
-  if (step.external_call !== undefined) {
-    const call = step.external_call;
-    const callPath = `${stepPath}/external_call`;
+  const loopFlow = getNestedFlow(loop);
+  if (Array.isArray(loopFlow)) {
+    if (loopFlow.length === 0) {
+      warnings.push(makeWarning('"loop" has an empty flow/steps array.', `${loopPath}/flow`));
+    }
+  } else if (!loopFlow) {
+    warnings.push(makeWarning('"loop" is missing a "flow" or "steps" array.', `${loopPath}/flow`));
+  }
+}
 
-    if (call === null || typeof call !== 'object' || Array.isArray(call)) {
-      errors.push(makeError('"external_call" must be an object.', callPath));
-    } else {
-      if (!call.type) {
-        errors.push(makeError(
-          '"external_call" must have a "type" (http or shell).',
-          `${callPath}/type`
-        ));
-      } else if (call.type !== 'http' && call.type !== 'shell') {
-        errors.push(makeError(
-          `Invalid external_call type "${call.type}". Must be "http" or "shell".`,
-          `${callPath}/type`
-        ));
-      }
+function validateTryStep(step, stepPath, errors) {
+  const tryBlock = step.try;
+  const tryPath = `${stepPath}/try`;
+
+  if (tryBlock === null || typeof tryBlock !== 'object' || Array.isArray(tryBlock)) {
+    errors.push(makeError('"try" must be an object with a "flow" array.', tryPath));
+    return;
+  }
+  const tryFlow = getNestedFlow(tryBlock);
+  if (!Array.isArray(tryFlow)) {
+    errors.push(makeError('"try" construct must have a "flow" (or "steps") array.', `${tryPath}/flow`));
+  }
+
+  // Validate catch block structure (sibling of try)
+  if (step.catch && typeof step.catch === 'object') {
+    const catchFlow = getNestedFlow(step.catch);
+    if (!Array.isArray(catchFlow)) {
+      errors.push(makeError('"catch" must have a "flow" (or "steps") array.', `${stepPath}/catch/flow`));
     }
   }
 
-  // --- parallel ---
-  if (step.parallel !== undefined) {
-    const par = step.parallel;
-    const parPath = `${stepPath}/parallel`;
+  // Validate finally block structure (sibling of try)
+  if (step.finally && typeof step.finally === 'object') {
+    const finallyFlow = getNestedFlow(step.finally);
+    if (!Array.isArray(finallyFlow)) {
+      errors.push(makeError('"finally" must have a "flow" (or "steps") array.', `${stepPath}/finally/flow`));
+    }
+  }
+}
 
-    if (par === null || typeof par !== 'object' || Array.isArray(par)) {
-      errors.push(makeError('"parallel" must be an object.', parPath));
-    } else {
-      const parTasks = par.tasks || par.branches;
-      if (!Array.isArray(parTasks)) {
-        errors.push(makeError(
-          '"parallel" construct must have a "tasks" or "branches" array.',
-          `${parPath}/tasks`
-        ));
-      } else {
-        parTasks.forEach((t, i) => {
-          const tFlow = t && (t.flow || t.steps);
-          if (Array.isArray(tFlow)) {
-            tFlow.forEach((s, si) => {
-              validateExtendedStep(s, `${parPath}/tasks[${i}]/flow[${si}]`, errors, warnings);
-            });
-          }
-        });
-      }
+function validateExternalCallStep(step, stepPath, errors, warnings) {
+  const call = step.external_call;
+  const callPath = `${stepPath}/external_call`;
+
+  if (call === null || typeof call !== 'object' || Array.isArray(call)) {
+    errors.push(makeError('"external_call" must be an object.', callPath));
+    return;
+  }
+
+  if (!call.type) {
+    errors.push(makeError('"external_call" must have a "type" (http or shell). Use "http" for API calls or "shell" for system commands.', `${callPath}/type`));
+  } else if (call.type !== 'http' && call.type !== 'shell') {
+    errors.push(makeError(`Invalid external_call type "${call.type}". Must be "http" or "shell".`, `${callPath}/type`));
+  } else if (call.type === 'http' && !call.url) {
+    errors.push(makeError('"external_call" of type "http" must have a "url" field.', `${callPath}/url`));
+  } else if (call.type === 'shell' && !call.command) {
+    errors.push(makeError('"external_call" of type "shell" must have a "command" field.', `${callPath}/command`));
+  }
+
+  // Validate HTTP method if present.
+  if (call.type === 'http' && call.method) {
+    const method = String(call.method).toUpperCase();
+    if (!VALID_HTTP_METHODS.has(method)) {
+      warnings.push(makeWarning(
+        `Unknown HTTP method "${call.method}". Expected one of: ${[...VALID_HTTP_METHODS].join(', ')}.`,
+        `${callPath}/method`
+      ));
     }
   }
 
-  // --- use ---
-  if (step.use !== undefined) {
-    const useRef = step.use;
-    const usePath = `${stepPath}/use`;
+  // A3: Shell command injection warning
+  if (call.type === 'shell' && typeof call.command === 'string' && TEMPLATE_VAR_PATTERN.test(call.command)) {
+    warnings.push(makeWarning(
+      `Shell command contains template variables (${call.command}). User-controlled input in shell commands may lead to command injection.`,
+      `${callPath}/command`
+    ));
+  }
+}
 
-    if (typeof useRef !== 'string' || useRef.trim() === '') {
-      errors.push(makeError('"use" must be a non-empty string (flow reference or path).', usePath));
+function validateTimeoutStep(step, stepPath, _errors, warnings) {
+  const t = step.timeout;
+  if (typeof t === 'number' && (t <= 0 || !Number.isFinite(t))) {
+    warnings.push(makeWarning(
+      `Timeout value ${t} is invalid. Must be a positive number (milliseconds).`,
+      `${stepPath}/timeout`
+    ));
+  }
+}
+
+function validateParallelStep(step, stepPath, errors) {
+  const par = step.parallel;
+  const parPath = `${stepPath}/parallel`;
+
+  if (par === null || typeof par !== 'object' || Array.isArray(par)) {
+    errors.push(makeError('"parallel" must be an object.', parPath));
+    return;
+  }
+  const parTasks = getParallelBranches(par);
+  if (!Array.isArray(parTasks)) {
+    errors.push(makeError('"parallel" construct must have a "tasks" or "branches" array.', `${parPath}/tasks`));
+  }
+}
+
+function validateUseStep(step, stepPath, errors) {
+  const useRef = step.use;
+  const usePath = `${stepPath}/use`;
+
+  if (typeof useRef !== 'string' || useRef.trim() === '') {
+    errors.push(makeError('"use" must be a non-empty string (flow reference or path).', usePath));
+  }
+  if (step.with !== undefined && (step.with === null || typeof step.with !== 'object' || Array.isArray(step.with))) {
+    errors.push(makeError('"with" must be an object mapping parameter names to values.', `${stepPath}/with`));
+  }
+}
+
+function validateDataTransformStep(step, stepPath, errors, warnings) {
+  const transform = step.data_transform;
+  const transformPath = `${stepPath}/data_transform`;
+
+  if (transform === null || typeof transform !== 'object' || Array.isArray(transform)) {
+    errors.push(makeError('"data_transform" must be an object.', transformPath));
+    return;
+  }
+
+  if (transform.operation) {
+    if (!VALID_OPERATIONS.includes(transform.operation)) {
+      errors.push(makeError(
+        'Invalid data_transform operation "' + transform.operation + '". Must be one of: ' + VALID_OPERATIONS.join(', ') + '.',
+        `${transformPath}/operation`
+      ));
     }
-
-    if (step.with !== undefined && (step.with === null || typeof step.with !== 'object' || Array.isArray(step.with))) {
-      errors.push(makeError('"with" must be an object mapping parameter names to values.', `${stepPath}/with`));
+    if (!transform.source) {
+      warnings.push(makeWarning('"data_transform" with "operation" should have a "source" field.', `${transformPath}/source`));
     }
   }
 
-  // --- data_transform ---
-  if (step.data_transform !== undefined) {
-    const transform = step.data_transform;
-    const transformPath = `${stepPath}/data_transform`;
+  if (transform.operations && !Array.isArray(transform.operations)) {
+    errors.push(makeError('"data_transform.operations" must be an array.', `${transformPath}/operations`));
+  }
+}
 
-    if (transform === null || typeof transform !== 'object' || Array.isArray(transform)) {
-      errors.push(makeError('"data_transform" must be an object.', transformPath));
-    } else {
-      // Flat format: { source, operation, name }
-      const VALID_OPERATIONS = ['filter', 'sort', 'map', 'reduce', 'unique', 'distinct', 'slice', 'flatten', 'groupBy'];
+/**
+ * Dispatch table mapping step keys to their validators.
+ * Order matches the original validateExtendedStep evaluation order.
+ */
+const EXTENDED_STEP_VALIDATORS = [
+  ['logic', validateLogicStep],
+  ['loop', validateLoopStep],
+  ['try', validateTryStep],
+  ['external_call', validateExternalCallStep],
+  ['timeout', validateTimeoutStep],
+  ['parallel', validateParallelStep],
+  ['use', validateUseStep],
+  ['data_transform', validateDataTransformStep],
+];
 
-      if (transform.operation) {
-        if (!VALID_OPERATIONS.includes(transform.operation)) {
-          errors.push(makeError(
-            'Invalid data_transform operation "' + transform.operation + '". Must be one of: ' + VALID_OPERATIONS.join(', ') + '.',
-            `${transformPath}/operation`
-          ));
-        }
-        if (!transform.source) {
+// ---------------------------------------------------------------------------
+// Level 3b: Native action format validation
+// ---------------------------------------------------------------------------
+
+/**
+ * Actions whose primary value should be a plain string in native CLI mode.
+ * When these are given as an object with specific sub-keys, the Midscene CLI
+ * may not parse them correctly (the sub-key values become undefined).
+ *
+ * Map: actionKeyword -> sub-key that signals the incorrect nested format.
+ */
+const NATIVE_FLAT_ACTIONS = {
+  aiWaitFor: 'condition',
+  aiInput: 'locator',
+  aiTap: 'locator',
+  aiHover: 'locator',
+  aiAssert: 'assertion',
+  aiScroll: 'locator',
+};
+
+/**
+ * Walk all flow steps in native mode and warn when an action uses the nested
+ * object format instead of the required flat/sibling format.
+ *
+ * Example of problematic pattern:
+ *   - aiWaitFor:
+ *       condition: "..."   <-- CLI reads this as undefined
+ *       timeout: 10000
+ *
+ * Correct pattern:
+ *   - aiWaitFor: "..."
+ *     timeout: 10000
+ *
+ * Also warns when `recordToReport` is used without a title value (standalone).
+ *
+ * @param {object} doc - Parsed document.
+ * @param {Array} warnings - Warning accumulator.
+ */
+function validateNativeActionFormats(doc, warnings) {
+  walkAllFlows(doc, function (step, stepPath) {
+    // Check flat-action keywords for incorrect nested object format.
+    for (const [action, nestedKey] of Object.entries(NATIVE_FLAT_ACTIONS)) {
+      if (step[action] !== undefined && typeof step[action] === 'object' && step[action] !== null) {
+        if (step[action][nestedKey] !== undefined) {
           warnings.push(makeWarning(
-            '"data_transform" with "operation" should have a "source" field.',
-            `${transformPath}/source`
+            `"${action}" uses nested object format with "${nestedKey}" sub-key. ` +
+            `In native CLI mode this may cause undefined errors. ` +
+            `Use flat format instead: ${action}: "value" with options as sibling keys.`,
+            `${stepPath}/${action}`
           ));
         }
       }
+    }
 
-      // Nested format: { input, operations }
-      if (transform.operations && !Array.isArray(transform.operations)) {
-        errors.push(makeError('"data_transform.operations" must be an array.', `${transformPath}/operations`));
-      }
+    // Check standalone recordToReport (no title value).
+    if (step.recordToReport === true || step.recordToReport === null) {
+      warnings.push(makeWarning(
+        '"recordToReport" is used without a title value. ' +
+        'Use: recordToReport: "title" with optional content as sibling key.',
+        `${stepPath}/recordToReport`
+      ));
+    }
+
+    // Common step-level value checks (sleep, timeout).
+    validateCommonStepValues(step, stepPath, warnings);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Common step-level value validation (shared by native and extended modes)
+// ---------------------------------------------------------------------------
+
+/**
+ * Validate step-level values that are common across modes (sleep, timeout).
+ */
+function validateCommonStepValues(step, stepPath, warnings) {
+  // Validate sleep values.
+  if (step.sleep !== undefined) {
+    const s = step.sleep;
+    if (typeof s === 'number' && (s < 0 || !Number.isFinite(s))) {
+      warnings.push(makeWarning(
+        `Sleep value ${s} is invalid. Must be a non-negative number (milliseconds).`,
+        `${stepPath}/sleep`
+      ));
+    } else if (typeof s === 'string' && !/^\$\{/.test(s) && isNaN(Number(s))) {
+      warnings.push(makeWarning(
+        `Sleep value "${s}" is not a valid number or template variable.`,
+        `${stepPath}/sleep`
+      ));
+    }
+  }
+
+  // Validate timeout values.
+  if (step.timeout !== undefined) {
+    const t = step.timeout;
+    if (typeof t === 'number' && (t <= 0 || !Number.isFinite(t))) {
+      warnings.push(makeWarning(
+        `Timeout value ${t} is invalid. Must be a positive number (milliseconds).`,
+        `${stepPath}/timeout`
+      ));
     }
   }
 }
@@ -551,32 +761,8 @@ function collectDefinedVariables(doc) {
     }
   }
 
-  if (!doc.tasks || !Array.isArray(doc.tasks)) {
-    return defined;
-  }
-
-  for (const task of doc.tasks) {
-    if (!task || !Array.isArray(task.flow)) {
-      continue;
-    }
-    collectDefinedVariablesFromFlow(task.flow, defined);
-  }
-
-  return defined;
-}
-
-/**
- * Recursively collect defined variables from a flow array.
- *
- * @param {Array} flow
- * @param {Set<string>} defined
- */
-function collectDefinedVariablesFromFlow(flow, defined) {
-  for (const step of flow) {
-    if (step === null || step === undefined || typeof step !== 'object') {
-      continue;
-    }
-
+  // Walk all flow steps to collect defined variables.
+  walkAllFlows(doc, function (step) {
     // variables step: each key becomes a defined variable.
     if (step.variables && typeof step.variables === 'object' && !Array.isArray(step.variables)) {
       for (const varName of Object.keys(step.variables)) {
@@ -614,44 +800,16 @@ function collectDefinedVariablesFromFlow(flow, defined) {
       }
     }
 
-    // Recurse into nested flows.
-    if (step.logic && typeof step.logic === 'object') {
-      if (Array.isArray(step.logic.then)) {
-        collectDefinedVariablesFromFlow(step.logic.then, defined);
-      }
-      if (Array.isArray(step.logic.else)) {
-        collectDefinedVariablesFromFlow(step.logic.else, defined);
-      }
-    }
+    // The loop "as"/"itemVar"/"item" variable is a defined variable within the loop.
     if (step.loop && typeof step.loop === 'object') {
-      const loopFlow = step.loop.flow || step.loop.steps;
-      // The loop "as"/"itemVar"/"item" variable is a defined variable within the loop.
-      const loopVar = step.loop.itemVar || step.loop.as || step.loop.item;
+      const loopVar = getLoopItemVar(step.loop);
       if (typeof loopVar === 'string') {
         defined.add(loopVar);
       }
-      if (Array.isArray(loopFlow)) {
-        collectDefinedVariablesFromFlow(loopFlow, defined);
-      }
     }
-    if (step.try && typeof step.try === 'object') {
-      const tryFlow = step.try.flow || step.try.steps;
-      if (Array.isArray(tryFlow)) {
-        collectDefinedVariablesFromFlow(tryFlow, defined);
-      }
-    }
-    if (step.parallel && typeof step.parallel === 'object') {
-      const parTasks = step.parallel.tasks || step.parallel.branches;
-      if (Array.isArray(parTasks)) {
-        for (const t of parTasks) {
-          const tFlow = t && (t.flow || t.steps);
-          if (Array.isArray(tFlow)) {
-            collectDefinedVariablesFromFlow(tFlow, defined);
-          }
-        }
-      }
-    }
-  }
+  });
+
+  return defined;
 }
 
 /**
@@ -668,10 +826,8 @@ function collectVariableReferences(node, currentPath, result) {
   }
 
   if (typeof node === 'string') {
-    let match;
-    // Reset regex state.
-    TEMPLATE_VAR_REGEX.lastIndex = 0;
-    while ((match = TEMPLATE_VAR_REGEX.exec(node)) !== null) {
+    // Use matchAll with a fresh global regex to avoid stateful lastIndex issues.
+    for (const match of node.matchAll(new RegExp(TEMPLATE_VAR_PATTERN, 'g'))) {
       // Extract the root variable name (before any dots or brackets).
       const fullRef = match[1];
       const rootVar = fullRef.split('.')[0].split('[')[0].trim();
@@ -707,6 +863,10 @@ function validateVariableReferences(doc, warnings) {
   collectVariableReferences(doc, '', references);
 
   for (const ref of references) {
+    // Skip environment variable references — they are resolved at runtime.
+    if (/^ENV[:.]/i.test(ref.varName) || ref.varName === 'process') {
+      continue;
+    }
     if (!defined.has(ref.varName)) {
       warnings.push(makeWarning(
         `Variable "\${${ref.varName}}" is referenced but does not appear to be defined ` +
@@ -718,115 +878,146 @@ function validateVariableReferences(doc, warnings) {
 }
 
 /**
+ * Maximum depth for import chain traversal to prevent infinite recursion
+ * on deeply nested (but non-circular) import graphs.
+ */
+const MAX_IMPORT_DEPTH = 10;
+
+/**
+ * Recursively follow import chains to detect circular imports.
+ *
+ * @param {string} filePath - Resolved path of the YAML file to inspect.
+ * @param {Array} warnings - Warning accumulator.
+ * @param {Array} errors - Error accumulator.
+ * @param {Set<string>} visitedPaths - Set of already-visited resolved paths.
+ */
+function validateImportChain(filePath, warnings, errors, visitedPaths) {
+  if (visitedPaths.size >= MAX_IMPORT_DEPTH) {
+    warnings.push(makeWarning(
+      `Import chain exceeds maximum depth of ${MAX_IMPORT_DEPTH}. Stopping further traversal.`,
+      filePath
+    ));
+    return;
+  }
+
+  let content;
+  try {
+    content = fs.readFileSync(filePath, 'utf8');
+  } catch (_e) {
+    return; // File unreadable — already reported by validateImportPaths
+  }
+
+  let doc;
+  try {
+    doc = yaml.load(content);
+  } catch (_e) {
+    return; // Parse error — not our concern here
+  }
+
+  if (!doc || typeof doc !== 'object') return;
+
+  // Collect import paths from all flows
+  const importPaths = [];
+  const baseDir = path.dirname(filePath);
+
+  if (doc.tasks && Array.isArray(doc.tasks)) {
+    walkAllFlows(doc, function (step) {
+      if (step.import !== undefined && typeof step.import === 'string') {
+        if (!TEMPLATE_VAR_PATTERN.test(step.import)) {
+          importPaths.push(step.import);
+        }
+      }
+    });
+  }
+
+  // Also check top-level import block
+  if (doc.import && Array.isArray(doc.import)) {
+    for (const imp of doc.import) {
+      if (imp.flow && typeof imp.flow === 'string' && !TEMPLATE_VAR_PATTERN.test(imp.flow)) {
+        importPaths.push(imp.flow);
+      }
+    }
+  }
+
+  for (const importPath of importPaths) {
+    const resolved = path.resolve(baseDir, importPath);
+    // On Windows, paths are case-insensitive; normalise to lowercase for comparison.
+    const normalizedResolved = process.platform === 'win32'
+      ? path.normalize(resolved).toLowerCase()
+      : path.normalize(resolved);
+
+    if (visitedPaths.has(normalizedResolved)) {
+      errors.push(makeError(
+        `Circular import detected: "${importPath}" (resolved to "${resolved}") creates a cycle.`,
+        filePath
+      ));
+      continue;
+    }
+
+    const ext = path.extname(resolved).toLowerCase();
+    if ((ext === '.yaml' || ext === '.yml') && fs.existsSync(resolved)) {
+      const newVisited = new Set(visitedPaths);
+      newVisited.add(normalizedResolved);  // already case-normalised above
+      validateImportChain(resolved, warnings, errors, newVisited);
+    }
+  }
+}
+
+/**
  * Collect all import paths from the document and check that the referenced
  * files exist on disk.
  *
  * @param {object} doc - Parsed document.
  * @param {string} basePath - Base directory for resolving relative paths.
  * @param {Array} warnings - Warning accumulator.
+ * @param {Array} errors - Error accumulator.
  */
-function validateImportPaths(doc, basePath, warnings) {
-  if (!doc.tasks || !Array.isArray(doc.tasks)) {
-    return;
-  }
-
+function validateImportPaths(doc, basePath, warnings, errors) {
   const imports = [];
-  collectImports(doc.tasks, '', imports);
+
+  // Walk all flow steps to collect import paths.
+  walkAllFlows(doc, function (step, stepPath) {
+    if (step.import !== undefined && typeof step.import === 'string') {
+      imports.push({
+        importPath: step.import,
+        path: stepPath + '/import',
+      });
+    }
+  });
 
   for (const entry of imports) {
     const importPath = entry.importPath;
 
     // Skip if the path looks like a template variable.
-    if (TEMPLATE_VAR_REGEX.test(importPath)) {
+    if (TEMPLATE_VAR_PATTERN.test(importPath)) {
       continue;
     }
 
     const resolved = path.resolve(basePath, importPath);
+
+    // A2: Path traversal protection — warn if resolved path escapes project dir
+    const normalizedBase = path.normalize(basePath) + path.sep;
+    const normalizedResolved = path.normalize(resolved);
+    if (!normalizedResolved.startsWith(normalizedBase) && normalizedResolved !== path.normalize(basePath)) {
+      warnings.push(makeWarning(
+        `Import path "${importPath}" resolves outside the project directory. This may be a security risk.`,
+        entry.path
+      ));
+    }
+
     if (!fs.existsSync(resolved)) {
       warnings.push(makeWarning(
         `Import path "${importPath}" does not exist (resolved to "${resolved}").`,
         entry.path
       ));
-    }
-  }
-}
-
-/**
- * Recursively collect import step paths from task flows.
- *
- * @param {Array} tasks - Array of tasks or flow steps.
- * @param {string} prefix - Path prefix for diagnostics.
- * @param {Array<{ importPath: string, path: string }>} result
- */
-function collectImports(tasks, prefix, result) {
-  for (let i = 0; i < tasks.length; i++) {
-    const item = tasks[i];
-    if (!item || typeof item !== 'object') {
-      continue;
-    }
-
-    // If this is a task with a flow, recurse into the flow.
-    if (Array.isArray(item.flow)) {
-      const flowPrefix = prefix ? `${prefix}/flow` : `/tasks[${i}]/flow`;
-      collectImportsFromFlow(item.flow, flowPrefix, result);
-    }
-
-    // If the item itself has tasks (top-level tasks array).
-    if (Array.isArray(item.tasks)) {
-      collectImports(item.tasks, `${prefix}[${i}]`, result);
-    }
-  }
-}
-
-/**
- * Recursively collect import paths from a flow array.
- *
- * @param {Array} flow
- * @param {string} prefix
- * @param {Array<{ importPath: string, path: string }>} result
- */
-function collectImportsFromFlow(flow, prefix, result) {
-  for (let i = 0; i < flow.length; i++) {
-    const step = flow[i];
-    if (!step || typeof step !== 'object') {
-      continue;
-    }
-
-    // Direct import step.
-    if (step.import !== undefined && typeof step.import === 'string') {
-      result.push({
-        importPath: step.import,
-        path: `${prefix}[${i}]/import`,
-      });
-    }
-
-    // Recurse into nested constructs.
-    if (step.logic && typeof step.logic === 'object') {
-      if (Array.isArray(step.logic.then)) {
-        collectImportsFromFlow(step.logic.then, `${prefix}[${i}]/logic/then`, result);
-      }
-      if (Array.isArray(step.logic.else)) {
-        collectImportsFromFlow(step.logic.else, `${prefix}[${i}]/logic/else`, result);
-      }
-    }
-    if (step.loop && typeof step.loop === 'object') {
-      const loopFlow = step.loop.flow || step.loop.steps;
-      if (Array.isArray(loopFlow)) {
-        collectImportsFromFlow(loopFlow, `${prefix}[${i}]/loop/flow`, result);
-      }
-    }
-    if (step.try && typeof step.try === 'object') {
-      const tryFlow = step.try.flow || step.try.steps;
-      if (Array.isArray(tryFlow)) {
-        collectImportsFromFlow(tryFlow, `${prefix}[${i}]/try/flow`, result);
-      }
-    }
-    if (step.parallel && typeof step.parallel === 'object' && Array.isArray(step.parallel.tasks)) {
-      for (let t = 0; t < step.parallel.tasks.length; t++) {
-        const pt = step.parallel.tasks[t];
-        if (pt && Array.isArray(pt.flow)) {
-          collectImportsFromFlow(pt.flow, `${prefix}[${i}]/parallel/tasks[${t}]/flow`, result);
-        }
+    } else {
+      // A4: Circular import detection for existing YAML files
+      const ext = path.extname(resolved).toLowerCase();
+      if (ext === '.yaml' || ext === '.yml') {
+        const normFn = process.platform === 'win32' ? (p) => path.normalize(p).toLowerCase() : path.normalize;
+        const visitedPaths = new Set([normFn(basePath)]);
+        visitedPaths.add(normFn(resolved));
+        validateImportChain(resolved, warnings, errors, visitedPaths);
       }
     }
   }
@@ -918,6 +1109,8 @@ function validate(yamlInput, options) {
 
   if (mode === 'native') {
     validateNativeMode(allKeys, warnings);
+    // Level 3b: Check that native actions use the flat/sibling format.
+    validateNativeActionFormats(doc, warnings);
   } else if (mode === 'extended') {
     validateExtendedMode(doc, errors, warnings);
   }
@@ -926,7 +1119,7 @@ function validate(yamlInput, options) {
   // Level 4: Semantic validation
   // ------------------------------------------------------------------
   validateVariableReferences(doc, warnings);
-  validateImportPaths(doc, basePath, warnings);
+  validateImportPaths(doc, basePath, warnings, errors);
 
   // ------------------------------------------------------------------
   // Result

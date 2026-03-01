@@ -2,6 +2,7 @@ const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const { resolveLocalBin, normaliseExecError } = require('./runner-utils');
 
 /**
  * Check if a YAML file exists and is readable.
@@ -67,18 +68,7 @@ function run(yamlPath, options = {}) {
 
     return { success: true, reportDir: reportDir };
   } catch (error) {
-    // Distinguish between timeout, signal kill, and normal exit code errors
-    let errorMessage = error.message;
-    let exitCode = error.status;
-
-    if (error.killed) {
-      errorMessage = 'Process was killed (timeout or signal)';
-      exitCode = exitCode || 'KILLED';
-    } else if (exitCode === null || exitCode === undefined) {
-      errorMessage = 'Process exited without a status code: ' + error.message;
-      exitCode = 'UNKNOWN';
-    }
-
+    const { errorMessage, exitCode } = normaliseExecError(error);
     return {
       success: false,
       error: errorMessage,
@@ -93,12 +83,7 @@ function run(yamlPath, options = {}) {
  * @returns {string}
  */
 function resolveMidsceneCommand() {
-  const isWin = os.platform() === 'win32';
-  const localBin = path.resolve(__dirname, '..', '..', 'node_modules', '.bin', 'midscene' + (isWin ? '.cmd' : ''));
-  if (fs.existsSync(localBin)) {
-    return '"' + localBin + '"';
-  }
-  return 'npx @midscene/web@1';
+  return resolveLocalBin('midscene', 'npx @midscene/web@1');
 }
 
 /**

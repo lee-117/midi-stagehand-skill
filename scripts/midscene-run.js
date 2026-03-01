@@ -81,13 +81,15 @@ function parseArgs(argv) {
 // ---------------------------------------------------------------------------
 function showHelp() {
   console.log(`
-Usage: midscene-run <yaml-file> [options]
+Usage: midscene-run <yaml-file|glob-pattern> [options]
 
 Execute a Midscene YAML Superset file. Native YAML files are run directly
 via the Midscene CLI; extended files are transpiled to TypeScript first.
 
 Positional arguments:
-  <yaml-file>              Path to the YAML file to execute (required)
+  <yaml-file>              Path to the YAML file to execute (required).
+                           Supports glob patterns for batch execution
+                           (e.g. "tests/**/*.yaml").
 
 Options:
   --platform <target>      Target platform: web | android | ios | computer
@@ -104,63 +106,59 @@ Examples:
   midscene-run tests/login.yaml
   midscene-run tests/checkout.yaml --platform web --template playwright
   midscene-run tests/extended.yaml --dry-run --output-ts ./generated.ts
+  midscene-run "tests/**/*.yaml"             # batch: run all YAML files
+  midscene-run "tests/smoke-*.yaml"          # batch: run matching files
 `);
 }
 
 // ---------------------------------------------------------------------------
-// Validator helper – tries to load the validator if it exists
+// Validator helper
 // ---------------------------------------------------------------------------
 function tryValidate(yamlPath) {
-  // Attempt to load the validator module; it may not exist yet
-  const validatorPaths = [
-    path.resolve(__dirname, '../src/validator/yaml-validator.js'),
-    path.resolve(__dirname, '../src/validator/index.js'),
-    path.resolve(__dirname, '../src/validator/validator.js'),
-    path.resolve(__dirname, '../src/validator/schema-validator.js'),
-  ];
-
-  for (const vpath of validatorPaths) {
-    if (fs.existsSync(vpath)) {
-      try {
-        const validator = require(vpath);
-        const validateFn = validator.validate || validator.default;
-        if (typeof validateFn === 'function') {
-          return validateFn(yamlPath);
-        }
-      } catch (e) {
-        // Validator module failed to load – skip validation
-      }
-    }
+  try {
+    const { validate } = require('../src/validator/yaml-validator');
+    return validate(yamlPath);
+  } catch (_e) {
+    // Validator module failed to load – skip validation
+    return { valid: true, errors: [], warnings: [] };
   }
-
-  // No validator found – return a passing result
-  return { valid: true, errors: [], warnings: [] };
 }
 
 // ---------------------------------------------------------------------------
-// Transpiler helper – tries to load the transpiler if it exists
+// Transpiler helper
 // ---------------------------------------------------------------------------
 function tryTranspile(yamlPath, options) {
-  const transpilerPaths = [
-    path.resolve(__dirname, '../src/transpiler/index.js'),
-    path.resolve(__dirname, '../src/transpiler/transpiler.js'),
-  ];
+  try {
+    const { transpile } = require('../src/transpiler/transpiler');
+    return transpile(yamlPath, options);
+  } catch (e) {
+    return { error: 'Transpiler error: ' + e.message };
+  }
+}
 
-  for (const tpath of transpilerPaths) {
-    if (fs.existsSync(tpath)) {
-      try {
-        const transpiler = require(tpath);
-        const transpileFn = transpiler.transpile || transpiler.default;
-        if (typeof transpileFn === 'function') {
-          return transpileFn(yamlPath, options);
-        }
-      } catch (e) {
-        return { success: false, error: `Transpiler error: ${e.message}` };
-      }
-    }
+// ---------------------------------------------------------------------------
+// Glob helper – resolve a path or glob pattern to an array of YAML files
+// ---------------------------------------------------------------------------
+function resolveYamlFiles(inputPath) {
+  // Check if the input contains glob characters.
+  if (inputPath.includes('*') || inputPath.includes('?') || inputPath.includes('{')) {
+    const matched = fs.globSync(inputPath, { cwd: process.cwd() })
+      .map(f => path.resolve(f))
+      .filter(f => {
+        const ext = path.extname(f).toLowerCase();
+        return ext === '.yaml' || ext === '.yml';
+      })
+      .sort();
+
+    return matched;
   }
 
-  return { success: false, error: 'Transpiler module not found. Cannot process extended YAML.' };
+  // Single file path.
+  const resolved = path.resolve(inputPath);
+  if (!fs.existsSync(resolved)) {
+    return [];
+  }
+  return [resolved];
 }
 
 // ---------------------------------------------------------------------------
@@ -175,14 +173,63 @@ function main() {
     process.exit(args.help ? 0 : 1);
   }
 
-  const yamlPath = path.resolve(args.yamlPath);
+  // Resolve to one or more YAML files.
+  const yamlFiles = resolveYamlFiles(args.yamlPath);
 
-  // Verify the YAML file exists
-  if (!fs.existsSync(yamlPath)) {
-    console.error(`[midscene-run] YAML file not found: ${yamlPath}`);
+  if (yamlFiles.length === 0) {
+    console.error(`[midscene-run] No YAML files found for: ${args.yamlPath}`);
     process.exit(1);
   }
 
+  // Batch mode: process multiple files sequentially.
+  if (yamlFiles.length > 1) {
+    console.log(`[midscene-run] Batch mode: ${yamlFiles.length} files matched.\n`);
+    const batchResults = [];
+
+    for (let i = 0; i < yamlFiles.length; i++) {
+      const filePath = yamlFiles[i];
+      const relPath = path.relative(process.cwd(), filePath);
+      console.log(`[midscene-run] [${i + 1}/${yamlFiles.length}] ${relPath}`);
+
+      try {
+        const exitCode = processFile(filePath, args);
+        batchResults.push({ file: relPath, success: exitCode === 0 });
+      } catch (err) {
+        batchResults.push({ file: relPath, success: false, error: err.message });
+      }
+      console.log('');
+    }
+
+    // Print batch summary.
+    const passed = batchResults.filter(r => r.success).length;
+    const failed = batchResults.length - passed;
+
+    console.log('='.repeat(60));
+    console.log(`[midscene-run] Batch Summary:`);
+    console.log(`  Total : ${batchResults.length}`);
+    console.log(`  Passed: ${passed}`);
+    console.log(`  Failed: ${failed}`);
+
+    if (failed > 0) {
+      console.log('\n  Failed files:');
+      batchResults.filter(r => !r.success).forEach(r => {
+        console.log(`    - ${r.file}${r.error ? ': ' + r.error : ''}`);
+      });
+    }
+
+    console.log('='.repeat(60));
+    process.exit(failed > 0 ? 1 : 0);
+  }
+
+  // Single file mode.
+  const exitCode = processFile(yamlFiles[0], args);
+  process.exit(exitCode);
+}
+
+// ---------------------------------------------------------------------------
+// Process a single YAML file – returns exit code (0 = success)
+// ---------------------------------------------------------------------------
+function processFile(yamlPath, args) {
   console.log(`[midscene-run] Processing: ${yamlPath}`);
 
   // -----------------------------------------------------------------------
@@ -199,7 +246,7 @@ function main() {
     console.error('\n  Validation errors:');
     (validation.errors || []).forEach(e => console.error(`    - ${typeof e === 'object' ? e.message : e}`));
     console.error('\n[midscene-run] Validation failed. Aborting.');
-    process.exit(1);
+    return 1;
   }
 
   console.log('[midscene-run] Validation passed.');
@@ -226,7 +273,7 @@ function main() {
       console.log('\n--- Native YAML content ---');
       console.log(content);
       console.log('--- End ---\n');
-      process.exit(0);
+      return 0;
     }
 
     console.log('[midscene-run] Running in native mode...');
@@ -242,20 +289,26 @@ function main() {
     console.log('[midscene-run] Transpiling extended YAML to TypeScript...');
 
     const transpileResult = tryTranspile(yamlPath, {
-      template: args.template,
-      platform: args.platform,
+      templateType: args.template,
     });
 
-    if (!transpileResult.success && transpileResult.error) {
+    // tryTranspile returns { error } on exception, { code } on success.
+    if (transpileResult.error) {
       console.error(`[midscene-run] ${transpileResult.error}`);
-      process.exit(1);
+      return 1;
     }
 
-    const tsCode = transpileResult.code || transpileResult.output || transpileResult;
+    const tsCode = transpileResult.code;
+
+    // Display transpiler warnings if any
+    if (transpileResult.warnings && transpileResult.warnings.length > 0) {
+      console.log('\n  Transpiler warnings:');
+      transpileResult.warnings.forEach(w => console.log(`    - ${w}`));
+    }
 
     if (typeof tsCode !== 'string') {
       console.error('[midscene-run] Transpiler did not return a valid TypeScript string.');
-      process.exit(1);
+      return 1;
     }
 
     // Save TS output if requested
@@ -271,7 +324,7 @@ function main() {
       console.log('\n--- Generated TypeScript ---');
       console.log(tsCode);
       console.log('--- End ---\n');
-      process.exit(0);
+      return 0;
     }
 
     console.log('[midscene-run] Running transpiled TypeScript...');
@@ -302,15 +355,20 @@ function main() {
   }
 
   // -----------------------------------------------------------------------
-  // Step 5: Exit with appropriate code
+  // Step 5: Return exit code
   // -----------------------------------------------------------------------
   if (result.success) {
     console.log('[midscene-run] Done.');
-    process.exit(0);
+    return 0;
   } else {
     console.error(`[midscene-run] Execution failed: ${result.error || 'unknown error'}`);
-    process.exit(result.exitCode || 1);
+    return result.exitCode || 1;
   }
 }
 
-main();
+// Export parseArgs for testability; run main() only when executed directly.
+module.exports = { parseArgs };
+
+if (require.main === module) {
+  main();
+}

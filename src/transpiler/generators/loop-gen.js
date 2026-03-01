@@ -8,7 +8,8 @@
  *   - repeat: fixed count loop
  */
 
-const { resolveTemplate, toCodeString, extractVarRef } = require('./utils');
+const { resolveTemplate, toCodeString, extractVarRef, getPad } = require('./utils');
+const { getNestedFlow, getLoopItemVar } = require('../../utils/yaml-helpers');
 
 /**
  * Generate TypeScript code for a `loop` step.
@@ -20,7 +21,7 @@ const { resolveTemplate, toCodeString, extractVarRef } = require('./utils');
  */
 function generate(step, ctx, processStep) {
   const indent = ctx && ctx.indent || 0;
-  const pad = '  '.repeat(indent);
+  const pad = getPad(indent);
   const varScope = ctx && ctx.varScope || new Set();
   const loop = step.loop;
 
@@ -29,12 +30,13 @@ function generate(step, ctx, processStep) {
   }
 
   const lines = [];
-  const flow = loop.flow || loop.steps || [];
+  const flow = getNestedFlow(loop) || [];
 
   switch (loop.type) {
     case 'for': {
       // for (const item of items) { ...flow }
-      const itemVar = loop.itemVar || loop.as || loop.item || 'item';
+      const itemVar = getLoopItemVar(loop);
+      varScope.add(itemVar);
       const iterableRaw = loop.items || loop.in || loop.collection;
       const varRef = extractVarRef(iterableRaw);
       const iterable = varRef || toCodeString(resolveTemplate(iterableRaw));
@@ -57,13 +59,13 @@ function generate(step, ctx, processStep) {
       const maxIterRef = typeof maxIterRaw === 'string' ? extractVarRef(maxIterRaw) : null;
       const maxIterations = maxIterRef || maxIterRaw;
 
-      // Generate a unique iteration counter to avoid collisions with sibling while loops
-      let iterVar = '_iter';
+      // Generate a unique iteration counter (_i0, _i1, _i2, ...) to avoid
+      // collisions with sibling while loops sharing the same varScope.
       let iterSuffix = 0;
-      while (varScope.has(iterVar)) {
-        iterVar = '_iter' + iterSuffix;
+      while (varScope.has('_i' + iterSuffix)) {
         iterSuffix++;
       }
+      const iterVar = '_i' + iterSuffix;
       varScope.add(iterVar);
 
       lines.push(pad + 'let ' + iterVar + ' = 0;');

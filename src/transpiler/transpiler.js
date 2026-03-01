@@ -5,6 +5,9 @@ const fs = require('fs');
 const path = require('path');
 const Handlebars = require('handlebars');
 
+const { looksLikeFilePath } = require('../utils/yaml-helpers');
+const { getPad, escapeStringLiteral, resolveEnvRefs } = require('./generators/utils');
+
 // ---------------------------------------------------------------------------
 // Generator imports
 // ---------------------------------------------------------------------------
@@ -21,7 +24,7 @@ function loadGenerator(name) {
   } catch (_err) {
     return {
       generate(step, ctx) {
-        const pad = '  '.repeat((ctx && ctx.indent) || 0);
+        const pad = getPad(ctx && ctx.indent);
         return pad + '// TODO: generator "' + name + '" is not yet implemented';
       },
     };
@@ -41,21 +44,16 @@ const useGen = loadGenerator('use-gen');
 // ---------------------------------------------------------------------------
 // Native action keys – any step that carries one of these is dispatched to
 // native-gen rather than to an extended generator.
+// Derived from schema/native-keywords.json to maintain a single source of truth.
 // ---------------------------------------------------------------------------
+const nativeSchema = require('../../schema/native-keywords.json');
 const NATIVE_KEYS = new Set([
-  'ai',
-  'aiAct',
-  'aiTap',
-  'aiHover',
-  'aiInput',
-  'aiKeyboardPress',
-  'aiScroll',
-  'aiQuery',
-  'aiAssert',
-  'aiWaitFor',
-  'sleep',
-  'javascript',
-  'recordToReport',
+  ...nativeSchema.aiPlanning,
+  ...nativeSchema.aiActions,
+  ...nativeSchema.aiData,
+  ...nativeSchema.aiAssertions,
+  ...nativeSchema.tools,
+  ...nativeSchema.platformSpecific,
 ]);
 
 // ---------------------------------------------------------------------------
@@ -84,19 +82,6 @@ function loadTemplate(templateName) {
 // ---------------------------------------------------------------------------
 // Input resolution helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Determine whether `input` looks like a file path rather than raw YAML
- * content. A string is treated as a path when it does not contain a newline
- * and ends with `.yaml` or `.yml`.
- */
-function looksLikeFilePath(input) {
-  if (input.includes('\n')) {
-    return false;
-  }
-  const ext = path.extname(input).toLowerCase();
-  return ext === '.yaml' || ext === '.yml';
-}
 
 /**
  * Accept a file path, raw YAML string, or a pre-parsed object and always
@@ -134,6 +119,65 @@ function resolveYaml(yamlInput) {
  * @param {object} doc
  * @returns {object} Normalised platform config.
  */
+/**
+ * Extract common fields (url, headless, viewport) from a platform config object.
+ * Handles both camelCase and snake_case field names.
+ */
+function normalizePlatformFields(obj, config) {
+  config.url = escapeStringLiteral(obj.url || '');
+  config.headless = obj.headless !== undefined ? obj.headless : false;
+  if (obj.viewportWidth || obj.viewport_width) {
+    config.viewportWidth = obj.viewportWidth || obj.viewport_width;
+  }
+  if (obj.viewportHeight || obj.viewport_height) {
+    config.viewportHeight = obj.viewportHeight || obj.viewport_height;
+  }
+  // Additional platform fields
+  if (obj.userAgent || obj.user_agent) {
+    config.userAgent = obj.userAgent || obj.user_agent;
+  }
+  if (obj.deviceScaleFactor || obj.device_scale_factor) {
+    config.deviceScaleFactor = obj.deviceScaleFactor || obj.device_scale_factor;
+  }
+  if (obj.cookie) {
+    config.cookie = obj.cookie;
+  }
+  if (obj.acceptInsecureCerts !== undefined || obj.accept_insecure_certs !== undefined) {
+    config.acceptInsecureCerts = obj.acceptInsecureCerts !== undefined ? obj.acceptInsecureCerts : obj.accept_insecure_certs;
+  }
+  if (obj.waitForNetworkIdle !== undefined || obj.wait_for_network_idle !== undefined) {
+    config.waitForNetworkIdle = obj.waitForNetworkIdle !== undefined ? obj.waitForNetworkIdle : obj.wait_for_network_idle;
+  }
+  if (obj.bridgeMode !== undefined || obj.bridge_mode !== undefined) {
+    config.bridgeMode = obj.bridgeMode !== undefined ? obj.bridgeMode : obj.bridge_mode;
+  }
+  if (obj.forceSameTabNavigation !== undefined || obj.force_same_tab_navigation !== undefined) {
+    config.forceSameTabNavigation = obj.forceSameTabNavigation !== undefined ? obj.forceSameTabNavigation : obj.force_same_tab_navigation;
+  }
+  if (obj.serve) {
+    config.serve = obj.serve;
+  }
+  if (obj.output) {
+    config.output = obj.output;
+  }
+  // Web Agent constructor config options
+  if (obj.waitForNavigationTimeout !== undefined) {
+    config.waitForNavigationTimeout = obj.waitForNavigationTimeout;
+  }
+  if (obj.waitForNetworkIdleTimeout !== undefined) {
+    config.waitForNetworkIdleTimeout = obj.waitForNetworkIdleTimeout;
+  }
+  if (obj.enableTouchEventsInActionSpace !== undefined) {
+    config.enableTouchEventsInActionSpace = obj.enableTouchEventsInActionSpace;
+  }
+  if (obj.forceChromeSelectRendering !== undefined) {
+    config.forceChromeSelectRendering = obj.forceChromeSelectRendering;
+  }
+  if (obj.closeNewTabsAfterDisconnect !== undefined) {
+    config.closeNewTabsAfterDisconnect = obj.closeNewTabsAfterDisconnect;
+  }
+}
+
 function extractPlatformConfig(doc) {
   const config = {
     url: '',
@@ -146,35 +190,22 @@ function extractPlatformConfig(doc) {
 
   // Web platform (most common)
   if (doc.web) {
-    const w = doc.web;
-    // Escape single quotes in URL to prevent breaking the JS string literal
-    config.url = (w.url || '').replace(/'/g, "\\'");
-    config.headless = w.headless !== undefined ? w.headless : false;
-    config.viewportWidth = w.viewportWidth || w.viewport_width || 1280;
-    config.viewportHeight = w.viewportHeight || w.viewport_height || 720;
-    if (w.chromeArgs || w.chrome_args) {
-      const args = w.chromeArgs || w.chrome_args;
+    normalizePlatformFields(doc.web, config);
+    if (doc.web.chromeArgs || doc.web.chrome_args) {
+      const args = doc.web.chromeArgs || doc.web.chrome_args;
       config.chromeArgs = Array.isArray(args)
-        ? args.map(function (a) { return "'" + a + "'"; }).join(', ')
-        : "'" + args + "'";
+        ? args.map(function (a) { return "'" + escapeStringLiteral(a) + "'"; }).join(', ')
+        : "'" + escapeStringLiteral(args) + "'";
     }
     config.platform = 'web';
     return config;
   }
 
-  // Android / iOS / Computer – extract url if present, keep defaults
+  // Android / iOS / Computer – extract common fields
   for (const plat of ['android', 'ios', 'computer']) {
     if (doc[plat]) {
       config.platform = plat;
-      const p = doc[plat];
-      config.url = (p.url || '').replace(/'/g, "\\'");
-      config.headless = p.headless !== undefined ? p.headless : false;
-      if (p.viewportWidth || p.viewport_width) {
-        config.viewportWidth = p.viewportWidth || p.viewport_width;
-      }
-      if (p.viewportHeight || p.viewport_height) {
-        config.viewportHeight = p.viewportHeight || p.viewport_height;
-      }
+      normalizePlatformFields(doc[plat], config);
       return config;
     }
   }
@@ -187,17 +218,38 @@ function extractPlatformConfig(doc) {
   return config;
 }
 
+// ---------------------------------------------------------------------------
+// Agent config extraction
+// ---------------------------------------------------------------------------
+
 /**
- * Extract agent-level configuration if the YAML provides one.
+ * Extract agent-level configuration from the parsed YAML doc.
+ * Returns null if no agent config is present.
  *
  * @param {object} doc
  * @returns {object|null}
  */
 function extractAgentConfig(doc) {
-  if (doc.agent) {
-    return doc.agent;
+  if (!doc.agent || typeof doc.agent !== 'object') return null;
+
+  const AGENT_FIELDS = [
+    'testId', 'groupName', 'groupDescription', 'cache',
+    'generateReport', 'autoPrintReportMsg', 'reportFileName',
+    'replanningCycleLimit', 'aiActContext',
+    'waitAfterAction', 'outputFormat', 'screenshotShrinkFactor',
+  ];
+
+  const config = {};
+  let hasFields = false;
+
+  for (const field of AGENT_FIELDS) {
+    if (doc.agent[field] !== undefined) {
+      config[field] = doc.agent[field];
+      hasFields = true;
+    }
   }
-  return null;
+
+  return hasFields ? config : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -280,11 +332,9 @@ function trackImports(tracker, stepType, step) {
 function toImportCodeString(str) {
   if (typeof str !== 'string') return 'undefined';
   if (str.includes('${')) {
-    let result = str.replace(/\$\{ENV\.(\w+)\}/g, '${process.env.$1}');
-    result = result.replace(/\$\{ENV:(\w+)\}/g, '${process.env.$1}');
-    return '`' + result + '`';
+    return '`' + resolveEnvRefs(str) + '`';
   }
-  return "'" + str.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+  return "'" + escapeStringLiteral(str) + "'";
 }
 
 // ---------------------------------------------------------------------------
@@ -299,11 +349,13 @@ function toImportCodeString(str) {
  * @param {object} step     - The YAML step object.
  * @param {number} indent   - Current indentation level (number of 2-space units).
  * @param {Set<string>} varScope - Set of variable names already declared in scope.
+ * @param {object} [_extra] - Internal context (e.g. { importTracker }) propagated
+ *   through recursion via closure. Callers outside transpile() can omit this.
  * @returns {string} Generated TypeScript code.
  */
-function processStep(step, indent, varScope) {
+function processStep(step, indent, varScope, _extra) {
   if (!step || typeof step !== 'object') {
-    const pad = '  '.repeat(indent || 0);
+    const pad = getPad(indent);
     return pad + '// Skipped: invalid step';
   }
 
@@ -312,18 +364,28 @@ function processStep(step, indent, varScope) {
 
   const { generator, type } = detectStepType(step);
 
+  // C1: Warn on unknown step types
+  if (type === 'unknown' && _extra && _extra.warnings) {
+    const stepKeys = Object.keys(step).join(', ');
+    _extra.warnings.push(`Unknown step type with keys: [${stepKeys}]. This step will be serialised as a comment.`);
+  }
+
+  // Bind _extra into the recursive callback so generators propagate it
+  // without needing to know about it.
+  const boundProcessStep = function (s, i, v) { return processStep(s, i, v, _extra); };
+
   const ctx = {
     indent: indent,
     varScope: varScope,
-    processStep: processStep, // allow recursive descent
+    processStep: boundProcessStep,
   };
 
-  // Track imports on the shared tracker (attached during transpile())
-  if (processStep._importTracker) {
-    trackImports(processStep._importTracker, type, step);
+  // Track imports if a tracker was provided (set by transpile())
+  if (_extra && _extra.importTracker) {
+    trackImports(_extra.importTracker, type, step);
   }
 
-  return generator.generate(step, ctx, processStep);
+  return generator.generate(step, ctx, boundProcessStep);
 }
 
 // ---------------------------------------------------------------------------
@@ -341,9 +403,15 @@ function processStep(step, indent, varScope) {
  *   this path.
  * @returns {{ code: string, outputPath?: string }}
  */
+const SUPPORTED_TEMPLATES = new Set(['puppeteer', 'playwright']);
+
 function transpile(yamlInput, options) {
   options = options || {};
   const templateType = options.templateType || 'puppeteer';
+
+  if (!SUPPORTED_TEMPLATES.has(templateType)) {
+    throw new Error('transpiler: unsupported templateType "' + templateType + '". Supported: ' + Array.from(SUPPORTED_TEMPLATES).join(', '));
+  }
 
   // 1. Parse
   const doc = resolveYaml(yamlInput);
@@ -355,10 +423,24 @@ function transpile(yamlInput, options) {
   // 2. Extract platform config
   const platformConfig = extractPlatformConfig(doc);
 
-  // 3. Extract agent config (reserved for future use)
-  const _agentConfig = extractAgentConfig(doc);
+  // 2b. Extract agent config
+  const agentConfig = extractAgentConfig(doc);
 
-  // 4. Gather tasks and their flow steps
+  // 2c. Merge web agent constructor options from platform config into agent config
+  const WEB_AGENT_FIELDS = [
+    'waitForNavigationTimeout', 'waitForNetworkIdleTimeout',
+    'enableTouchEventsInActionSpace', 'forceChromeSelectRendering',
+    'closeNewTabsAfterDisconnect',
+  ];
+  let finalAgentConfig = agentConfig;
+  for (const field of WEB_AGENT_FIELDS) {
+    if (platformConfig[field] !== undefined) {
+      if (!finalAgentConfig) finalAgentConfig = {};
+      finalAgentConfig[field] = platformConfig[field];
+    }
+  }
+
+  // 3. Gather tasks and their flow steps
   const tasks = doc.tasks || [];
   if (!Array.isArray(tasks) || tasks.length === 0) {
     throw new Error('transpiler: YAML document must contain a "tasks" array with at least one task');
@@ -368,8 +450,8 @@ function transpile(yamlInput, options) {
   const varScope = new Set();
   const importTracker = createImportTracker();
 
-  // Attach the import tracker to processStep so nested calls can update it
-  processStep._importTracker = importTracker;
+  // Extra context passed through processStep recursion via closure
+  const extra = { importTracker: importTracker, warnings: [] };
 
   // Base indent inside the template's try block (matches template structure)
   const BASE_INDENT = 2;
@@ -384,18 +466,12 @@ function transpile(yamlInput, options) {
         const flowPath = imp.flow;
         const varName = imp.as;
         varScope.add(varName);
-        codeLines.push('  '.repeat(BASE_INDENT) + 'const ' + varName + ' = ' + toImportCodeString(flowPath) + ';');
+        codeLines.push(getPad(BASE_INDENT) + 'const ' + varName + ' = ' + toImportCodeString(flowPath) + ';');
       } else if (imp.data && imp.as) {
         // Data import: require JSON/data file
-        const dataPath = imp.data;
         const varName = imp.as;
         varScope.add(varName);
-        const ext = (dataPath.match(/\.([a-zA-Z0-9]+)$/) || [])[1] || '';
-        if (ext === 'json') {
-          codeLines.push('  '.repeat(BASE_INDENT) + 'const ' + varName + ' = require(' + toImportCodeString(dataPath) + ');');
-        } else {
-          codeLines.push('  '.repeat(BASE_INDENT) + 'const ' + varName + ' = require(' + toImportCodeString(dataPath) + ');');
-        }
+        codeLines.push(getPad(BASE_INDENT) + 'const ' + varName + ' = require(' + toImportCodeString(imp.data) + ');');
       }
     }
     if (codeLines.length > 0) {
@@ -418,10 +494,10 @@ function transpile(yamlInput, options) {
   for (let ti = 0; ti < tasks.length; ti++) {
     const task = tasks[ti];
     const taskName = task.name || 'Task ' + (ti + 1);
-    const flow = task.flow || [];
+    const flow = task.flow || task.steps || [];
 
     if (!Array.isArray(flow)) {
-      codeLines.push('  '.repeat(BASE_INDENT) + '// Skipped task "' + taskName + '": flow is not an array');
+      codeLines.push(getPad(BASE_INDENT) + '// Skipped task "' + taskName + '": flow is not an array');
       continue;
     }
 
@@ -430,7 +506,7 @@ function transpile(yamlInput, options) {
       if (ti > 0) {
         codeLines.push('');
       }
-      codeLines.push('  '.repeat(BASE_INDENT) + '// --- ' + taskName + ' ---');
+      codeLines.push(getPad(BASE_INDENT) + '// --- ' + taskName + ' ---');
     }
 
     // continueOnError: wrap entire task flow in try/catch so failures
@@ -439,20 +515,20 @@ function transpile(yamlInput, options) {
     const stepIndent = useContinueOnError ? BASE_INDENT + 1 : BASE_INDENT;
 
     if (useContinueOnError) {
-      codeLines.push('  '.repeat(BASE_INDENT) + 'try {');
+      codeLines.push(getPad(BASE_INDENT) + 'try {');
     }
 
     for (const step of flow) {
-      const generated = processStep(step, stepIndent, varScope);
+      const generated = processStep(step, stepIndent, varScope, extra);
       if (generated !== undefined && generated !== null) {
         codeLines.push(generated);
       }
     }
 
     if (useContinueOnError) {
-      codeLines.push('  '.repeat(BASE_INDENT) + '} catch (_continueErr) {');
-      codeLines.push('  '.repeat(BASE_INDENT + 1) + "console.warn('[continueOnError] Task \"" + taskName + "\" failed:', _continueErr.message);");
-      codeLines.push('  '.repeat(BASE_INDENT) + '}');
+      codeLines.push(getPad(BASE_INDENT) + '} catch (_continueErr) {');
+      codeLines.push(getPad(BASE_INDENT + 1) + "console.warn('[continueOnError] Task \"" + taskName + "\" failed:', _continueErr.message);");
+      codeLines.push(getPad(BASE_INDENT) + '}');
     }
 
     // output directive: write collected data to a JSON file
@@ -460,15 +536,13 @@ function transpile(yamlInput, options) {
       importTracker.needsFs = true;
       const filePath = task.output.filePath;
       const dataName = task.output.dataName;
-      codeLines.push('  '.repeat(BASE_INDENT) + "// Output: write " + dataName + " to " + filePath);
-      codeLines.push('  '.repeat(BASE_INDENT) + "const __outputDir = require('path').dirname('" + filePath.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "');");
-      codeLines.push('  '.repeat(BASE_INDENT) + 'if (!fs.existsSync(__outputDir)) fs.mkdirSync(__outputDir, { recursive: true });');
-      codeLines.push('  '.repeat(BASE_INDENT) + "fs.writeFileSync('" + filePath.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "', JSON.stringify(" + dataName + ", null, 2), 'utf-8');");
+      codeLines.push(getPad(BASE_INDENT) + "// Output: write " + dataName + " to " + filePath);
+      const escapedPath = escapeStringLiteral(filePath);
+      codeLines.push(getPad(BASE_INDENT) + "const __outputDir = require('path').dirname('" + escapedPath + "');");
+      codeLines.push(getPad(BASE_INDENT) + 'if (!fs.existsSync(__outputDir)) fs.mkdirSync(__outputDir, { recursive: true });');
+      codeLines.push(getPad(BASE_INDENT) + "fs.writeFileSync('" + escapedPath + "', JSON.stringify(" + dataName + ", null, 2), 'utf-8');");
     }
   }
-
-  // Clean up the shared tracker reference
-  processStep._importTracker = null;
 
   const generatedCode = codeLines.join('\n');
 
@@ -477,6 +551,11 @@ function transpile(yamlInput, options) {
   const template = loadTemplate(templateFile);
 
   // 8. Build template data and render
+  // cookie files require fs import
+  if (platformConfig.cookie) {
+    importTracker.needsFs = true;
+  }
+
   const templateData = {
     url: platformConfig.url,
     headless: platformConfig.headless,
@@ -486,12 +565,22 @@ function transpile(yamlInput, options) {
     generatedCode: generatedCode,
     needsChildProcess: importTracker.needsChildProcess,
     needsFs: importTracker.needsFs,
+    userAgent: escapeStringLiteral(platformConfig.userAgent || ''),
+    deviceScaleFactor: platformConfig.deviceScaleFactor || 0,
+    cookie: escapeStringLiteral(platformConfig.cookie || ''),
+    acceptInsecureCerts: platformConfig.acceptInsecureCerts || false,
+    waitForNetworkIdle: platformConfig.waitForNetworkIdle || false,
+    waitForNetworkIdleOpts: (typeof platformConfig.waitForNetworkIdle === 'object' && platformConfig.waitForNetworkIdle !== null)
+      ? JSON.stringify(platformConfig.waitForNetworkIdle)
+      : '',
+    hasAgentConfig: !!finalAgentConfig,
+    agentConfigJson: finalAgentConfig ? JSON.stringify(finalAgentConfig) : '',
   };
 
   const code = template(templateData);
 
   // 9. Optionally write to disk
-  const result = { code: code };
+  const result = { code: code, warnings: extra.warnings };
 
   if (options.outputPath) {
     const outDir = path.dirname(options.outputPath);

@@ -1,7 +1,6 @@
 engine: extended
 features:
   - try_catch
-  - logic
   - variables
 
 web:

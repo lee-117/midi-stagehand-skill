@@ -1,7 +1,7 @@
 const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
+const { resolveLocalBin, normaliseExecError } = require('./runner-utils');
 
 /**
  * Run transpiled TypeScript code using tsx.
@@ -63,17 +63,7 @@ function run(tsCode, options = {}) {
 
     return { success: true, tsPath: tsPath, reportDir: reportDir };
   } catch (error) {
-    let errorMessage = error.message;
-    let exitCode = error.status;
-
-    if (error.killed) {
-      errorMessage = 'Process was killed (timeout or signal)';
-      exitCode = exitCode || 'KILLED';
-    } else if (exitCode === null || exitCode === undefined) {
-      errorMessage = 'Process exited without a status code: ' + error.message;
-      exitCode = 'UNKNOWN';
-    }
-
+    const { errorMessage, exitCode } = normaliseExecError(error);
     return {
       success: false,
       error: errorMessage,
@@ -100,12 +90,7 @@ function run(tsCode, options = {}) {
  * @returns {string}
  */
 function resolveTsxCommand() {
-  const isWin = os.platform() === 'win32';
-  const localBin = path.resolve(__dirname, '..', '..', 'node_modules', '.bin', 'tsx' + (isWin ? '.cmd' : ''));
-  if (fs.existsSync(localBin)) {
-    return '"' + localBin + '"';
-  }
-  return 'npx tsx';
+  return resolveLocalBin('tsx', 'npx tsx');
 }
 
 module.exports = { run };

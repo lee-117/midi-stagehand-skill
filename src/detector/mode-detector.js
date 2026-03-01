@@ -2,7 +2,8 @@
 
 const yaml = require('js-yaml');
 const fs = require('fs');
-const path = require('path');
+
+const { looksLikeFilePath } = require('../utils/yaml-helpers');
 
 /**
  * Extended keywords that trigger needs_transpilation = true when found
@@ -46,6 +47,20 @@ const KEYWORD_TO_FEATURE = {
   parallel: 'parallel',
 };
 
+/**
+ * Canonical ordering of features in the reported `features` array.
+ */
+const FEATURE_ORDER = [
+  'logic',
+  'loop',
+  'variables',
+  'import',
+  'data_transform',
+  'try_catch',
+  'external_call',
+  'parallel',
+];
+
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
@@ -86,22 +101,6 @@ function scan(node, foundKeywords, flags) {
       scan(node[key], foundKeywords, flags);
     }
   }
-}
-
-/**
- * Determine whether `input` looks like a file path rather than raw YAML
- * content. A string is treated as a path when it does not contain a newline
- * and ends with `.yaml` or `.yml`.
- *
- * @param {string} input
- * @returns {boolean}
- */
-function looksLikeFilePath(input) {
-  if (input.includes('\n')) {
-    return false;
-  }
-  const ext = path.extname(input).toLowerCase();
-  return ext === '.yaml' || ext === '.yml';
 }
 
 /**
@@ -149,37 +148,32 @@ function detect(yamlInput) {
   }
 
   // ------------------------------------------------------------------
+  // Scan for extended features (done once, shared by all branches).
+  // ------------------------------------------------------------------
+  const foundKeywords = new Set();
+  const flags = { templateUsed: false };
+  if (doc && typeof doc === 'object' && !Array.isArray(doc)) {
+    scan(doc, foundKeywords, flags);
+  }
+
+  const features = buildFeatureList(foundKeywords, flags.templateUsed);
+  const isExtended = features.length > 0;
+
+  // ------------------------------------------------------------------
   // 1. If the document explicitly declares an `engine` field, honour it.
   // ------------------------------------------------------------------
   if (doc && typeof doc === 'object' && !Array.isArray(doc) && doc.engine) {
     const declaredMode = String(doc.engine).toLowerCase();
     if (declaredMode === 'extended' || declaredMode === 'native') {
-      // Even with an explicit engine declaration we still scan for features
-      // so the caller knows which capabilities the file relies on.
-      const foundKeywords = new Set();
-      const flags = { templateUsed: false };
-      scan(doc, foundKeywords, flags);
-
-      const features = buildFeatureList(foundKeywords, flags.templateUsed);
-      const needsTranspilation =
-        declaredMode === 'extended' && (features.length > 0 || flags.templateUsed);
-
       return {
         mode: declaredMode,
         features,
-        needs_transpilation: needsTranspilation,
+        needs_transpilation:
+          declaredMode === 'extended' && (isExtended || flags.templateUsed),
       };
     }
 
     // Invalid engine value — warn and fall through to auto-detection.
-    // The `warnings` array is returned so callers can surface this to users.
-    const foundKeywords = new Set();
-    const flags = { templateUsed: false };
-    scan(doc, foundKeywords, flags);
-
-    const features = buildFeatureList(foundKeywords, flags.templateUsed);
-    const isExtended = features.length > 0;
-
     return {
       mode: isExtended ? 'extended' : 'native',
       features,
@@ -189,15 +183,8 @@ function detect(yamlInput) {
   }
 
   // ------------------------------------------------------------------
-  // 2. No explicit engine – scan the entire document for extended usage.
+  // 2. No explicit engine – auto-detect from features.
   // ------------------------------------------------------------------
-  const foundKeywords = new Set();
-  const flags = { templateUsed: false };
-  scan(doc, foundKeywords, flags);
-
-  const features = buildFeatureList(foundKeywords, flags.templateUsed);
-  const isExtended = features.length > 0;
-
   return {
     mode: isExtended ? 'extended' : 'native',
     features,
@@ -229,18 +216,7 @@ function buildFeatureList(foundKeywords, templateUsed) {
   }
 
   // Return a consistently ordered array.
-  const ORDER = [
-    'logic',
-    'loop',
-    'variables',
-    'import',
-    'data_transform',
-    'try_catch',
-    'external_call',
-    'parallel',
-  ];
-
-  return ORDER.filter((f) => featureSet.has(f));
+  return FEATURE_ORDER.filter((f) => featureSet.has(f));
 }
 
 module.exports = {

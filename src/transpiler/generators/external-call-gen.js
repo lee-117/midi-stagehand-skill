@@ -6,7 +6,13 @@
  * or shell command execution.
  */
 
-const { resolveTemplate, toCodeString } = require('./utils');
+const { resolveTemplate, toCodeString, getPad } = require('./utils');
+
+// Max entries before switching to multi-line object literal formatting
+const MAX_INLINE_HEADER_ENTRIES = 2;
+const MAX_INLINE_BODY_ENTRIES = 3;
+// Max nesting depth for bodyToCode to prevent stack overflow on pathological input
+const MAX_BODY_DEPTH = 10;
 
 /**
  * Convert a headers object into a TypeScript object literal string.
@@ -18,7 +24,7 @@ function headersToCode(headers, pad) {
     return "'" + k + "': " + toCodeString(resolveTemplate(v));
   });
 
-  if (entries.length <= 2) {
+  if (entries.length <= MAX_INLINE_HEADER_ENTRIES) {
     return '{ ' + entries.join(', ') + ' }';
   }
 
@@ -30,36 +36,41 @@ function headersToCode(headers, pad) {
 /**
  * Convert a body object into a TypeScript object literal string,
  * resolving ${...} template variables in values.
+ *
+ * @param {*}      body  - The body value to convert.
+ * @param {string} pad   - Current indentation string.
+ * @param {number} depth - Current recursion depth (guarded by MAX_BODY_DEPTH).
  */
-function bodyToCode(body, pad) {
+function bodyToCode(body, pad, depth) {
+  if (depth === undefined) depth = 0;
   if (!body || typeof body !== 'object') return JSON.stringify(body);
+  if (depth >= MAX_BODY_DEPTH) return JSON.stringify(body);
+
   if (Array.isArray(body)) {
-    const items = body.map(function (item) {
+    const items = body.map((item) => {
       if (typeof item === 'string') return toCodeString(resolveTemplate(item));
-      if (typeof item === 'object' && item !== null) return bodyToCode(item, pad);
+      if (typeof item === 'object' && item !== null) return bodyToCode(item, pad, depth + 1);
       return JSON.stringify(item);
     });
     return '[' + items.join(', ') + ']';
   }
 
-  const entries = Object.entries(body).map(function (entry) {
-    var k = entry[0];
-    var v = entry[1];
+  const entries = Object.entries(body).map(([k, v]) => {
     if (typeof v === 'string') {
       return "'" + k + "': " + toCodeString(resolveTemplate(v));
     }
     if (typeof v === 'object' && v !== null) {
-      return "'" + k + "': " + bodyToCode(v, pad);
+      return "'" + k + "': " + bodyToCode(v, pad, depth + 1);
     }
     return "'" + k + "': " + JSON.stringify(v);
   });
 
-  if (entries.length <= 3) {
+  if (entries.length <= MAX_INLINE_BODY_ENTRIES) {
     return '{ ' + entries.join(', ') + ' }';
   }
 
-  var innerPad = pad + '  ';
-  return '{\n' + entries.map(function (e) { return innerPad + e; }).join(',\n') + '\n' + pad + '}';
+  const innerPad = pad + '  ';
+  return '{\n' + entries.map(e => innerPad + e).join(',\n') + '\n' + pad + '}';
 }
 
 /**
@@ -71,7 +82,7 @@ function bodyToCode(body, pad) {
  */
 function generate(step, ctx) {
   const indent = ctx && ctx.indent || 0;
-  const pad = '  '.repeat(indent);
+  const pad = getPad(indent);
   const varScope = ctx && ctx.varScope || new Set();
   const call = step.external_call;
 

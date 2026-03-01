@@ -1,0 +1,38 @@
+# 多视口响应式测试模板
+# 场景: 验证页面在不同屏幕尺寸下的布局正确性
+engine: extended
+features:
+  - loop
+  - variables
+
+web:
+  url: "https://example.com"
+  headless: false
+
+variables:
+  viewports:
+    - { width: 375, height: 667, name: "iPhone SE" }
+    - { width: 768, height: 1024, name: "iPad" }
+    - { width: 1920, height: 1080, name: "Desktop" }
+
+tasks:
+  - name: "响应式布局测试"
+    flow:
+      - loop:
+          type: for
+          items: "${viewports}"
+          itemVar: "vp"
+          flow:
+            # 使用 JavaScript 调整视口大小
+            - javascript: "await page.setViewport({ width: ${vp.width}, height: ${vp.height} })"
+
+            # 等待页面重新布局
+            - sleep: 1000
+
+            # 验证关键元素在不同视口下的可见性
+            - aiAssert: "页面导航栏或菜单可见且未溢出屏幕"
+            - aiAssert: "页面主要内容区域正常显示"
+
+            # 截图记录
+            - recordToReport: "响应式测试 - ${vp.name}"
+              content: "视口 ${vp.width}x${vp.height} 布局验证"

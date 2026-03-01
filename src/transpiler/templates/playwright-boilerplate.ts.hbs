@@ -13,13 +13,34 @@ async function main() {
     args: [{{{chromeArgs}}}]
   });
   const context = await browser.newContext({
-    viewport: { width: {{viewportWidth}}, height: {{viewportHeight}} }
+    viewport: { width: {{viewportWidth}}, height: {{viewportHeight}}{{#if deviceScaleFactor}}, deviceScaleFactor: {{deviceScaleFactor}}{{/if}} },
+{{#if userAgent}}
+    userAgent: '{{{userAgent}}}',
+{{/if}}
+{{#if acceptInsecureCerts}}
+    ignoreHTTPSErrors: true,
+{{/if}}
   });
   const page = await context.newPage();
 
   try {
     await page.goto('{{{url}}}');
+{{#if waitForNetworkIdle}}
+{{#if waitForNetworkIdleOpts}}
+    await page.waitForLoadState('networkidle', {{{waitForNetworkIdleOpts}}});
+{{else}}
+    await page.waitForLoadState('networkidle');
+{{/if}}
+{{/if}}
+{{#if cookie}}
+    const __cookies = JSON.parse(fs.readFileSync('{{{cookie}}}', 'utf-8'));
+    await context.addCookies(__cookies);
+{{/if}}
+{{#if hasAgentConfig}}
+    const agent = new PlaywrightAgent(page, {{{agentConfigJson}}});
+{{else}}
     const agent = new PlaywrightAgent(page);
+{{/if}}
 
     // === Generated code start ===
 {{{generatedCode}}}

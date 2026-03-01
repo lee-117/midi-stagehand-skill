@@ -1,18 +1,30 @@
 ---
 name: midscene-yaml-generator
 description: >
-  Generate Midscene YAML automation files from natural language requirements.
-  Triggers when users describe browser automation tasks like "write a script to...",
-  "generate a YAML for...", or "automate login flow". Supports Native (basic actions)
-  and Extended (logic, loops, API calls) modes across Web, Android, iOS platforms.
-license: MIT
-metadata:
-  author: lee-zh
-  version: "1.2.0"
-  argument-hint: <natural-language-requirement>
+  Generate Midscene YAML browser automation files from natural language.
+  Supports Web, Android, iOS with Native and Extended modes.
+argument-hint: <natural-language-requirement>
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Glob
+  - Grep
 ---
 
 # Midscene YAML Generator
+
+## 典型工作流
+
+```
+用户需求 → [Generator] 生成 YAML
+         → [Generator] 自动 dry-run 验证
+         → 验证失败？→ [Generator] 自动修复
+         → [Runner] 执行
+         → 执行失败？→ [Runner] 分析 + 修复 YAML → 重新执行
+         → 成功 → 展示报告摘要
+```
 
 ## 触发条件
 
@@ -25,6 +37,14 @@ metadata:
 - "我想自动化 XXX 操作..."
 - "把这个需求转成 YAML..."
 - "写个 Midscene 配置文件..."
+
+English trigger phrases:
+- "Generate a YAML for..."
+- "Write an automation script to..."
+- "Create a test case for..."
+- "Automate the login flow"
+- "Convert this requirement to YAML"
+- "Write a Midscene config file for..."
 
 ## 工作流程
 
@@ -61,17 +81,66 @@ metadata:
 | 用户描述 | 平台 | YAML 配置 |
 |---------|------|-----------|
 | "打开网页/网站/URL" | Web | `web: { url: "...", headless: false }` |
-| "测试 Android 应用" | Android | `android: { device: "...", pkg: "..." }` |
-| "测试 iOS 应用" | iOS | `ios: { device: "...", bundleId: "..." }` |
+| "测试 Android 应用" | Android | `android: { deviceId: "..." }` + `launch: "包名"` |
+| "测试 iOS 应用" | iOS | `ios: { wdaPort: 8100 }` + `launch: "bundleId"` |
 | "桌面自动化" | Computer | `computer: { ... }` |
 
 **Web 平台额外配置选项**：
 - `headless: true/false` — 是否无头模式运行（默认 false）
 - `viewportWidth` / `viewportHeight` — 视口大小
 - `userAgent` — 自定义 User-Agent
-- `waitForNetworkIdle` — 是否等待网络空闲
+- `waitForNetworkIdle` — 网络空闲等待配置，支持 `true` 或对象格式 `{ timeout: 2000, continueOnNetworkIdleError: true }`
 
 ### 第 3 步：自然语言 → YAML 转换
+
+#### 动作选择优先级（重要）
+
+1. **首选 `ai:`** — 用自然语言描述整个意图，让 AI 自动规划并执行多步骤。适合绝大多数场景，成功率最高
+2. **需要精确控制时** — 使用 `aiTap`、`aiInput` 等具体动作（如填写特定表单字段）
+3. **需要提取数据时** — 必须使用 `aiQuery`（`ai:` 不能返回结构化数据）
+4. **需要验证状态时** — 使用 `aiAssert` 或 `aiWaitFor`
+
+**经验法则**: 如果用户需求可以用一句自然语言描述完成，优先用一个 `ai:` 步骤，而不是拆成多个 `aiInput` + `aiTap`。
+
+**黄金路径 — 最简可工作示例**:
+
+```yaml
+web:
+  url: "https://www.baidu.com"
+
+tasks:
+  - name: "搜索 Midscene"
+    flow:
+      - ai: "在搜索框输入 Midscene 并点击搜索"
+      - sleep: 3000
+      - aiAssert: "页面显示了搜索结果"
+```
+
+#### Native 模式 YAML 格式规范（重要）
+
+Native 模式的动作参数支持两种格式：
+
+**扁平格式**（推荐，简洁）：动作关键字后跟字符串值，额外参数作为同级兄弟键。
+```yaml
+- aiInput: "搜索框"
+  value: "关键词"
+- aiWaitFor: "页面加载完成"
+  timeout: 10000
+- aiTap: "按钮描述"
+  deepThink: true
+- aiAssert: "页面包含预期内容"
+  errorMessage: "内容验证失败"
+```
+
+**嵌套格式**（也有效，适合复杂参数）：
+```yaml
+- aiInput:
+    locator: "搜索框"
+    value: "关键词"
+- aiQuery:
+    query: "提取商品列表"
+    name: "products"
+```
 
 使用以下映射规则表将用户需求转换为 YAML：
 
@@ -83,15 +152,15 @@ metadata:
 | "自动规划并执行 XXX" | `ai: "XXX"` | AI 自动拆解为多步骤执行 |
 | "点击/按/选择 XXX" | `aiTap: "XXX"` | 简写形式 |
 | "悬停/移到 XXX 上" | `aiHover: "XXX"` | 触发下拉菜单或 tooltip |
-| "在 XXX 输入 YYY" | `aiInput: { locator: "XXX", value: "YYY" }` | locator + value 格式 |
-| "按键盘 XXX 键" | `aiKeyboardPress: "XXX"` | 支持组合键如 "Control+A" |
-| "向下/上/左/右滚动" | `aiScroll: { direction: "down" }` | 可选 locator 和 scrollCount |
+| "在 XXX 输入 YYY" | `aiInput: "XXX"` + `value: "YYY"` | 扁平兄弟格式（见格式规范） |
+| "按键盘 XXX 键" | `aiKeyboardPress: "XXX"` | 支持组合键如 "Control+A"；`keyName` 可作为替代参数 |
+| "向下/上/左/右滚动" | `aiScroll: "目标区域"` + `direction: "down"` | 扁平兄弟格式；可选 `distance`、`scrollType` |
 | "等待 XXX 出现" | `aiWaitFor: "XXX"` | 可选 timeout（毫秒） |
 | "检查/验证/确认 XXX" | `aiAssert: "XXX"` | 可选 errorMessage |
 | "获取/提取/读取 XXX" | `aiQuery: { query: "XXX", name: "result" }` | name 用于存储结果 |
 | "暂停/等待 N 秒" | `sleep: N*1000` | 参数为毫秒 |
 | "执行 JS 代码" | `javascript: "代码内容"` | 直接执行 JavaScript |
-| "截图记录到报告" | `recordToReport` | 记录当前状态到报告 |
+| "截图记录到报告" | `recordToReport: "标题"` + `content: "描述"` | 截图并记录描述到报告 |
 | "执行 ADB 命令" | `runAdbShell: "命令"` | Android 平台特有 |
 | "执行 WDA 请求" | `runWdaRequest: { ... }` | iOS 平台特有 |
 | "启动应用" | `launch: "包名"` | 移动端启动应用 |
@@ -122,8 +191,11 @@ metadata:
 - `templates/native/web-login.yaml` — 登录流程
 - `templates/native/web-data-extract.yaml` — 数据提取
 - `templates/native/web-search.yaml` — 网页搜索流程
+- `templates/native/web-file-upload.yaml` — 文件上传表单
+- `templates/native/web-auth-flow.yaml` — OAuth/登录认证流程
 - `templates/native/android-app.yaml` — Android 测试
 - `templates/native/ios-app.yaml` — iOS 测试
+- `templates/native/computer-desktop.yaml` — 桌面应用自动化
 
 **Extended 模板**：
 - `templates/extended/web-conditional-flow.yaml` — 条件分支
@@ -132,6 +204,9 @@ metadata:
 - `templates/extended/multi-step-with-retry.yaml` — 带重试的多步骤
 - `templates/extended/api-integration-test.yaml` — API 集成
 - `templates/extended/e2e-workflow.yaml` — 端到端完整工作流
+- `templates/extended/reusable-sub-flows.yaml` — 子流程复用（import/use）
+- `templates/extended/responsive-test.yaml` — 多视口响应式测试
+- `templates/extended/image-locator.yaml` — 图片辅助定位
 
 **模板选择决策**：
 
@@ -141,12 +216,18 @@ metadata:
 | 登录 / 表单填写 | `native/web-login.yaml` |
 | 数据采集 / 信息提取 | `native/web-data-extract.yaml` |
 | 搜索 + 结果验证 | `native/web-search.yaml` |
+| 文件上传 / 附件提交 | `native/web-file-upload.yaml` |
+| OAuth/第三方认证登录 | `native/web-auth-flow.yaml` |
+| 桌面应用自动化（非浏览器） | `native/computer-desktop.yaml` |
 | 需要条件判断（如果登录了就...） | `extended/web-conditional-flow.yaml` |
 | 需要翻页 / 列表遍历 | `extended/web-pagination-loop.yaml` |
 | 数据过滤 / 排序 / 聚合 | `extended/web-data-pipeline.yaml` |
 | 需要失败重试 | `extended/multi-step-with-retry.yaml` |
 | 需要调用外部 API | `extended/api-integration-test.yaml` |
 | 完整业务流程（多步骤 + 变量 + 导出） | `extended/e2e-workflow.yaml` |
+| 子流程复用 / 模块化 | `extended/reusable-sub-flows.yaml` |
+| 多屏幕尺寸响应式验证 | `extended/responsive-test.yaml` |
+| 复杂元素定位 / deepThink | `extended/image-locator.yaml` |
 
 ### 第 5 步：生成 YAML
 
@@ -215,20 +296,20 @@ tasks:
 
 1. **自然语言描述**（首选）：可读性高，适应页面变化
 2. **deepThink 模式**：复杂页面中多个相似元素时启用，AI 会进行更深层分析，准确率更高但耗时更长
-3. **xpath 选择器**（最后手段）：当自然语言无法精确定位时。**注意：xpath 仅适用于 Web 平台**，Android/iOS 应使用自然语言描述
+3. **图片辅助定位**（image prompting）：当文字描述不够时，可通过截图标注辅助 AI 理解目标元素（官方 `locate.images` 能力）
+4. **xpath 选择器**（最后手段）：当自然语言无法精确定位时。**注意：xpath 仅适用于 Web 平台**，Android/iOS 应使用自然语言描述
 
 ```yaml
 # 优先使用自然语言
 - aiTap: "商品列表中第三行的编辑按钮"
 
 # 复杂场景启用 deepThink（相似元素多、定位不准时使用）
-- aiTap:
-    locator: "第三行数据中的编辑图标"
-    deepThink: true
+- aiTap: "第三行数据中的编辑图标"
+  deepThink: true
 
 # 最后手段使用 xpath（仅 Web 平台）
-- aiTap:
-    xpath: "//table/tbody/tr[3]//button[@class='edit']"
+- aiTap: ""
+  xpath: "//table/tbody/tr[3]//button[@class='edit']"
 ```
 
 ### aiQuery 结果格式化
@@ -252,9 +333,8 @@ tasks:
 
 ```yaml
 - aiTap: "提交按钮"
-- aiWaitFor:
-    condition: "提交成功提示出现，或页面跳转到结果页"
-    timeout: 10000
+- aiWaitFor: "提交成功提示出现，或页面跳转到结果页"
+  timeout: 10000
 ```
 
 ## 数据转换操作参考
@@ -269,10 +349,10 @@ Extended 模式下 `data_transform` 支持的操作：
 | `reduce` | 聚合计算 | `reducer`（JS 表达式）、`initial`（初始值） |
 | `unique` / `distinct` | 去重 | `by`（去重依据的字段） |
 | `slice` | 截取子集 | `start`、`end` |
-| `flatten` | 展平嵌套数组 | 数字（展平深度，默认 1）— 仅嵌套格式 |
-| `groupBy` | 按字段分组 | 字段名字符串 — 仅嵌套格式 |
+| `flatten` | 展平嵌套数组 | `depth`（展平深度，默认 1） |
+| `groupBy` | 按字段分组 | `by` 或 `field`（分组依据的字段名） |
 
-> **两种格式**: 平面格式 `{source, operation, name}` 适合单步操作；嵌套格式 `{input, operations:[], output}` 支持链式多步操作（含 flatten/groupBy）。
+> **两种格式**: 平面格式 `{source, operation, name}` 适合单步操作；嵌套格式 `{input, operations:[], output}` 支持链式多步操作。两种格式均支持所有 8 种操作。
 
 ## 平台特定注意事项
 
@@ -282,14 +362,14 @@ Extended 模式下 `data_transform` 支持的操作：
 - 表单操作前确保输入框处于可交互状态
 
 ### Android 平台
-- 需要配置 `device`（设备 ID）和 `pkg`（包名）
+- 需要配置 `deviceId`（ADB 设备 ID，如 `emulator-5554`）
+- 使用 `launch: "com.example.app"` 启动应用（在 flow 中作为 action 步骤）
 - 可使用 `runAdbShell` 执行 ADB 命令
-- 使用 `launch` 启动应用
 
 ### iOS 平台
-- 需要配置 `device` 和 `bundleId`
+- 需要配置 `wdaPort`（WebDriverAgent 端口，默认 8100）和 `wdaHost`（默认 localhost）
+- 使用 `launch: "com.example.app"` 启动应用（在 flow 中作为 action 步骤）
 - 可使用 `runWdaRequest` 发送 WebDriverAgent 请求
-- 使用 `launch` 启动应用
 
 ### Computer 平台
 - 用于通用桌面自动化场景
@@ -307,3 +387,12 @@ Extended 模式下 `data_transform` 支持的操作：
 - 避免循环导入：A.yaml 导入 B.yaml、B.yaml 又导入 A.yaml 会导致运行时错误
 - 生成后务必通过 `--dry-run` 验证语法和结构（注意：`--dry-run` 不检测模型配置，AI 操作需要配置 `MIDSCENE_MODEL_API_KEY` 才能实际执行）
 - 提示用户可以用 **Midscene Runner** skill 来执行生成的文件
+
+## 协作协议
+
+生成完成后，向用户返回以下结构化信息：
+
+1. **生成的文件路径**: `./midscene-output/<filename>.yaml`
+2. **执行模式**: native 或 extended
+3. **建议的下一步命令**: `node scripts/midscene-run.js <path> --dry-run`
+4. 如果 dry-run 验证失败，自动分析错误并修复 YAML，重新验证

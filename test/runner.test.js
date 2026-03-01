@@ -208,50 +208,8 @@ describe('TS Runner', () => {
 // CLI argument parsing tests (extracted logic)
 // ---------------------------------------------------------------------------
 describe('CLI Argument Parsing', () => {
-  // Re-implement parseArgs here to test it in isolation
-  // (since midscene-run.js doesn't export it)
-  function parseArgs(argv) {
-    const args = {
-      yamlPath: null,
-      platform: null,
-      dryRun: false,
-      outputTs: null,
-      reportDir: './midscene-report',
-      template: 'puppeteer',
-      help: false,
-    };
-    const rawArgs = argv.slice(2);
-    for (let i = 0; i < rawArgs.length; i++) {
-      const arg = rawArgs[i];
-      switch (arg) {
-        case '--help':
-        case '-h':
-          args.help = true;
-          break;
-        case '--platform':
-          args.platform = rawArgs[++i];
-          break;
-        case '--dry-run':
-          args.dryRun = true;
-          break;
-        case '--output-ts':
-          args.outputTs = rawArgs[++i];
-          break;
-        case '--report-dir':
-          args.reportDir = rawArgs[++i];
-          break;
-        case '--template':
-          args.template = rawArgs[++i];
-          break;
-        default:
-          if (!arg.startsWith('--') && !arg.startsWith('-') && args.yamlPath === null) {
-            args.yamlPath = arg;
-          }
-          break;
-      }
-    }
-    return args;
-  }
+  // Import the real parseArgs from the CLI script.
+  const { parseArgs } = require('../scripts/midscene-run');
 
   it('parses basic yaml file path', () => {
     const args = parseArgs(['node', 'script', 'test.yaml']);
@@ -326,6 +284,90 @@ describe('CLI Argument Parsing', () => {
   it('returns null yamlPath when no file given', () => {
     const args = parseArgs(['node', 'script', '--dry-run']);
     assert.equal(args.yamlPath, null);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CLI glob resolution tests (re-implemented from midscene-run.js)
+// ---------------------------------------------------------------------------
+describe('CLI Glob Resolution', () => {
+  const globTmpDir = path.join(__dirname, '.tmp-glob-test');
+
+  function resolveYamlFiles(inputPath) {
+    if (inputPath.includes('*') || inputPath.includes('?') || inputPath.includes('{')) {
+      const matched = fs.globSync(inputPath, { cwd: process.cwd() })
+        .map(f => path.resolve(f))
+        .filter(f => {
+          const ext = path.extname(f).toLowerCase();
+          return ext === '.yaml' || ext === '.yml';
+        })
+        .sort();
+      return matched;
+    }
+    const resolved = path.resolve(inputPath);
+    if (!fs.existsSync(resolved)) return [];
+    return [resolved];
+  }
+
+  beforeEach(() => {
+    fs.mkdirSync(globTmpDir, { recursive: true });
+    fs.writeFileSync(path.join(globTmpDir, 'a.yaml'), 'engine: native\n');
+    fs.writeFileSync(path.join(globTmpDir, 'b.yml'), 'engine: native\n');
+    fs.writeFileSync(path.join(globTmpDir, 'c.yaml'), 'engine: extended\n');
+    fs.writeFileSync(path.join(globTmpDir, 'readme.txt'), 'not yaml\n');
+  });
+
+  afterEach(() => {
+    if (fs.existsSync(globTmpDir)) {
+      fs.readdirSync(globTmpDir).forEach(f => fs.unlinkSync(path.join(globTmpDir, f)));
+      fs.rmdirSync(globTmpDir);
+    }
+  });
+
+  it('resolves single file path', () => {
+    const result = resolveYamlFiles(path.join(globTmpDir, 'a.yaml'));
+    assert.equal(result.length, 1);
+    assert.ok(result[0].endsWith('a.yaml'));
+  });
+
+  it('returns empty for non-existent single file', () => {
+    const result = resolveYamlFiles(path.join(globTmpDir, 'nonexistent.yaml'));
+    assert.equal(result.length, 0);
+  });
+
+  it('resolves glob *.yaml pattern', () => {
+    const result = resolveYamlFiles(path.join(globTmpDir, '*.yaml'));
+    assert.equal(result.length, 2);
+    assert.ok(result[0].endsWith('a.yaml'));
+    assert.ok(result[1].endsWith('c.yaml'));
+  });
+
+  it('resolves glob *.yml pattern', () => {
+    const result = resolveYamlFiles(path.join(globTmpDir, '*.yml'));
+    assert.equal(result.length, 1);
+    assert.ok(result[0].endsWith('b.yml'));
+  });
+
+  it('filters out non-yaml files from glob', () => {
+    const result = resolveYamlFiles(path.join(globTmpDir, '*'));
+    // Should only include .yaml and .yml files, not .txt
+    assert.equal(result.length, 3);
+    result.forEach(f => {
+      const ext = path.extname(f).toLowerCase();
+      assert.ok(ext === '.yaml' || ext === '.yml', `Expected yaml/yml extension but got ${ext}`);
+    });
+  });
+
+  it('returns empty array for glob with no matches', () => {
+    const result = resolveYamlFiles(path.join(globTmpDir, '*.json'));
+    assert.equal(result.length, 0);
+  });
+
+  it('returns sorted results', () => {
+    const result = resolveYamlFiles(path.join(globTmpDir, '*'));
+    for (let i = 1; i < result.length; i++) {
+      assert.ok(result[i] >= result[i - 1], 'Results should be sorted');
+    }
   });
 });
 

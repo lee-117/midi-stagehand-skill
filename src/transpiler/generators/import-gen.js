@@ -9,15 +9,8 @@
  *   - Other file type imports
  */
 
-const { resolveTemplate, toCodeString } = require('./utils');
-
-/**
- * Detect file type from a file path string.
- */
-function getFileExtension(filePath) {
-  const match = filePath.match(/\.([a-zA-Z0-9]+)$/);
-  return match ? match[1].toLowerCase() : '';
-}
+const path = require('path');
+const { resolveTemplate, toCodeString, getPad } = require('./utils');
 
 /**
  * Generate TypeScript code for an `import` step.
@@ -28,7 +21,7 @@ function getFileExtension(filePath) {
  */
 function generate(step, ctx) {
   const indent = ctx && ctx.indent || 0;
-  const pad = '  '.repeat(indent);
+  const pad = getPad(indent);
   const varScope = ctx && ctx.varScope || new Set();
 
   const importPath = step.import;
@@ -36,7 +29,7 @@ function generate(step, ctx) {
     return pad + '// Invalid import: missing file path';
   }
 
-  const ext = getFileExtension(importPath);
+  const ext = path.extname(importPath).slice(1).toLowerCase();
   const pathCode = toCodeString(resolveTemplate(importPath));
 
   // JSON imports: const varName = require('./file.json')

@@ -6,7 +6,7 @@
  * using agent.aiBoolean() for condition evaluation.
  */
 
-const { resolveTemplate, toCodeString } = require('./utils');
+const { resolveTemplate, toCodeString, getPad } = require('./utils');
 
 /**
  * Generate TypeScript code for a `logic` (if/else) step.
@@ -18,7 +18,7 @@ const { resolveTemplate, toCodeString } = require('./utils');
  */
 function generate(step, ctx, processStep) {
   const indent = ctx && ctx.indent || 0;
-  const pad = '  '.repeat(indent);
+  const pad = getPad(indent);
   const logic = step.logic;
 
   if (!logic || !logic.if) {

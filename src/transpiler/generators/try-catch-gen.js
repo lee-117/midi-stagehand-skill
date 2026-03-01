@@ -5,6 +5,9 @@
  * Converts `try/catch/finally` blocks from YAML into TypeScript try/catch/finally.
  */
 
+const { getPad } = require('./utils');
+const { getNestedFlow } = require('../../utils/yaml-helpers');
+
 /**
  * Generate TypeScript code for a `try/catch/finally` step.
  *
@@ -15,7 +18,7 @@
  */
 function generate(step, ctx, processStep) {
   const indent = ctx && ctx.indent || 0;
-  const pad = '  '.repeat(indent);
+  const pad = getPad(indent);
   const lines = [];
 
   // --- try block ---
@@ -24,7 +27,7 @@ function generate(step, ctx, processStep) {
     return pad + '// Invalid try-catch block: missing "try"';
   }
 
-  const tryFlow = tryBlock.flow || tryBlock.steps || (Array.isArray(tryBlock) ? tryBlock : []);
+  const tryFlow = getNestedFlow(tryBlock) || (Array.isArray(tryBlock) ? tryBlock : []);
 
   lines.push(pad + 'try {');
   for (const subStep of tryFlow) {
@@ -35,7 +38,7 @@ function generate(step, ctx, processStep) {
   // --- catch block ---
   const catchBlock = step.catch;
   if (catchBlock) {
-    const catchFlow = catchBlock.flow || catchBlock.steps || (Array.isArray(catchBlock) ? catchBlock : []);
+    const catchFlow = getNestedFlow(catchBlock) || (Array.isArray(catchBlock) ? catchBlock : []);
     const errorVar = catchBlock.error || catchBlock.as || 'e';
 
     lines.push(pad + '} catch (' + errorVar + ') {');
@@ -48,7 +51,7 @@ function generate(step, ctx, processStep) {
   // --- finally block ---
   const finallyBlock = step.finally;
   if (finallyBlock) {
-    const finallyFlow = finallyBlock.flow || finallyBlock.steps || (Array.isArray(finallyBlock) ? finallyBlock : []);
+    const finallyFlow = getNestedFlow(finallyBlock) || (Array.isArray(finallyBlock) ? finallyBlock : []);
 
     lines.push(pad + '} finally {');
 

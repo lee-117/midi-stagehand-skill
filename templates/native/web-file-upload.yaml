@@ -1,0 +1,41 @@
+# 文件上传模板 — 适用于带有文件上传表单的网页自动化
+# 适用场景: 上传图片、文档、头像等需要文件选择的表单页面
+# 使用方式: node scripts/midscene-run.js templates/native/web-file-upload.yaml
+# 说明: 替换 url 和文件路径后即可执行
+# 兼容性: @midscene/web >= 1.x
+
+engine: native
+
+web:
+  url: "https://example.com/upload"
+  headless: false
+
+tasks:
+  - name: 上传文件并验证
+    flow:
+      # 等待上传页面加载完成
+      - aiWaitFor: "文件上传区域已显示在页面上"
+        timeout: 10000
+
+      # 使用 fileChooserAccept 处理文件选择对话框
+      - aiAct: "点击文件上传按钮"
+        fileChooserAccept: "/path/to/test-file.pdf"
+
+      # 等待文件上传完成
+      - aiWaitFor: "文件已成功上传，页面显示文件名或上传成功提示"
+        timeout: 30000
+
+      # 验证上传结果
+      - aiAssert: "页面中显示了已上传文件的名称或缩略图"
+
+      # 提取上传后的文件信息
+      - aiQuery:
+          query: >
+            提取已上传文件的信息，包含：
+            - fileName: 文件名
+            - fileSize: 文件大小
+            - status: 上传状态
+          name: "uploadResult"
+
+      - recordToReport: "文件上传测试"
+        content: "文件上传流程完成"

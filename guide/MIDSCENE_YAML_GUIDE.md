@@ -1,6 +1,6 @@
 # Midscene YAML 超集 — 渐进式指导手册
 
-> **版本**: 1.0
+> **版本**: 1.2.0
 > **适用范围**: Midscene YAML Native 模式 & Extended 超集模式
 > **阅读建议**: 按 L1 → L5 依次阅读，每一级都建立在前一级的基础上。
 
@@ -15,10 +15,13 @@
 - [L3: 数据与断言 (Native)](#l3-数据与断言-native)
 - [L4: 逻辑控制 — 超集入门 (Extended)](#l4-逻辑控制--超集入门-extended)
 - [L5: 系统集成 — 超集进阶 (Extended)](#l5-系统集成--超集进阶-extended)
+- [性能调优指南](#性能调优指南)
+- [多平台支持](#多平台支持)
 - [附录 A: 关键字速查表](#附录-a-关键字速查表)
 - [附录 B: engine 字段说明](#附录-b-engine-字段说明)
 - [附录 C: 常见问题 (FAQ)](#附录-c-常见问题-faq)
 - [附录 D: 从 TypeScript 迁移到 YAML](#附录-d-从-typescript-迁移到-yaml)
+- [附录 E: 安全检测与验证](#附录-e-安全检测与验证)
 
 ---
 
@@ -34,7 +37,7 @@ Midscene YAML 生态包含两种运行模式，覆盖从简单页面操作到复
 | **执行方式** | Midscene 引擎直接解析并执行 | 先转译为 TypeScript，再由 Playwright 执行 |
 | **适用场景** | 页面操作、数据提取、简单断言 | 条件分支、循环、API 调用、并行任务 |
 | **声明方式** | `engine: native`（默认，可省略） | `engine: extended`（必须显式声明） |
-| **学习成本** | 低 — 只需了解 6 个核心动作 | 中 — 需额外掌握变量、逻辑、集成关键字 |
+| **学习成本** | 低 — 9 个交互动作 + 3 个工具动作 | 中 — 需额外掌握变量、逻辑、集成关键字 |
 
 ### 核心管道
 
@@ -116,6 +119,45 @@ tasks:
 - **`tasks`**: 任务列表，每个任务有自己的名称和执行流程。
 - **`flow`**: 一个任务内部的步骤序列，按顺序依次执行。
 
+### 平台配置详解
+
+`web` 块支持以下配置字段（均为可选，除 `url` 外）：
+
+```yaml
+web:
+  url: "https://example.com"         # 目标网址（必填）
+  headless: false                     # 无头模式（默认 false）
+  viewportWidth: 1280                 # 视口宽度（默认 1280）
+  viewportHeight: 720                 # 视口高度（默认 720）
+  userAgent: "Mozilla/5.0 Custom"     # 自定义 User-Agent
+  deviceScaleFactor: 2                # 设备像素比（如 Retina 屏设为 2）
+  cookie: "./cookies.json"            # Cookie JSON 文件路径（自动加载）
+  acceptInsecureCerts: true           # 接受不安全的 HTTPS 证书
+  waitForNetworkIdle: true            # 页面加载后等待网络空闲
+  serve: "./dist"                     # 本地静态文件目录，自动启动本地服务器
+  bridgeMode: true                    # 桥接模式，复用已有浏览器实例
+  forceSameTabNavigation: true        # 强制在同一标签页内导航
+  chromeArgs:                         # Chrome 启动参数
+    - "--disable-gpu"
+    - "--no-sandbox"
+```
+
+> **Cookie 文件格式**: 标准的 Chromium cookie JSON 数组，每个元素包含 `name`、`value`、`domain`、`path` 等字段。设置 `cookie` 会自动引入 `fs` 模块。
+
+> **`waitForNetworkIdle` 对象格式**: 除了简单的 `true`，还支持对象格式精确控制：
+>
+> ```yaml
+> waitForNetworkIdle:
+>   timeout: 30000                    # 等待超时（毫秒，默认引擎默认值）
+>   continueOnNetworkIdleError: true  # 超时后是否继续执行（不抛错）
+> ```
+
+> **`serve` 用法**: 指定本地目录后，Midscene 会自动启动一个本地 HTTP 服务器，`url` 中可使用相对路径。适合测试本地构建产物。
+
+> **`bridgeMode` 用法**: 桥接模式不会启动新浏览器，而是连接到已有的浏览器实例。适用于需要保留浏览器状态或与其他工具共享浏览器的场景。
+
+> **snake_case 兼容**: 所有字段同时支持 camelCase 和 snake_case 写法，例如 `viewportWidth` 等同于 `viewport_width`，`acceptInsecureCerts` 等同于 `accept_insecure_certs`。
+
 ### 示例 1: 打开页面
 
 最简单的 YAML — 只是打开一个网页：
@@ -156,9 +198,8 @@ web:
 tasks:
   - name: 搜索关键词
     flow:
-      - aiInput:
-          locator: "搜索框"
-          value: "Midscene 自动化测试"
+      - aiInput: "搜索框"
+        value: "Midscene 自动化测试"
       - aiTap: "百度一下"
       - aiWaitFor: "搜索结果已加载"
 ```
@@ -168,10 +209,25 @@ tasks:
 在终端中执行：
 
 ```bash
+# 执行 YAML 文件
 node scripts/midscene-run.js example.yaml
+
+# 仅验证 + 转译，不执行（Extended 模式下会显示生成的 TypeScript）
+node scripts/midscene-run.js example.yaml --dry-run
+
+# 保存转译结果到文件
+node scripts/midscene-run.js example.yaml --output-ts output.ts
+
+# 使用 Playwright 模板（默认 Puppeteer）
+node scripts/midscene-run.js example.yaml --template playwright
+
+# 批量执行多个文件
+node scripts/midscene-run.js "tests/**/*.yaml"
 ```
 
 执行完毕后，会自动生成一份 HTML 报告，展示每一步的截图和执行结果。
+
+**Dry-run 输出说明**: `--dry-run` 模式下会依次显示验证结果（warnings/errors）、检测到的模式和特性、生成的 TypeScript 代码（Extended 模式），以及转译器 warnings（如存在未知步骤类型）。
 
 ### 常见错误与修复
 
@@ -192,9 +248,8 @@ web:
 tasks:
   - name: 搜索 Midscene
     flow:
-      - aiInput:
-          locator: "搜索输入框"
-          value: "Midscene AI 自动化"
+      - aiInput: "搜索输入框"
+        value: "Midscene AI 自动化"
       - aiTap: "百度一下 按钮"
       - aiWaitFor: "搜索结果页面已加载，能看到搜索结果列表"
       - aiAssert: "页面中包含搜索结果"
@@ -204,9 +259,12 @@ tasks:
 
 ## L2: 精确操控 (Native)
 
-**核心概念**: 6 个即时动作 (`aiTap`、`aiHover`、`aiInput`、`aiKeyboardPress`、`aiScroll`、`ai`) 让你精确控制每一步。
+**核心概念**: 9 个交互动作 + 3 个工具动作，让你精确控制每一步。
 
-### 即时动作详解
+交互动作：`aiTap`、`aiHover`、`aiInput`、`aiKeyboardPress`、`aiScroll`、`aiDoubleClick`、`aiRightClick`、`ai`（别名 `aiAct`）。
+工具动作：`sleep`、`javascript`、`recordToReport`。
+
+### 交互动作详解
 
 #### 1. `aiTap` — 点击元素
 
@@ -237,14 +295,13 @@ tasks:
 先定位输入框，再填入指定的值。如果输入框中已有内容，会先清除再输入。
 
 ```yaml
-- aiInput:
-    locator: "用户名输入框"
-    value: "testuser@example.com"
+- aiInput: "用户名输入框"
+  value: "testuser@example.com"
 ```
 
 #### 4. `aiKeyboardPress` — 按下键盘按键
 
-模拟键盘按键操作，支持特殊键（Enter、Tab、Escape 等）和组合键。
+模拟键盘按键操作，支持特殊键（Enter、Tab、Escape 等）和组合键。也可用 `keyName` 作为替代参数指定按键名称。
 
 ```yaml
 # 按下 Enter 键
@@ -259,21 +316,33 @@ tasks:
 
 #### 5. `aiScroll` — 滚动页面
 
-控制页面或特定元素的滚动方向和距离。
+控制页面或特定元素的滚动方向和距离。使用扁平/兄弟格式：
 
 ```yaml
 # 简写 — 向下滚动
-- aiScroll:
-    direction: "down"
+- aiScroll: "页面内容区域"
+  direction: "down"
 
 # 完整形式 — 在指定区域内向右滚动
-- aiScroll:
-    locator: "商品列表区域"
-    direction: "right"
-    scrollCount: 3
+- aiScroll: "商品列表区域"
+  direction: "right"
+  distance: 900
+
+# 使用 scrollType 控制滚动行为
+- aiScroll: "长列表"
+  scrollType: "scrollToBottom"
+
+# 使用 distance 精确控制滚动距离（像素）
+- aiScroll: "商品详情页"
+  direction: "down"
+  distance: 500
 ```
 
 支持的方向：`up`、`down`、`left`、`right`。
+
+支持的 `scrollType`：`singleAction`、`scrollToBottom`、`scrollToTop`、`scrollToRight`、`scrollToLeft`。
+
+`distance`：可选，以像素为单位指定滚动距离。未指定时由引擎自动决定滚动量。
 
 #### 6. `ai` — 自动规划执行
 
@@ -286,14 +355,39 @@ tasks:
 
 > **提示**: `ai` 动作是"高级自动驾驶"，而 `aiTap`、`aiInput` 等是"手动挡"。当你需要确保每一步都精准无误时，使用具体的动作；当步骤比较简单且容错空间大时，可以用 `ai` 简化编写。
 
+> **别名**: `aiAct` 是 `ai` 的完全等价别名，两者可互换使用。
+
+#### 7. `aiDoubleClick` — 双击元素
+
+双击页面上的目标元素，常用于打开文件、进入编辑模式等场景。
+
+```yaml
+# 双击打开文件
+- aiDoubleClick: "文件列表中名为 report.xlsx 的文件"
+
+# 双击进入编辑模式
+- aiDoubleClick: "表格中第一行的名称单元格"
+  deepThink: true
+```
+
+#### 8. `aiRightClick` — 右键点击
+
+在目标元素上点击鼠标右键，通常用于触发上下文菜单。
+
+```yaml
+# 右键打开菜单
+- aiRightClick: "文件列表中的第一个文件"
+- aiWaitFor: "右键菜单出现"
+- aiTap: "菜单中的删除选项"
+```
+
 ### `deepThink` 选项
 
 当页面 UI 复杂、元素难以定位时，开启 `deepThink` 让 AI 进行更深入的分析：
 
 ```yaml
-- aiTap:
-    locator: "第三行数据中的编辑图标"
-    deepThink: true
+- aiTap: "第三行数据中的编辑图标"
+  deepThink: true
 ```
 
 `deepThink` 会让 AI 花更多时间分析页面结构，但定位准确率更高。适用于：
@@ -307,11 +401,113 @@ tasks:
 当自然语言定位不够精确时，可以退回到 XPath 选择器：
 
 ```yaml
-- aiTap:
-    xpath: "//button[@id='submit-btn']"
+- aiTap: ""
+  xpath: "//button[@id='submit-btn']"
 ```
 
 > **建议**: 优先使用自然语言描述，只在自然语言无法准确定位时才使用 `xpath`。自然语言描述的可读性和可维护性远优于 XPath。
+
+### 工具动作
+
+除了交互动作外，还有 3 个工具动作用于流程控制和调试。
+
+#### `sleep` — 等待固定时间
+
+暂停执行指定的毫秒数。适用于需要等待动画、延迟加载等场景。
+
+```yaml
+# 等待 2 秒
+- sleep: 2000
+
+# 等待动画完成后再操作
+- aiTap: "展开详情"
+- sleep: 500
+- aiAssert: "详情面板已完全展开"
+```
+
+> **提示**: 优先使用 `aiWaitFor` 进行条件等待，`sleep` 仅在无法用条件描述时使用。
+
+#### `javascript` — 执行自定义 JavaScript
+
+在浏览器页面上下文中执行任意 JavaScript 代码。可通过 `name` 或 `output` 捕获返回值。
+
+```yaml
+# 获取页面标题
+- javascript: "return document.title"
+  name: "pageTitle"
+
+# 修改页面样式
+- javascript: "document.body.style.zoom = '150%'"
+
+# 获取 localStorage 数据
+- javascript: "return JSON.parse(localStorage.getItem('userSettings'))"
+  name: "settings"
+
+# 使用 page API（Extended 模式）
+- javascript: "await page.setViewport({ width: 375, height: 667 })"
+```
+
+> **注意**: `javascript` 步骤中的代码在浏览器页面上下文执行。如需捕获返回值，指定 `name`（或 `output`）字段。
+
+#### `recordToReport` — 记录信息到报告
+
+将自定义信息添加到执行报告中，便于追踪流程进度和调试。
+
+```yaml
+# 记录里程碑
+- recordToReport: "登录流程完成"
+  content: "用户 admin 登录成功，耗时约 3 秒"
+
+# 记录数据采集进度
+- recordToReport: "第 ${i} 页数据采集"
+  content: "本页提取了 ${pageData.length} 条记录"
+```
+
+### `cacheable` 选项
+
+在动作级别控制是否缓存 AI 结果（需配合 `agent.cache: true`）。默认所有动作均可缓存，设为 `false` 可对特定步骤禁用缓存。
+
+```yaml
+# 此步骤的 AI 结果不缓存（每次都重新调用 AI）
+- aiQuery:
+    query: "当前实时价格"
+    name: "currentPrice"
+  cacheable: false
+```
+
+### `mode` 选项（aiInput 专用）
+
+控制 `aiInput` 的输入行为。默认会先清除输入框再输入。
+
+```yaml
+# 追加输入（不清除已有内容）
+- aiInput: "搜索框"
+  value: " 追加文本"
+  mode: "typeOnly"
+
+# 仅清除输入框
+- aiInput: "搜索框"
+  value: ""
+  mode: "clear"
+```
+
+支持的 `mode` 值：
+
+| 值 | 行为 |
+|---|---|
+| `replace` | 先清除再输入（默认） |
+| `clear` | 仅清除输入框内容 |
+| `typeOnly` | 直接输入，不清除已有内容 |
+
+### `images` 选项 — 图片辅助定位
+
+当自然语言描述不足以精确定位元素时，可以提供参考图片辅助 AI 识别。
+
+```yaml
+- aiTap: "与参考图片相似的图标按钮"
+  images:
+    - "./images/target-icon.png"
+```
 
 ### 完整示例: 多步表单填写
 
@@ -324,24 +520,20 @@ tasks:
   - name: 填写注册表单
     flow:
       # 第一步：填写基本信息
-      - aiInput:
-          locator: "姓名输入框"
-          value: "张三"
-      - aiInput:
-          locator: "邮箱输入框"
-          value: "zhangsan@example.com"
-      - aiInput:
-          locator: "密码输入框"
-          value: "SecurePass123!"
-      - aiInput:
-          locator: "确认密码输入框"
-          value: "SecurePass123!"
+      - aiInput: "姓名输入框"
+        value: "张三"
+      - aiInput: "邮箱输入框"
+        value: "zhangsan@example.com"
+      - aiInput: "密码输入框"
+        value: "SecurePass123!"
+      - aiInput: "确认密码输入框"
+        value: "SecurePass123!"
 
       # 第二步：选择偏好
       - aiTap: "我同意服务条款 复选框"
-      - aiScroll:
-          direction: "down"
-          scrollCount: 2
+      - aiScroll: "注册表单区域"
+        direction: "down"
+        distance: 600
 
       # 第三步：提交
       - aiTap: "注册按钮"
@@ -375,6 +567,52 @@ tasks:
 
 `name` 的作用是将提取的结果保存为一个命名变量，在报告中可以看到该变量的值，在 Extended 模式下还可以在后续步骤中引用。
 
+### 类型化数据提取
+
+除了通用的 `aiQuery`，还有 3 个类型化提取动作，返回指定类型的值：
+
+#### `aiBoolean` — 提取布尔值
+
+判断页面状态，返回 `true` 或 `false`。
+
+```yaml
+- aiBoolean: "用户是否已登录（页面显示了用户头像或退出按钮）"
+  name: "isLoggedIn"
+```
+
+#### `aiNumber` — 提取数值
+
+从页面中提取一个数值。
+
+```yaml
+- aiNumber: "购物车中的商品总数量"
+  name: "cartCount"
+
+- aiNumber: "商品价格（不含货币符号的数字）"
+  name: "productPrice"
+```
+
+#### `aiString` — 提取文本
+
+从页面中提取一段文本字符串。
+
+```yaml
+- aiString: "页面顶部显示的用户名"
+  name: "username"
+
+- aiString: "订单状态文字（如'已发货'、'待支付'等）"
+  name: "orderStatus"
+```
+
+### `aiLocate` — 定位元素
+
+获取页面元素的位置信息（坐标、尺寸），不执行任何操作。适用于需要根据元素位置做后续计算的场景。
+
+```yaml
+- aiLocate: "页面右下角的浮动操作按钮"
+  name: "fabPosition"
+```
+
 ### `aiAssert` — 断言验证
 
 用自然语言描述期望的页面状态，如果实际状态不符则测试失败。
@@ -383,7 +621,11 @@ tasks:
 # 简写形式
 - aiAssert: "页面上显示了欢迎回来的问候语"
 
-# 带自定义错误消息
+# 带自定义错误消息（扁平格式 — 推荐）
+- aiAssert: "购物车中的商品数量为 3"
+  errorMessage: "购物车数量不正确，期望 3 件商品"
+
+# 嵌套格式（也支持）
 - aiAssert:
     assertion: "购物车中的商品数量为 3"
     errorMessage: "购物车数量不正确，期望 3 件商品"
@@ -503,6 +745,72 @@ tasks:
 
 > 注意：`continueOnError` 是任务级别的选项，不适用于单个步骤。如果需要步骤级容错，请使用 `try` / `catch`。
 
+### `agent` — Agent 配置
+
+`agent` 块配置 Midscene Agent 的行为，包括缓存、报告和分组。所有字段均为可选。
+
+```yaml
+agent:
+  testId: "regression-001"         # 测试标识符，用于区分不同测试场景
+  groupName: "回归测试"              # 测试分组名称
+  groupDescription: "每日回归测试套件"  # 分组描述
+  cache: true                       # 启用 AI 结果缓存
+  generateReport: true              # 自动生成报告
+  autoPrintReportMsg: true          # 自动打印报告消息
+  reportFileName: "my-report"       # 自定义报告文件名
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `testId` | string | 测试标识符，区分不同测试场景的缓存 |
+| `groupName` | string | 测试分组名称，报告中用于归类 |
+| `groupDescription` | string | 分组的详细描述 |
+| `cache` | boolean | 启用 AI 结果缓存，相同指令复用结果 |
+| `generateReport` | boolean | 是否自动生成执行报告 |
+| `autoPrintReportMsg` | boolean | 执行后自动输出报告路径 |
+| `reportFileName` | string | 自定义报告文件名（不含扩展名） |
+
+在转译为 TypeScript 时，`agent` 配置会作为第二个参数传递给 Agent 构造函数：
+
+```typescript
+// 有 agent 配置时
+const agent = new PuppeteerAgent(page, {"testId":"regression-001","cache":true});
+
+// 无 agent 配置时
+const agent = new PuppeteerAgent(page);
+```
+
+#### 缓存功能详解
+
+通过 `cache: true` 启用 AI 结果缓存。当相同的 AI 指令在相同的页面上下文中再次执行时，直接复用缓存结果，跳过 AI 调用，显著加速重复运行。
+
+```yaml
+agent:
+  cache: true
+  testId: "regression-001"
+  groupName: "回归测试"
+
+web:
+  url: "https://example.com"
+
+tasks:
+  - name: 多次运行可复用 AI 结果
+    flow:
+      - aiTap: "登录按钮"
+      - aiInput: "用户名输入框"
+        value: "admin"
+```
+
+**适用场景：**
+- 回归测试：同一用例反复执行，第二次起直接走缓存
+- 调试开发：反复微调 YAML 步骤，无需每次都等 AI 响应
+- CI/CD：缓存可降低 AI API 调用量和运行时间
+
+**注意事项：**
+- 缓存键基于 AI 指令文本和页面上下文，页面内容变化会自动失效
+- 首次运行无缓存，需完整调用 AI
+- 建议搭配 `testId` 使用，便于区分不同测试场景的缓存
+
 ---
 
 ## L4: 逻辑控制 — 超集入门 (Extended)
@@ -554,13 +862,35 @@ web:
 
 ```yaml
 flow:
-  - aiInput:
-      locator: "用户名输入框"
-      value: "${username}"
-  - aiInput:
-      locator: "密码输入框"
-      value: "${password}"
+  - aiInput: "用户名输入框"
+    value: "${username}"
+  - aiInput: "密码输入框"
+    value: "${password}"
 ```
+
+#### 变量的两种声明方式
+
+**顶层声明**（推荐）— 在 `variables` 块中统一定义：
+
+```yaml
+variables:
+  username: "admin"
+  retryCount: 3
+```
+
+**流程内赋值** — 通过 `aiQuery`/`aiBoolean`/`aiNumber`/`aiString` 的 `name` 字段在执行过程中动态创建变量：
+
+```yaml
+flow:
+  - aiQuery:
+      query: "当前页面上的用户名"
+      name: "currentUser"       # 执行后 ${currentUser} 可用
+
+  - aiBoolean: "用户是否已登录"
+    name: "isLoggedIn"          # 执行后 ${isLoggedIn} 可用
+```
+
+> **差异**: 顶层 `variables` 在转译时静态替换，流程内 `name` 在运行时动态赋值。环境变量 `${ENV:NAME}` 在运行时从系统环境读取。
 
 ### `logic` — 条件分支
 
@@ -571,12 +901,10 @@ flow:
     if: "页面上显示了登录按钮"
     then:
       - aiTap: "登录按钮"
-      - aiInput:
-          locator: "用户名"
-          value: "${username}"
-      - aiInput:
-          locator: "密码"
-          value: "${password}"
+      - aiInput: "用户名"
+        value: "${username}"
+      - aiInput: "密码"
+        value: "${password}"
       - aiTap: "提交"
     else:
       - aiAssert: "用户已处于登录状态"
@@ -643,9 +971,8 @@ tasks:
           items: "${cities}"
           itemVar: "city"
           steps:
-            - aiInput:
-                locator: "城市搜索框"
-                value: "${city}"
+            - aiInput: "城市搜索框"
+              value: "${city}"
             - aiTap: "搜索"
             - aiWaitFor: "天气信息加载完成"
             - aiQuery:
@@ -690,12 +1017,10 @@ tasks:
       - logic:
           if: "页面显示了登录表单（有用户名和密码输入框）"
           then:
-            - aiInput:
-                locator: "用户名输入框"
-                value: "${username}"
-            - aiInput:
-                locator: "密码输入框"
-                value: "${password}"
+            - aiInput: "用户名输入框"
+              value: "${username}"
+            - aiInput: "密码输入框"
+              value: "${password}"
             - aiTap: "登录按钮"
             - aiWaitFor: "登录成功，进入仪表盘页面"
           else:
@@ -782,12 +1107,10 @@ params:
   - password
 
 flow:
-  - aiInput:
-      locator: "用户名输入框"
-      value: "${username}"
-  - aiInput:
-      locator: "密码输入框"
-      value: "${password}"
+  - aiInput: "用户名输入框"
+    value: "${username}"
+  - aiInput: "密码输入框"
+    value: "${password}"
   - aiTap: "登录"
   - aiWaitFor: "登录成功"
 ```
@@ -807,9 +1130,8 @@ tasks:
           items: "${products}"
           itemVar: "product"
           steps:
-            - aiInput:
-                locator: "搜索框"
-                value: "${product.name}"
+            - aiInput: "搜索框"
+              value: "${product.name}"
             - aiTap: "搜索"
             - aiWaitFor: "搜索结果加载完成"
 ```
@@ -851,7 +1173,7 @@ tasks:
           name: "finalProducts"
 ```
 
-支持的操作（平面格式）：
+支持的操作（两种格式均可使用）：
 
 | 操作 | 说明 | 关键参数 |
 |---|---|---|
@@ -861,6 +1183,8 @@ tasks:
 | `reduce` | 聚合计算 | `reducer`、`initial` |
 | `unique` / `distinct` | 去重 | `by`（去重依据的字段） |
 | `slice` | 截取子集 | `start`、`end` |
+| `flatten` | 展平嵌套数组 | `depth`（展平深度，默认 1） |
+| `groupBy` | 按字段分组为对象 | `by` 或 `field`（字段名） |
 
 #### 嵌套格式（链式操作）
 
@@ -876,13 +1200,6 @@ tasks:
       - groupBy: "category"
     output: "processedData"
 ```
-
-嵌套格式额外支持的操作：
-
-| 操作 | 说明 | 参数 |
-|---|---|---|
-| `flatten` | 展平嵌套数组 | 数字（展平深度，默认 1） |
-| `groupBy` | 按字段分组为对象 | 字段名字符串 |
 
 ### `external_call` — 外部调用
 
@@ -918,6 +1235,8 @@ tasks:
     command: "node scripts/process-data.js --input ./output/raw.json --output ./output/final.json"
     name: "shellResult"
 ```
+
+> **安全提示**: 避免在 shell 命令中直接使用 `${...}` 模板变量（如 `command: "rm ${path}"`），这可能导致命令注入。验证器会对此发出警告。详见[附录 E: 安全检测与验证](#附录-e-安全检测与验证)。
 
 ### `try` / `catch` / `finally` — 异常处理
 
@@ -1155,6 +1474,247 @@ tasks:
       dataName: "sortedTechArticles"
 ```
 
+### Extended 模式常见错误与修复
+
+| 错误现象 | 原因 | 修复方式 |
+|---|---|---|
+| `Missing engine: extended` | 使用了 `variables`/`logic`/`loop` 但未声明 engine | 文件顶部添加 `engine: extended` |
+| `loop must have a "type"` | 循环缺少 `type` 字段 | 添加 `type: for`、`type: repeat` 或 `type: while` |
+| `features 数组缺失` | 使用了扩展特性但未在 `features` 中声明 | 添加 `features: [variables, logic, loop]`（按实际使用添加） |
+| 变量 `${xxx}` 为 undefined | 变量未在 `variables` 中定义，或 `aiQuery` 的 `name` 拼写不一致 | 检查变量名拼写，确保在引用前已定义 |
+| `while` 循环无限执行 | 缺少 `maxIterations` | 添加 `maxIterations: 20`（或合适的上限值） |
+| `Circular import detected` | 两个 YAML 文件互相 import | 重构为单向依赖，或将共享逻辑提取到第三个文件 |
+| `import path resolves outside project` | import 路径使用了 `../` 穿越项目目录 | 使用项目内的相对路径 |
+| Shell 命令注入警告 | `external_call` shell 命令包含 `${...}` 变量 | 改用 `http` 类型调用后端 API，或确保变量来源可控 |
+| `catch` / `finally` 不生效 | 错误地将 `catch` 嵌套在 `try.flow` 内部 | `catch` 和 `finally` 是 `try` 的**兄弟键**，与 `try` 同级 |
+| `parallel` 分支变量不可见 | 未设置 `waitAll: true` | 添加 `waitAll: true` 等待所有分支完成后变量才可用 |
+
+---
+
+## 性能调优指南
+
+### 无头模式
+
+`headless: true` 不启动浏览器 GUI，运行速度更快，适合 CI/CD 环境。
+
+```yaml
+web:
+  url: "https://example.com"
+  headless: true                  # CI 环境推荐开启
+```
+
+### AI 缓存
+
+启用缓存可大幅减少重复执行时的 AI API 调用：
+
+```yaml
+agent:
+  cache: true
+  testId: "regression-001"        # 不同测试场景使用不同 testId
+```
+
+高级缓存策略（对象格式）：
+
+```yaml
+agent:
+  cache:
+    strategy: "read-write"        # read-write（默认）| read-only | write-only
+    id: "custom-cache-id"         # 自定义缓存 ID
+```
+
+| 策略 | 说明 |
+|------|------|
+| `read-write` | 读取已有缓存，同时写入新结果（默认） |
+| `read-only` | 只读取缓存，不写入新结果（验证缓存一致性） |
+| `write-only` | 忽略已有缓存，强制重新执行并写入新结果 |
+
+### 超时优化
+
+合理设置 `timeout` 避免不必要的等待：
+
+```yaml
+# 快速页面：缩短超时
+- aiWaitFor: "按钮出现"
+  timeout: 5000
+
+# 慢速页面：适当放宽
+- aiWaitFor: "大量数据加载完成"
+  timeout: 30000
+```
+
+### 网络等待
+
+对于 SPA 应用，`waitForNetworkIdle` 可确保数据加载完成后再操作：
+
+```yaml
+web:
+  url: "https://spa-app.example.com"
+  waitForNetworkIdle: true         # 简单开启
+
+# 或精确控制
+web:
+  url: "https://spa-app.example.com"
+  waitForNetworkIdle:
+    timeout: 10000                 # 最多等 10 秒
+    continueOnNetworkIdleError: true  # 超时不报错，继续执行
+```
+
+### 性能最佳实践
+
+1. **CI 环境**: `headless: true` + `cache: true` + 合理 `timeout`
+2. **开发调试**: `headless: false` + `cache: true`（快速迭代）
+3. **首次运行**: 不使用缓存，确保 AI 结果正确后再开启
+4. **数据提取**: 用具体的 `aiQuery` 描述替代模糊的 `ai` 指令，减少 AI 推理时间
+5. **步骤粒度**: 拆分复杂的 `ai` 指令为多个具体动作，提高可靠性和速度
+
+---
+
+## 多平台支持
+
+Midscene 支持 Web、Android、iOS 和 Computer（桌面应用）四种平台。通过不同的顶层配置键切换平台。
+
+### Android 平台
+
+```yaml
+android:
+  deviceId: "emulator-5554"    # ADB 设备 ID
+
+tasks:
+  - name: Android 应用测试
+    flow:
+      - launch: "com.example.myapp"
+      - aiWaitFor: "应用主界面加载完成"
+      - aiTap: "设置按钮"
+```
+
+#### `runAdbShell` — 执行 ADB Shell 命令
+
+在 Android 设备上执行 ADB shell 命令。可通过 `name` 捕获命令输出。
+
+```yaml
+# 获取当前 Activity
+- runAdbShell: "dumpsys activity activities | grep mResumedActivity"
+  name: "currentActivity"
+
+# 清除应用数据
+- runAdbShell: "pm clear com.example.myapp"
+
+# 截取屏幕截图到设备
+- runAdbShell: "screencap -p /sdcard/screenshot.png"
+```
+
+### iOS 平台
+
+```yaml
+ios:
+  deviceId: "00001234-ABCDEFGH"  # 设备 UDID
+  wdaPort: 8100                   # WebDriverAgent 端口（默认 8100）
+  wdaHost: "localhost"            # WebDriverAgent 主机（默认 localhost）
+
+tasks:
+  - name: iOS 应用测试
+    flow:
+      - launch: "com.example.myapp"
+      - aiWaitFor: "应用主界面加载完成"
+      - aiTap: "登录按钮"
+```
+
+#### `runWdaRequest` — 执行 WebDriverAgent 请求
+
+向 iOS 设备的 WebDriverAgent 发送自定义请求，用于执行 WDA 支持的底层操作。
+
+```yaml
+# 获取设备信息
+- runWdaRequest: "/status"
+  name: "deviceStatus"
+
+# 回到主屏幕
+- runWdaRequest: "/wda/homescreen"
+```
+
+### Computer 平台（桌面应用）
+
+```yaml
+computer:
+  # Computer 平台当前无额外配置项
+
+tasks:
+  - name: 桌面应用测试
+    flow:
+      - launch: "notepad.exe"
+      - aiWaitFor: "记事本应用窗口打开"
+      - aiInput: "文本编辑区域"
+        value: "Hello from Midscene!"
+```
+
+### `launch` — 启动应用
+
+`launch` 是一个**流程步骤**（不是平台配置），用于启动移动端或桌面端应用。值为应用的包名或路径。
+
+```yaml
+flow:
+  - launch: "com.example.myapp"       # Android 包名
+  - launch: "com.example.myapp"       # iOS Bundle ID
+  - launch: "notepad.exe"             # 桌面应用路径
+```
+
+### 移动端快速入门
+
+#### Android 快速入门
+
+**前置条件**: 安装 ADB，设备已连接（`adb devices` 可看到设备）。
+
+```yaml
+# android-quickstart.yaml — Android 应用基本操作
+android:
+  deviceId: "emulator-5554"
+
+tasks:
+  - name: 启动并操作应用
+    flow:
+      - launch: "com.android.settings"
+      - aiWaitFor: "设置页面加载完成"
+      - aiTap: "显示"
+      - aiWaitFor: "显示设置页面出现"
+      - aiAssert: "能看到亮度调节或显示相关设置项"
+
+  - name: 使用 ADB 命令
+    flow:
+      - runAdbShell: "getprop ro.build.version.release"
+        name: "androidVersion"
+      - recordToReport: "Android 版本"
+        content: "设备 Android 版本: ${androidVersion}"
+```
+
+#### iOS 快速入门
+
+**前置条件**: 安装 Xcode，WebDriverAgent 已配置并运行。
+
+```yaml
+# ios-quickstart.yaml — iOS 应用基本操作
+ios:
+  deviceId: "00001234-ABCDEFGH"
+  wdaPort: 8100
+
+tasks:
+  - name: 启动并操作应用
+    flow:
+      - launch: "com.apple.Preferences"
+      - aiWaitFor: "设置页面加载完成"
+      - aiTap: "通用"
+      - aiWaitFor: "通用设置页面出现"
+      - aiAssert: "能看到关于本机或软件更新等选项"
+
+  - name: 获取设备状态
+    flow:
+      - runWdaRequest: "/status"
+        name: "wdaStatus"
+      - recordToReport: "设备状态"
+        content: "WDA 状态查询完成"
+```
+
+> **提示**: 所有 Native 模式的 AI 动作（`aiTap`、`aiInput`、`aiAssert` 等）在移动端平台上的用法与 Web 完全一致，只是平台配置和启动方式不同。
+
 ---
 
 ## 附录 A: 关键字速查表
@@ -1164,21 +1724,47 @@ tasks:
 | 关键字 | 类型 | 说明 |
 |---|---|---|
 | `web` | 配置 | 定义目标网页地址及浏览器设置 |
+| `android` / `ios` / `computer` | 配置 | 其他平台配置 |
 | `tasks` | 结构 | 任务列表，每个任务包含 `name` 和 `flow` |
 | `flow` | 结构 | 步骤序列，按顺序执行 |
+| `agent` | 配置 | Agent 行为配置（`testId`/`groupName`/`cache`/`generateReport` 等） |
 | `aiTap` | 动作 | 点击页面元素 |
 | `aiHover` | 动作 | 悬停在页面元素上 |
 | `aiInput` | 动作 | 在输入框中填写内容（`locator` + `value`） |
-| `aiKeyboardPress` | 动作 | 模拟键盘按键 |
-| `aiScroll` | 动作 | 滚动页面（`direction` + 可选 `scrollCount`） |
-| `ai` | 动作 | AI 自动规划并执行自然语言描述的操作 |
+| `aiKeyboardPress` | 动作 | 模拟键盘按键（可用 `keyName` 指定按键名） |
+| `aiScroll` | 动作 | 滚动页面（扁平格式：`direction`、`distance`、`scrollType`） |
+| `ai` / `aiAct` | 动作 | AI 自动规划并执行自然语言描述的操作（`aiAct` 为别名） |
+| `aiDoubleClick` | 动作 | 双击页面元素 |
+| `aiRightClick` | 动作 | 右键点击页面元素 |
+| `aiBoolean` | 提取 | 从页面提取布尔值（`name` 存储结果） |
+| `aiNumber` | 提取 | 从页面提取数值（`name` 存储结果） |
+| `aiString` | 提取 | 从页面提取文本（`name` 存储结果） |
+| `aiLocate` | 提取 | 获取元素位置信息（`name` 存储结果） |
 | `aiWaitFor` | 等待 | 等待条件满足（可选 `timeout`） |
 | `aiAssert` | 断言 | 验证页面状态（可选 `errorMessage`） |
 | `aiQuery` | 提取 | 从页面提取数据（可选 `name` 存储结果） |
 | `output` | 导出 | 将数据写入文件（`filePath` + `dataName`） |
 | `continueOnError` | 选项 | 任务级容错，失败后继续后续任务 |
+| `sleep` | 工具 | 暂停执行指定毫秒数 |
+| `javascript` | 工具 | 在页面上下文执行 JavaScript（可选 `name` 捕获返回值） |
+| `recordToReport` | 工具 | 记录自定义信息到执行报告（配合 `content`） |
+| `launch` | 工具 | 启动移动端或桌面端应用（包名或路径） |
+| `runAdbShell` | 平台 | 执行 ADB shell 命令（Android 专用） |
+| `runWdaRequest` | 平台 | 发送 WDA 请求（iOS 专用） |
 | `deepThink` | 选项 | 启用深度分析，提高复杂元素定位准确率 |
+| `cacheable` | 选项 | 控制单个步骤是否使用 AI 缓存 |
+| `mode` | 选项 | aiInput 输入模式（`replace`/`clear`/`typeOnly`） |
+| `images` | 选项 | 图片辅助定位，提供参考图片数组 |
 | `xpath` | 选项 | 使用 XPath 选择器精确定位元素 |
+| `userAgent` | web 配置 | 自定义浏览器 User-Agent |
+| `deviceScaleFactor` | web 配置 | 设备像素比 |
+| `cookie` | web 配置 | Cookie JSON 文件路径 |
+| `acceptInsecureCerts` | web 配置 | 接受不安全的 HTTPS 证书 |
+| `waitForNetworkIdle` | web 配置 | 等待网络空闲后继续（支持对象格式） |
+| `serve` | web 配置 | 本地静态文件目录，自动启动服务器 |
+| `bridgeMode` | web 配置 | 桥接模式，连接已有浏览器实例 |
+| `forceSameTabNavigation` | web 配置 | 强制在同一标签页内导航 |
+| `distance` | 动作选项 | aiScroll 滚动距离（像素） |
 
 ### Extended 超集关键字
 
@@ -1331,6 +1917,16 @@ variables:
       - aiTap: "下一页"
 ```
 
+### Q10: `cache: true` 有什么作用？
+
+**A**: 在 `agent` 配置中设置 `cache: true` 后，Midscene 会缓存 AI 操作的结果。同一 AI 指令在相同页面上下文中再次执行时，直接复用缓存，跳过 AI 调用。适用于回归测试和调试场景，可大幅减少运行时间和 API 调用量。
+
+```yaml
+agent:
+  cache: true
+  testId: "my-test"
+```
+
 ---
 
 ## 附录 D: 从 TypeScript 迁移到 YAML
@@ -1353,9 +1949,8 @@ const data = await aiQuery("商品列表");
 flow:
   - ai: "点击登录按钮"
   - aiTap: "搜索框"
-  - aiInput:
-      locator: "用户名输入框"
-      value: "admin"
+  - aiInput: "用户名输入框"
+    value: "admin"
   - aiAssert: "页面显示欢迎信息"
   - aiQuery:
       query: "商品列表"
@@ -1388,12 +1983,10 @@ tasks:
           then:
             - aiTap: "进入仪表盘"
           else:
-            - aiInput:
-                locator: "用户名"
-                value: "admin"
-            - aiInput:
-                locator: "密码"
-                value: "123456"
+            - aiInput: "用户名"
+              value: "admin"
+            - aiInput: "密码"
+              value: "123456"
             - aiTap: "登录"
 ```
 
@@ -1427,9 +2020,8 @@ tasks:
           items: "${items}"
           itemVar: "item"
           steps:
-            - aiInput:
-                locator: "搜索框"
-                value: "${item}"
+            - aiInput: "搜索框"
+              value: "${item}"
             - aiTap: "搜索"
             - aiWaitFor: "搜索结果加载完成"
 ```
@@ -1441,6 +2033,113 @@ tasks:
 3. **利用 `ai` 简化**: TypeScript 中多步操作可以合并为一个 `ai` 指令，让 AI 自动规划。
 4. **保留复杂逻辑**: 如果 TypeScript 中有非常复杂的数据处理逻辑，可以将其封装为外部脚本，通过 `external_call` 调用。
 5. **逐步增加断言**: 迁移后增加 `aiAssert` 来验证每个关键步骤的结果，确保行为与原 TypeScript 一致。
+
+---
+
+## 附录 E: 安全检测与验证
+
+验证器（`yaml-validator.js`）在验证 YAML 文件时会自动执行多项安全检查，以 warning 或 error 形式报告潜在风险。
+
+### Import 路径穿越检测
+
+当 `import` 路径解析后超出项目目录时，验证器会发出警告：
+
+```yaml
+# 触发警告的写法
+- import: "../../../etc/passwd.yaml"
+  as: dangerousFlow
+```
+
+```
+[WARN] Import path "../../../etc/passwd.yaml" resolves outside the project directory.
+       This may be a security risk.
+```
+
+### Shell 命令注入警告
+
+当 `external_call` 的 `shell` 命令中包含 `${...}` 模板变量时，验证器会警告可能存在命令注入风险：
+
+```yaml
+# 触发警告的写法
+- external_call:
+    type: shell
+    command: "rm -rf ${userInput}/data"
+```
+
+```
+[WARN] Shell command contains template variables (rm -rf ${userInput}/data).
+       User-controlled input in shell commands may lead to command injection.
+```
+
+**安全建议**: 避免在 shell 命令中直接拼接用户输入。如果必须使用变量，确保变量来源可控（如环境变量），或改用 `http` 类型调用后端 API 来处理。
+
+### 循环 Import 检测
+
+验证器会追踪 import 链，检测文件之间的循环依赖：
+
+```yaml
+# circular-a.yaml
+tasks:
+  - name: A
+    flow:
+      - import: "./circular-b.yaml"
+
+# circular-b.yaml
+tasks:
+  - name: B
+    flow:
+      - import: "./circular-a.yaml"   # 形成循环！
+```
+
+```
+[ERR] Circular import detected: "./circular-a.yaml" creates a cycle.
+```
+
+循环 import 会导致验证失败（`valid: false`）。Import 链深度上限为 10 层，超过时会发出警告并停止追踪。
+
+### 深层嵌套保护
+
+`walkFlow()` 递归深度上限为 50 层。超过此限制时会静默停止递归，防止栈溢出。正常的 YAML 文件嵌套深度通常不超过 10 层，触发此限制说明文件结构可能存在问题。
+
+### 未知步骤类型警告
+
+转译器在处理无法识别的步骤时会发出警告（通过 `--dry-run` 可见）：
+
+```yaml
+tasks:
+  - name: test
+    flow:
+      - unknownAction: "something"   # 不是已知关键字
+```
+
+```
+[WARN] Unknown step type with keys: [unknownAction].
+       This step will be serialised as a comment.
+```
+
+### 改进的错误消息
+
+验证器的错误消息现在包含修复建议：
+
+```
+# 缺少平台配置
+[ERR] Document must contain at least one platform config key at root level:
+      web, android, ios, or computer.
+      Example: web:
+        url: "https://example.com"
+
+# 缺少 tasks 数组
+[ERR] Document must contain a "tasks" array at root level.
+      Example: tasks:
+        - name: "my task"
+          flow:
+            - aiTap: "button"
+
+# 循环缺少 type
+[ERR] "loop" construct must have a "type".
+      Valid types: for (iterate items), while (condition-based), repeat (fixed count).
+      Add: type: for
+```
 
 ---
 

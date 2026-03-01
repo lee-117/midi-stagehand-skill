@@ -23,19 +23,16 @@ tasks:
   # ========== 阶段 1: 条件登录 ==========
   - name: 登录系统
     flow:
-      - aiWaitFor:
-          condition: "页面加载完成"
-          timeout: 10000
+      - aiWaitFor: "页面加载完成"
+        timeout: 10000
 
       - logic:
           if: "页面显示了登录表单（有用户名和密码输入框）"
           then:
-            - aiInput:
-                locator: "用户名输入框"
-                value: "${username}"
-            - aiInput:
-                locator: "密码输入框"
-                value: "${password}"
+            - aiInput: "用户名输入框"
+              value: "${username}"
+            - aiInput: "密码输入框"
+              value: "${password}"
             - aiTap: "登录按钮"
             - aiWaitFor: "登录成功，进入主页面"
           else:
@@ -53,7 +50,7 @@ tasks:
             - loop:
                 type: repeat
                 count: "${maxPages}"
-                steps:
+                flow:
                   - aiQuery:
                       query: >
                         提取当前页面表格中的所有数据行，
@@ -68,7 +65,8 @@ tasks:
 
         catch:
           flow:
-            - recordToReport
+            - recordToReport: "数据采集异常"
+              content: "采集过程中发生错误"
             - aiQuery:
                 query: "页面是否显示了错误信息？如果是，错误内容是什么？"
                 name: "errorInfo"
@@ -111,7 +109,8 @@ tasks:
                 then:
                   - aiAssert: "数据上报成功"
                 else:
-                  - recordToReport
+                  - recordToReport: "上报失败"
+                    content: "数据上报未返回预期状态"
 
         catch:
           flow:

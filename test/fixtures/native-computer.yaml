@@ -1,0 +1,12 @@
+# Native Computer test fixture
+computer:
+  type: "desktop"
+
+tasks:
+  - name: Basic desktop operations
+    flow:
+      - ai: "Open the file manager"
+      - aiWaitFor: "file manager window is visible"
+        timeout: 10000
+      - aiTap: "Documents folder"
+      - aiAssert: "Documents folder contents are shown"

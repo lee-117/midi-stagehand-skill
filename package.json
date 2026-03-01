@@ -15,7 +15,6 @@
     "detect": "node -e \"const d = require('./src/detector/mode-detector'); console.log(d.detect(process.argv[1]))\""
   },
   "dependencies": {
-    "ajv": "^8.17.1",
     "handlebars": "^4.7.8",
     "js-yaml": "^4.1.1"
   },
@@ -24,7 +23,7 @@
     "tsx": "^4.19.0"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0"
   },
   "license": "MIT"
 }

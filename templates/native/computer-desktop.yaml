@@ -1,0 +1,37 @@
+# 桌面应用自动化模板 — 自动化 PC 桌面操作
+# 适用场景: Windows/macOS/Linux 桌面应用测试、桌面端自动化操作
+# 使用方式: node scripts/midscene-run.js templates/native/computer-desktop.yaml
+# 兼容性: @midscene/web >= 1.x
+# 注意: 需要在 Midscene 桌面模式下运行
+
+engine: native
+
+computer: {}
+
+tasks:
+  - name: "桌面应用基础操作"
+    flow:
+      # 等待桌面环境就绪
+      - aiWaitFor: "桌面环境已加载完成"
+        timeout: 15000
+
+      # 使用 AI 自动规划执行（推荐方式）
+      - ai: "打开系统计算器应用"
+
+      - sleep: 2000
+
+      # 在计算器中执行操作
+      - ai: "在计算器中输入 123 + 456 并点击等号"
+
+      - sleep: 1000
+
+      # 验证计算结果
+      - aiAssert: "计算器显示的结果为 579"
+
+      # 提取屏幕上的信息
+      - aiQuery: "读取计算器当前显示的数值"
+        name: "calcResult"
+
+      # 截图记录
+      - recordToReport: "桌面自动化测试"
+        content: "计算器操作测试完成"

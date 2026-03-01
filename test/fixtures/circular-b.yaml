@@ -1,0 +1,7 @@
+web:
+  url: "https://example.com"
+tasks:
+  - name: circular B
+    flow:
+      - import: "./circular-a.yaml"
+        as: flowA

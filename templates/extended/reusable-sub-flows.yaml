@@ -1,0 +1,72 @@
+# 子流程复用模板 — 展示 import 和 use 实现模块化
+# 适用场景: 多个测试用例复用同一登录流程、共享测试数据
+# 使用方式: node scripts/midscene-run.js templates/extended/reusable-sub-flows.yaml --dry-run
+# 说明: 此模板用于演示，需要替换导入路径和参数后才能实际执行
+# 兼容性: @midscene/web >= 1.x
+
+engine: extended
+features: [import, variables]
+
+# ========== 导入区域 ==========
+# 导入子流程文件（.yaml）和数据文件（.json）
+import:
+  # 导入可复用的登录子流程
+  - flow: "./common/login-flow.yaml"
+    as: loginFlow
+  # 导入测试用户数据
+  - data: "./fixtures/test-accounts.json"
+    as: accounts
+
+variables:
+  baseUrl: "${ENV:SITE_URL}"
+
+web:
+  url: "${baseUrl}"
+  headless: false
+
+tasks:
+  # ========== 任务 1: 调用登录子流程 ==========
+  - name: 使用管理员账号登录
+    flow:
+      # use 调用导入的子流程，with 传递参数
+      - use: "${loginFlow}"
+        with:
+          username: "${accounts[0].username}"
+          password: "${accounts[0].password}"
+
+      - aiAssert: "已成功登录系统"
+
+  # ========== 任务 2: 执行业务操作后登出 ==========
+  - name: 执行管理操作
+    flow:
+      - ai: "点击用户管理菜单"
+
+      - aiWaitFor: "用户列表页面加载完成"
+        timeout: 10000
+
+      - aiQuery:
+          query: "提取用户列表中前 5 个用户的姓名和角色"
+          name: "userList"
+
+      - aiAssert: "用户列表中至少有一条数据"
+
+  # ========== 任务 3: 切换账号测试 ==========
+  - name: 使用普通用户账号登录
+    flow:
+      # 先登出
+      - ai: "点击页面右上角的用户头像，然后点击退出登录"
+
+      - aiWaitFor: "返回到登录页面"
+        timeout: 10000
+
+      # 复用同一登录流程，传入不同参数
+      - use: "${loginFlow}"
+        with:
+          username: "${accounts[1].username}"
+          password: "${accounts[1].password}"
+
+      - aiAssert: "已成功登录系统"
+
+    output:
+      filePath: "./midscene-output/sub-flow-result.json"
+      dataName: "userList"

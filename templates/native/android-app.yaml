@@ -1,20 +1,19 @@
 engine: native
 
 android:
-  device: "emulator-5554"
-  pkg: "com.example.app"
-  launch: true
+  deviceId: "emulator-5554"
 
 tasks:
   - name: "Android 应用基础测试"
     flow:
+      - launch: "com.example.app"
       - aiWaitFor: "应用主界面加载完成"
         timeout: 20000
       - aiTap: "设置按钮"
       - aiAssert: "进入了设置页面"
-      - aiScroll:
-          direction: "down"
-          distance: 300
+      - aiScroll: "设置列表"
+        direction: "down"
+        distance: 300
       - aiTap: "关于"
       - aiQuery: "提取应用版本号"
         name: appVersion

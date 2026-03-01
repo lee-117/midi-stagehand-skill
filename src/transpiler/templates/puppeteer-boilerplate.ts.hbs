@@ -10,14 +10,35 @@ import * as fs from 'fs';
 async function main() {
   const browser = await puppeteer.launch({
     headless: {{headless}},
+{{#if acceptInsecureCerts}}
+    ignoreHTTPSErrors: true,
+{{/if}}
     args: [{{{chromeArgs}}}]
   });
   const page = await browser.newPage();
-  await page.setViewport({ width: {{viewportWidth}}, height: {{viewportHeight}} });
+  await page.setViewport({ width: {{viewportWidth}}, height: {{viewportHeight}}{{#if deviceScaleFactor}}, deviceScaleFactor: {{deviceScaleFactor}}{{/if}} });
+{{#if userAgent}}
+  await page.setUserAgent('{{{userAgent}}}');
+{{/if}}
 
   try {
     await page.goto('{{{url}}}');
+{{#if waitForNetworkIdle}}
+{{#if waitForNetworkIdleOpts}}
+    await page.waitForNetworkIdle({{{waitForNetworkIdleOpts}}});
+{{else}}
+    await page.waitForNetworkIdle();
+{{/if}}
+{{/if}}
+{{#if cookie}}
+    const __cookies = JSON.parse(fs.readFileSync('{{{cookie}}}', 'utf-8'));
+    await page.setCookie(...__cookies);
+{{/if}}
+{{#if hasAgentConfig}}
+    const agent = new PuppeteerAgent(page, {{{agentConfigJson}}});
+{{else}}
     const agent = new PuppeteerAgent(page);
+{{/if}}
 
     // === Generated code start ===
 {{{generatedCode}}}

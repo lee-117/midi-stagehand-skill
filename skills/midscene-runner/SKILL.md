@@ -1,15 +1,16 @@
 ---
 name: midscene-runner
 description: >
-  Execute, debug, and validate Midscene YAML automation files.
-  Triggers when users say "run this YAML", "execute XXX.yaml", "test this automation",
-  or "validate this script". Handles environment checks, pre-validation, execution,
-  report analysis, and iterative debugging.
-license: MIT
-metadata:
-  author: lee-zh
-  version: "1.2.0"
-  argument-hint: <yaml-file-path>
+  Execute, validate, and debug Midscene YAML automation files.
+  Handles dry-run, execution, report analysis, and iterative debugging.
+argument-hint: <yaml-file-path>
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Glob
+  - Grep
 ---
 
 # Midscene Runner
@@ -27,29 +28,25 @@ metadata:
 - "调试这个自动化流程"
 - "批量执行这些测试"
 
+English trigger phrases:
+- "Run this YAML"
+- "Execute XXX.yaml"
+- "Test this automation script"
+- "Validate this YAML file"
+- "Debug this automation flow"
+- "Run the test cases"
+
 ## 工作流程
 
 ### 第 0 步：环境检查
 
-首次执行前，确认运行环境就绪：
+首次执行前，使用一键健康检查确认运行环境就绪：
 
 ```bash
-# 检查 Node.js 版本（需要 >= 18）
-node --version
-
-# 检查依赖是否已安装
-test -d node_modules && echo "Dependencies OK" || echo "Run: npm install"
-
-# 检查 CLI 脚本是否存在
-test -f scripts/midscene-run.js && echo "CLI OK" || echo "CLI not found"
-
-# 检查 AI 模型是否已配置
-if [ -n "$MIDSCENE_MODEL_API_KEY" ]; then
-  echo "Model Config OK"
-else
-  echo "WARNING: MIDSCENE_MODEL_API_KEY not set — AI operations will fail"
-fi
+node scripts/health-check.js
 ```
+
+该脚本会检查：Node.js 版本、依赖安装、CLI 脚本、`@midscene/web`、`tsx` 运行时、AI 模型配置、Chrome 浏览器。
 
 **模型未配置？** Midscene 执行 AI 操作需要视觉语言模型。在项目根目录创建 `.env` 文件：
 
@@ -74,11 +71,30 @@ npm run setup
 - 检测系统 Chrome，若无则自动下载 Chromium
 - 输出环境就绪报告
 
+**Chrome 浏览器检测**（Web 平台）：
+
+框架会自动按以下顺序查找系统 Chrome：
+- Windows: `Program Files\Google\Chrome\Application\chrome.exe`
+- macOS: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`
+- Linux: `/usr/bin/google-chrome`、`/usr/bin/chromium`
+
+如果未找到系统 Chrome，有两种解决方案：
+1. 安装 Chrome 浏览器（推荐）
+2. 运行 `npx puppeteer browsers install chrome` 安装 Chromium
+
+如果 Chrome 在非标准路径，设置环境变量：
+```bash
+# Linux/macOS
+export PUPPETEER_EXECUTABLE_PATH="/path/to/chrome"
+# Windows PowerShell
+$env:PUPPETEER_EXECUTABLE_PATH="C:\path\to\chrome.exe"
+```
+
 **平台特定前提条件**：
 
 | 平台 | 依赖 |
 |------|------|
-| Web | Chrome/Chromium 浏览器 |
+| Web | Chrome/Chromium 浏览器（自动检测，见上方说明） |
 | Android | ADB 已连接设备（`adb devices` 验证） |
 | iOS | WebDriverAgent 已配置 |
 | Extended 模式 | `tsx` 运行时（`npx tsx --version`） |
@@ -123,13 +139,36 @@ node scripts/midscene-run.js <yaml-file> --dry-run
 
 ### 第 3 步：执行
 
-运行 YAML 文件：
+根据项目环境选择执行方式：
 
+**方式 1（推荐）: 使用项目 CLI**
+
+如果项目中有 `scripts/midscene-run.js`（midi-stagehand-skill 完整项目）：
 ```bash
+# 单文件执行
 node scripts/midscene-run.js <yaml-file> [options]
+
+# 批量执行（glob 模式）
+node scripts/midscene-run.js "tests/**/*.yaml"
 ```
 
-**可用选项**：
+**方式 2: 直接使用 Midscene CLI**
+
+如果在外部项目中（没有 `scripts/midscene-run.js`），直接使用 `@midscene/web`：
+```bash
+# 安装（仅首次）
+npm install @midscene/web dotenv
+
+# 执行（--headed 表示有界面）
+npx @midscene/web <yaml-file> --headed
+
+# 批量执行（官方 CLI 选项）
+npx @midscene/web "tests/**/*.yaml" --concurrent --continue-on-error
+```
+
+> **注意**: 包名是 `@midscene/web`（不是 `@midscene/cli`），文件路径直接跟在命令后面，不需要 `run` 子命令。
+
+**可用选项**（方式 1）：
 - `--platform web|android|ios|computer` — 强制指定平台（默认根据 YAML 中的 `web`/`android`/`ios`/`computer` 键自动检测）
 - `--dry-run` — 仅验证和转换，不实际执行（注意：不检测模型配置，AI 操作需配置 `MIDSCENE_MODEL_API_KEY`）
 - `--output-ts <path>` — 保存转换后的 TypeScript 文件（仅 Extended 模式）。排查转译错误时，建议配合 `--dry-run` 一起使用
@@ -197,6 +236,8 @@ Status: passed|failed
 
 ## 快速执行命令参考
 
+### 使用项目 CLI（完整项目）
+
 ```bash
 # 基本执行
 node scripts/midscene-run.js test.yaml
@@ -221,6 +262,16 @@ node scripts/midscene-run.js test.yaml --dry-run --output-ts ./debug.ts
 
 # 查看帮助
 node scripts/midscene-run.js --help
+```
+
+### 直接使用 Midscene CLI（外部项目）
+
+```bash
+# 有界面执行（调试推荐）
+npx @midscene/web test.yaml --headed
+
+# 无头模式执行（CI/CD 推荐）
+npx @midscene/web test.yaml
 ```
 
 ## YAML 配置速查
@@ -258,17 +309,20 @@ web:
   viewportWidth: 1920   # 默认 1280；移动端模拟可用 375
   viewportHeight: 1080  # 默认 720；移动端模拟可用 667
   userAgent: "Custom User Agent"
-  waitForNetworkIdle: true
+  waitForNetworkIdle:
+    timeout: 2000
+    continueOnNetworkIdleError: true
 
 # Android 平台（需先 adb devices 确认设备已连接）
 android:
-  device: "emulator-5554"   # adb devices 输出中的设备 ID
-  pkg: "com.example.app"    # 应用包名
+  deviceId: "emulator-5554"   # adb devices 输出中的设备 ID
+# 在 flow 中使用 launch: "com.example.app" 启动应用
 
 # iOS 平台（需先配置 WebDriverAgent）
 ios:
-  device: "iPhone 15"
-  bundleId: "com.example.app"
+  wdaPort: 8100              # WebDriverAgent 端口
+  wdaHost: "localhost"       # WebDriverAgent 主机
+# 在 flow 中使用 launch: "com.example.app" 启动应用
 ```
 
 ## 调试技巧
@@ -295,3 +349,12 @@ ios:
 - `parallel` 分支在独立浏览器上下文中运行，执行期间互不影响；各分支的 `aiQuery` 结果在全部完成后可合并访问（通过 `merge_results: true`）
 - `--dry-run` 仅检查 YAML 语法和结构，不检测模型配置和网络可达性
 - 如果 `npx skills check` 检测不到已有更新，可能是 lock 文件格式过旧（v1），需要重新安装以升级为 v3 格式：`npx skills add https://github.com/lee-117/midi-stagehand-skill -a claude`
+
+## 协作协议
+
+与 Generator Skill 配合时：
+
+1. **优先检查** `./midscene-output/` 目录中最近生成的文件
+2. **执行失败时**，提供结构化错误信息：
+   - 错误类型、错误位置（步骤/行号）、建议修复
+3. 如果错误可通过修改 YAML 修复，直接修改并重新执行（无需回调 Generator）

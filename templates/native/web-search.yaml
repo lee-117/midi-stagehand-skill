@@ -1,6 +1,9 @@
 # 网页搜索模板 — 打开搜索引擎并搜索关键词
 # 适用场景: 基础搜索操作、搜索结果验证
 # 使用方式: node scripts/midscene-run.js templates/native/web-search.yaml
+# 兼容性: @midscene/web >= 1.x
+
+engine: native
 
 web:
   url: "https://www.baidu.com"
@@ -11,18 +14,16 @@ tasks:
       # 等待页面加载完成
       - aiWaitFor: "搜索框已显示在页面上"
 
-      # 输入搜索关键词
-      - aiInput:
-          locator: "搜索输入框"
-          value: "Midscene 浏览器自动化"
+      # 输入搜索关键词（扁平格式：aiInput 后跟 locator 字符串，value 为兄弟键）
+      - aiInput: "搜索输入框"
+        value: "Midscene 浏览器自动化"
 
       # 点击搜索按钮
       - aiTap: "百度一下 搜索按钮"
 
-      # 等待搜索结果
-      - aiWaitFor:
-          condition: "搜索结果列表已加载完成，能看到多条搜索结果"
-          timeout: 10000
+      # 等待搜索结果（扁平格式：aiWaitFor 后跟条件字符串，timeout 为兄弟键）
+      - aiWaitFor: "搜索结果列表已加载完成，能看到多条搜索结果"
+        timeout: 10000
 
       # 验证搜索结果
       - aiAssert: "页面中包含搜索结果条目"
@@ -34,6 +35,3 @@ tasks:
             - title: 标题文字
             - description: 摘要描述
           name: "searchResults"
-
-      # 截图记录到报告
-      - recordToReport

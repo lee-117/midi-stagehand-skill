@@ -1,21 +1,21 @@
 engine: native
 
 ios:
-  device: "iPhone 15 Pro"
-  bundleId: "com.example.app"
-  launch: true
+  wdaPort: 8100
+  wdaHost: "localhost"
 
 tasks:
   - name: "iOS 应用基础测试"
     flow:
+      - launch: "com.example.app"
       - aiWaitFor: "应用启动完成"
         timeout: 20000
       - aiTap: "开始使用"
       - aiAssert: "进入了主界面"
       - aiQuery: "提取当前页面的主要功能按钮名称"
         name: mainButtons
-      - aiScroll:
-          direction: "down"
-          distance: 200
+      - aiScroll: "主界面内容区域"
+        direction: "down"
+        distance: 200
       - recordToReport: "iOS 测试"
         content: "应用启动和基础交互验证完成"

@@ -7,6 +7,20 @@
  */
 
 /**
+ * Replace ${ENV.XXX} and ${ENV:XXX} patterns with ${process.env.XXX}.
+ * This is the single source of truth for environment variable resolution.
+ *
+ * @param {string} str - Input string.
+ * @returns {string} String with ENV references resolved.
+ */
+function resolveEnvRefs(str) {
+  if (typeof str !== 'string') return str;
+  return str
+    .replace(/\$\{ENV\.(\w+)\}/g, '${process.env.$1}')
+    .replace(/\$\{ENV:(\w+)\}/g, '${process.env.$1}');
+}
+
+/**
  * Resolve YAML ${var} template syntax into JS template literals.
  * ${ENV.XXX} and ${ENV:XXX} are converted to process.env.XXX.
  *
@@ -22,9 +36,7 @@ function resolveTemplate(str) {
   if (typeof str !== 'string') return str;
   if (!str.includes('${')) return str;
 
-  // Replace ${ENV.XXX} and ${ENV:XXX} -> ${process.env.XXX}
-  let result = str.replace(/\$\{ENV\.(\w+)\}/g, '${process.env.$1}');
-  result = result.replace(/\$\{ENV:(\w+)\}/g, '${process.env.$1}');
+  const result = resolveEnvRefs(str);
 
   // If the entire string is a single ${...} expression, return the inner expression directly
   const singleExprMatch = result.match(/^\$\{([^}]+)\}$/);
@@ -38,11 +50,12 @@ function resolveTemplate(str) {
 
 /**
  * Convert a resolved template value to a code string.
+ * Callers should always pre-resolve via resolveTemplate() first.
  * - Plain strings are wrapped in single quotes.
- * - Template literals are returned as-is.
- * - Single expressions are returned as raw variable references.
+ * - Template literals ({__template}) are returned as-is.
+ * - Single expressions ({__expr}) are returned as raw variable references.
  *
- * @param {*} val - A value (possibly resolved by resolveTemplate).
+ * @param {*} val - A value (resolved by resolveTemplate).
  * @returns {string} TypeScript code string.
  */
 function toCodeString(val) {
@@ -51,12 +64,7 @@ function toCodeString(val) {
   if (typeof val === 'object' && val.__template) return val.__template;
   if (typeof val === 'object' && val.__expr) return val.__expr;
   if (typeof val === 'string') {
-    if (val.includes('${')) {
-      let result = val.replace(/\$\{ENV\.(\w+)\}/g, '${process.env.$1}');
-      result = result.replace(/\$\{ENV:(\w+)\}/g, '${process.env.$1}');
-      return '`' + result + '`';
-    }
-    return "'" + val.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+    return "'" + escapeStringLiteral(val) + "'";
   }
   return JSON.stringify(val);
 }
@@ -71,6 +79,23 @@ function extractVarRef(str) {
   if (typeof str !== 'string') return null;
   const match = str.match(/^\$\{([a-zA-Z_$][a-zA-Z0-9_$.]*)\}$/);
   return match ? match[1] : null;
+}
+
+/**
+ * Escape a string for safe use inside a single-quoted JS string literal.
+ * Handles backslashes and single quotes.
+ *
+ * @param {string} str - Input string.
+ * @returns {string} Escaped string (without surrounding quotes).
+ */
+function escapeStringLiteral(str) {
+  if (typeof str !== 'string') return str;
+  return str
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\t/g, '\\t');
 }
 
 /**
@@ -95,10 +120,23 @@ function escapeRegExp(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/**
+ * Convert an indentation level to a whitespace string (2-space units).
+ *
+ * @param {number} indent - Number of indentation levels.
+ * @returns {string} The whitespace string.
+ */
+function getPad(indent) {
+  return '  '.repeat(indent || 0);
+}
+
 module.exports = {
+  resolveEnvRefs,
   resolveTemplate,
   toCodeString,
   extractVarRef,
+  escapeStringLiteral,
   escapeForTemplateLiteral,
   escapeRegExp,
+  getPad,
 };

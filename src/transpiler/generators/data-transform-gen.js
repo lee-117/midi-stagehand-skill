@@ -6,7 +6,7 @@
  * Supports operations: filter, sort, map, reduce, slice, unique, flatten, groupBy.
  */
 
-const { extractVarRef } = require('./utils');
+const { extractVarRef, resolveEnvRefs, getPad } = require('./utils');
 
 /**
  * Parse a sort expression like "price desc" or "name asc".
@@ -20,14 +20,31 @@ function parseSortExpr(expr) {
 }
 
 /**
+ * Generate a sort assignment statement. Handles both string and numeric
+ * fields with ascending/descending order.
+ *
+ * @param {string} field     - The property name to sort by.
+ * @param {string} order     - 'asc' or 'desc'.
+ * @param {string} outputVar - The variable holding the array.
+ * @param {string} pad       - Indentation string.
+ * @returns {string} A complete sort assignment statement.
+ */
+function generateSortCode(field, order, outputVar, pad) {
+  const cmp = "typeof a." + field + " === 'string' ? a." + field + ".localeCompare(b." + field + ") : a." + field + " - b." + field;
+  if (order === 'desc') {
+    return pad + outputVar + ' = ' + outputVar + ".sort((a, b) => { const c = " + cmp + "; return -c; });";
+  }
+  return pad + outputVar + ' = ' + outputVar + ".sort((a, b) => " + cmp + ");";
+}
+
+/**
  * Resolve ${var} references within an operation expression string.
  * Replaces ${varName} with just varName so it becomes a JS variable reference.
- * Replaces ${ENV.XXX} with process.env.XXX.
+ * Delegates ENV resolution to the shared resolveEnvRefs helper.
  */
 function resolveExprVars(expr) {
   if (typeof expr !== 'string') return expr;
-  return expr
-    .replace(/\$\{ENV\.(\w+)\}/g, 'process.env.$1')
+  return resolveEnvRefs(expr)
     .replace(/\$\{([^}]+)\}/g, '$1');
 }
 
@@ -53,11 +70,7 @@ function generateOperation(op, outputVar, pad) {
   // Sort operation (works for both numeric and string fields)
   if (op.sort !== undefined) {
     const { field, order } = parseSortExpr(op.sort);
-    const cmp = "typeof a." + field + " === 'string' ? a." + field + ".localeCompare(b." + field + ") : a." + field + " - b." + field;
-    if (order === 'desc') {
-      return pad + outputVar + ' = ' + outputVar + ".sort((a, b) => { const c = " + cmp + "; return -c; });";
-    }
-    return pad + outputVar + ' = ' + outputVar + ".sort((a, b) => " + cmp + ");";
+    return generateSortCode(field, order, outputVar, pad);
   }
 
   // Map operation
@@ -142,18 +155,11 @@ function generateFlatTransform(transform, pad, varScope) {
   } else if (operation === 'sort') {
     const field = transform.by || 'id';
     const order = (transform.order || 'asc').toLowerCase();
-    const cmp = "typeof a." + field + " === 'string' ? a." + field + ".localeCompare(b." + field + ") : a." + field + " - b." + field;
-    if (order === 'desc') {
-      lines.push(pad + outputVar + ' = ' + outputVar + ".sort((a, b) => { const c = " + cmp + "; return -c; });");
-    } else {
-      lines.push(pad + outputVar + ' = ' + outputVar + ".sort((a, b) => " + cmp + ");");
-    }
+    lines.push(generateSortCode(field, order, outputVar, pad));
   } else if (operation === 'map') {
     if (transform.template && typeof transform.template === 'object') {
-      const entries = Object.entries(transform.template).map(function (entry) {
-        var k = entry[0];
-        var v = entry[1];
-        var val = extractVarRef(v);
+      const entries = Object.entries(transform.template).map(([k, v]) => {
+        const val = extractVarRef(v);
         if (val) {
           // ${item.name} → item.name
           return k + ': ' + val;
@@ -184,6 +190,12 @@ function generateFlatTransform(transform, pad, varScope) {
     } else {
       lines.push(pad + outputVar + ' = ' + outputVar + '.slice(' + start + ');');
     }
+  } else if (operation === 'flatten') {
+    const depth = typeof transform.depth === 'number' ? transform.depth : 1;
+    lines.push(pad + outputVar + ' = ' + outputVar + '.flat(' + depth + ');');
+  } else if (operation === 'groupBy') {
+    const field = transform.by || transform.field || 'id';
+    lines.push(pad + outputVar + ' = ' + outputVar + '.reduce((groups, item) => { const key = item.' + field + '; (groups[key] = groups[key] || []).push(item); return groups; }, {});');
   } else {
     lines.push(pad + '// Unknown operation: ' + operation);
   }
@@ -193,7 +205,7 @@ function generateFlatTransform(transform, pad, varScope) {
 
 function generate(step, ctx) {
   const indent = ctx && ctx.indent || 0;
-  const pad = '  '.repeat(indent);
+  const pad = getPad(indent);
   const varScope = ctx && ctx.varScope || new Set();
   const transform = step.data_transform;
 

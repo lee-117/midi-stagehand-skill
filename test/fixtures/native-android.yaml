@@ -1,0 +1,13 @@
+# Native Android test fixture
+android:
+  deviceId: "emulator-5554"
+
+tasks:
+  - name: Basic Android operations
+    flow:
+      - launch: "com.example.app"
+      - aiWaitFor: "app home screen is visible"
+        timeout: 10000
+      - aiTap: "Settings button"
+      - aiAssert: "Settings page is displayed"
+      - runAdbShell: "input keyevent KEYCODE_BACK"

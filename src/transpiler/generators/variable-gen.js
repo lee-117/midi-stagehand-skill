@@ -5,7 +5,7 @@
  * Converts `variables` declarations from YAML into TypeScript const/let declarations.
  */
 
-const { resolveTemplate } = require('./utils');
+const { resolveTemplate, escapeStringLiteral, getPad } = require('./utils');
 
 /**
  * Convert a value into a TypeScript code representation.
@@ -19,7 +19,7 @@ function valueToCode(val) {
     if (typeof resolved === 'object' && resolved.__expr) return resolved.__expr;
     if (typeof resolved === 'object' && resolved.__template) return resolved.__template;
     // Plain string, wrap in single quotes
-    return "'" + val.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+    return "'" + escapeStringLiteral(val) + "'";
   }
 
   if (Array.isArray(val)) {
@@ -29,7 +29,7 @@ function valueToCode(val) {
 
   if (typeof val === 'object') {
     const entries = Object.entries(val).map(([k, v]) => {
-      const key = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(k) ? k : "'" + k + "'";
+      const key = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(k) ? k : "'" + escapeStringLiteral(k) + "'";
       return key + ': ' + valueToCode(v);
     });
     return '{ ' + entries.join(', ') + ' }';
@@ -47,7 +47,7 @@ function valueToCode(val) {
  */
 function generate(step, ctx) {
   const indent = ctx && ctx.indent || 0;
-  const pad = '  '.repeat(indent);
+  const pad = getPad(indent);
   const varScope = ctx && ctx.varScope || new Set();
   const variables = step.variables;
 
