@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node >= 22](https://img.shields.io/badge/Node-%3E%3D22-green.svg)](https://nodejs.org/)
-[![Tests: 548](https://img.shields.io/badge/Tests-548-brightgreen.svg)](#开发)
+[![Tests: 663](https://img.shields.io/badge/Tests-663-brightgreen.svg)](#开发)
 [![Skills: 2](https://img.shields.io/badge/Claude%20Code%20Skills-2-purple.svg)](#安装-skills)
 
 > 基于自然语言的 AI 低代码浏览器自动化框架。
@@ -78,7 +78,7 @@ npx skills list
 
 - 分析需求复杂度，自动选择 **Native** 或 **Extended** 模式
 - 确定目标平台（Web / Android / iOS / Computer）
-- 基于 19 个内置模板，将自然语言映射为 YAML 动作
+- 基于 25 个内置模板，将自然语言映射为 YAML 动作
 - 自动验证并输出到 `./midscene-output/`
 
 ### YAML 执行器 — 执行与报告
@@ -112,6 +112,16 @@ npx skills list
 | **Extended** | 复杂逻辑（条件、循环、API 调用、错误处理） | 转译为 TypeScript 后执行 |
 
 当 YAML 包含以下关键字时自动识别为 Extended 模式：`variables`、`logic`、`loop`、`import`、`use`、`data_transform`、`try/catch`、`external_call`、`parallel`。
+
+## V3.0 新特性
+
+- **长按操作**: `aiLongPress` 支持 `duration` 参数（毫秒）
+- **系统按钮**: Android (`AndroidBackButton`, `AndroidHomeButton`, `AndroidRecentAppsButton`) 和 iOS (`IOSHomeButton`, `IOSAppSwitcher`)
+- **Android 高级配置**: `keyboardDismissStrategy` (`esc-first`|`back-first`)、`imeStrategy` (`adbBroadcast`|`adbInput`)、`scrcpyConfig` 对象
+- **Computer 配置**: `xvfbResolution`（格式 `WIDTHxHEIGHTxDEPTH`）
+- **Agent 配置**: `modelConfig` 对象、`outputFormat` (`single-html`|`html-and-external-assets`)
+- **CLI 改进**: 失败任务详情和错误分类默认显示（不再需要 `--verbose`）
+- **安全性增强**: 全面使用 `execFileSync` 替代 `execSync`，防止命令注入
 
 ## 模型配置
 
@@ -160,10 +170,10 @@ node scripts/midscene-run.js "tests/**/*.yaml"
 
 ## 模板
 
-内置 22 个模板（13 个 Native + 9 个 Extended），覆盖常见自动化场景：
+内置 25 个模板（15 个 Native + 10 个 Extended），覆盖常见自动化场景：
 
-- **Native**：Web 基础操作、登录、搜索、数据提取、文件上传、多标签页、深度定位、桥接模式、Cookie 会话、本地静态服务、Android、iOS、Computer
-- **Extended**：条件流程、分页循环、重试逻辑、子流程复用、API 集成、数据管道、认证流程、响应式测试、端到端工作流
+- **Native**：Web 基础操作、登录、搜索、数据提取、文件上传、多标签页、深度定位、桥接模式、Cookie 会话、本地静态服务、长按操作、Android、Android 系统按钮、iOS、Computer
+- **Extended**：条件流程、分页循环、重试逻辑、子流程复用、API 集成、数据管道、认证流程、响应式测试、端到端工作流、数据驱动测试
 
 浏览所有模板：[`templates/`](templates/)
 
@@ -176,7 +186,7 @@ node scripts/midscene-run.js "tests/**/*.yaml"
 
 ```bash
 npm install          # 安装依赖
-npm test             # 运行 548 个测试
+npm test             # 运行 663 个测试
 npm run test:coverage # 测试 + 覆盖率报告
 npm run lint         # ESLint 检查
 ```
@@ -189,7 +199,7 @@ src/
   runner/         Native 执行器 + TS 执行器 + 报告解析器
 scripts/          CLI 入口
 schema/           关键字 Schema + JSON Schema
-templates/        22 个 YAML 模板
+templates/        25 个 YAML 模板
 skills/           Claude Code Skill 定义
 ```
 

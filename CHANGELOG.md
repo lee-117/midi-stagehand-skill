@@ -1,5 +1,48 @@
 # Changelog
 
+## [3.0.0] - 2026-03-02
+
+### Added
+
+- **`aiLongPress` action**: Long-press with optional `duration` parameter (milliseconds)
+- **Android system buttons**: `AndroidBackButton`, `AndroidHomeButton`, `AndroidRecentAppsButton`
+- **iOS system buttons**: `IOSHomeButton`, `IOSAppSwitcher`
+- **Android advanced config**: `keyboardDismissStrategy` (`esc-first`|`back-first`), `imeStrategy` (`adbBroadcast`|`adbInput`), `scrcpyConfig` object
+- **Computer config**: `xvfbResolution` (format `WIDTHxHEIGHTxDEPTH`)
+- **Agent config**: `modelConfig` per-agent model override object, `outputFormat` (`single-html`|`html-and-external-assets`)
+- **Validator**: 7 new validations (keyboardDismissStrategy enum, imeStrategy enum, scrcpyConfig object, xvfbResolution format, outputFormat enum, modelConfig object, cache.id warning)
+- **3 new templates**: `web-long-press.yaml`, `android-system-buttons.yaml`, `data-driven-test.yaml`
+- **Generator SKILL.md rewrite**: persona, anti-pattern reminders, Extended golden path, new actions/config, auto-fix limit, clarification heuristic
+- **Runner SKILL.md rewrite**: persona, dry-run warning, health-check matrix, auto-fix guardrails, common pitfalls, collaboration protocol
+- **Guide updates**: L2 new actions, L3 new config, Appendix G cookbook (10 recipes), L2-L5 troubleshooting tables
+- **31 new tests** (632 → 663)
+
+### Changed
+
+- **CLI default failure display**: Failed task details and error classification shown by default (no longer requires `--verbose`)
+- **native-runner**: Added `MAX_FILE_SIZE` file size check before execution
+- **setup.js / health-check.js**: Replaced `execSync` with `execFileSync` for security
+- **4 template fixes**: `viewportHeight` → 960, added `engine: native` where missing
+
+## [2.1.0] - 2026-03-01
+
+### Added
+
+- **`viewportHeight` default**: Changed from 720 to 960 to match official API
+- **New actions**: `freezePageContext`, `unfreezePageContext` as native actions
+- **`outputFormat`**: `single-html` | `html-and-external-assets` for agent config
+- **iOS validation**: `wdaPort`, `wdaHost`, `autoDismissKeyboard`, `launch`, `output`, `unstableLogContent`
+- **Computer validation**: `displayId`, `launch`, `output`, `xvfbResolution`
+- **`cache.id` warning**: Warns when `cache.strategy` is set but `cache.id` is missing
+- **CLI enhancements**: `--template` validation (`puppeteer`|`playwright`), glob error handling, verbose/dry-run output improvements
+- **3 new test files**: cli, integration-skills, health-check
+- **84 new tests** (548 → 632)
+
+### Changed
+
+- **`deepLocate` removed**: Not part of official Midscene API
+- **Agent config expanded**: Added `extractAgentConfig` with 2 additional fields
+
 ## [2.0.0] - 2026-03-01
 
 ### Added
