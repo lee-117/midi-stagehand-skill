@@ -26,8 +26,8 @@ Supports **Web**, **Android**, **iOS**, and **Computer** platforms.
 ### Install as Skills
 
 ```bash
-# Install both skills globally (Claude Code example)
-npx skills add https://github.com/lee-117/midi-stagehand-skill -a claude-code -y -g
+# Install both skills globally (Qoder example)
+npx skills add https://github.com/lee-117/midi-stagehand-skill -a qoder -y -g
 ```
 
 Supported AI Agents:
@@ -233,7 +233,7 @@ For more, see the [Guide FAQ](guide/MIDSCENE_YAML_GUIDE.md#附录-d-常见问题
 
 - **[Progressive Guide (L1-L5)](guide/MIDSCENE_YAML_GUIDE.md)** — comprehensive tutorial from beginner to advanced
 - **[Skills CLI](https://github.com/vercel-labs/skills)** — install, update, and manage skills
-- **[CLAUDE.md](CLAUDE.md)** — project architecture and developer guide (for contributors)
+
 
 ## Contributing
 
@@ -243,7 +243,7 @@ npm test                 # run tests
 npm run test:coverage    # tests with coverage report
 ```
 
-For detailed project architecture, code conventions, and test structure, see [CLAUDE.md](CLAUDE.md).
+For detailed project architecture, code conventions, and test structure, see the internal project documentation.
 
 ## License
 
