@@ -43,15 +43,15 @@ npx skills add https://github.com/lee-117/midi-stagehand-skill -a qoder -y -g
 仅安装单个 Skill：
 
 ```bash
-npx skills add https://github.com/lee-117/midi-stagehand-skill --skill midscene-yaml-generator -a claude-code -y -g
-npx skills add https://github.com/lee-117/midi-stagehand-skill --skill midscene-runner -a claude-code -y -g
+npx skills add https://github.com/lee-117/midi-stagehand-skill --skill midscene-yaml-generator -a qoder -y -g
+npx skills add https://github.com/lee-117/midi-stagehand-skill --skill midscene-runner -a qoder -y -g
 ```
 
 从 Gitee 安装（需先 clone）：
 
 ```bash
 git clone https://gitee.com/lee-zh/midi-stagehand-skill.git
-npx skills add ./midi-stagehand-skill -a claude-code -y -g
+npx skills add ./midi-stagehand-skill -a qoder -y -g
 ```
 
 验证安装：`npx skills list`
