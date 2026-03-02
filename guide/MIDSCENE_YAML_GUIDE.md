@@ -261,10 +261,10 @@ tasks:
 
 ## L2: 精确操控 (Native)
 
-**核心概念**: 9 个交互动作 + 3 个工具动作，让你精确控制每一步。
+**核心概念**: 11 个交互动作 + 5 个工具动作，让你精确控制每一步。
 
-交互动作：`aiTap`、`aiHover`、`aiInput`、`aiKeyboardPress`、`aiScroll`、`aiDoubleClick`、`aiRightClick`、`ai`（别名 `aiAct`）。
-工具动作：`sleep`、`javascript`、`recordToReport`。
+交互动作：`aiTap`、`aiHover`、`aiInput`、`aiKeyboardPress`、`aiScroll`、`aiDoubleClick`、`aiRightClick`、`aiDragAndDrop`、`aiClearInput`、`aiLongPress`、`ai`（别名 `aiAct`/`aiAction`）。
+工具动作：`sleep`、`javascript`、`recordToReport`、`freezePageContext`、`unfreezePageContext`。
 
 ### 交互动作详解
 
@@ -537,6 +537,31 @@ iOS 平台专用的系统级按钮操作。
   content: "本页提取了 ${pageData.length} 条记录"
 ```
 
+### `freezePageContext` / `unfreezePageContext` — 冻结页面上下文
+
+在提取多个相关数据时，页面内容可能因动态更新而发生变化。使用 `freezePageContext` 冻结页面上下文可确保在同一快照上进行多次提取，保证数据一致性。完成后使用 `unfreezePageContext` 恢复正常。
+
+```yaml
+# 冻结页面上下文，确保多次提取数据一致
+- freezePageContext: true
+
+- aiQuery:
+    query: "当前商品价格"
+    name: "price"
+
+- aiQuery:
+    query: "当前库存数量"
+    name: "stock"
+
+# 恢复页面上下文
+- unfreezePageContext: true
+```
+
+适用场景：
+- 提取多个需要一致性保证的数据字段
+- 页面有实时更新（如股票价格、库存数量）
+- 需要对比同一时刻的多个页面状态
+
 ### `cacheable` 选项
 
 在动作级别控制是否缓存 AI 结果（需配合 `agent.cache: true`）。默认所有动作均可缓存，设为 `false` 可对特定步骤禁用缓存。
@@ -572,7 +597,6 @@ iOS 平台专用的系统级按钮操作。
 | `replace` | 先清除再输入（默认） |
 | `clear` | 仅清除输入框内容 |
 | `typeOnly` | 直接输入，不清除已有内容 |
-| `append` | 在已有内容后追加输入（非官方扩展，慎用） |
 
 ### `images` 选项 — 图片辅助定位
 
@@ -750,7 +774,7 @@ tasks:
     timeout: 10000
 ```
 
-默认超时时间为 15000 毫秒（15 秒）。如果页面加载较慢，可以适当增大 `timeout`。
+默认超时时间为 30000 毫秒（30 秒）。如果页面加载较慢，可以适当增大 `timeout`。
 
 ### 组合使用: 提取 + 断言
 
@@ -962,7 +986,7 @@ agent:
 android:
   deviceId: "emulator-5554"
   keyboardDismissStrategy: "esc-first"  # 键盘关闭策略: "esc-first" | "back-first"
-  imeStrategy: "adbBroadcast"           # 输入法策略: "adbBroadcast" | "adbInput"
+  imeStrategy: "yadb-for-non-ascii"      # 输入法策略: "always-yadb" | "yadb-for-non-ascii"
   scrcpyConfig:                         # scrcpy 屏幕投射配置
     enabled: true
     maxSize: 1080
@@ -972,7 +996,7 @@ android:
 | 字段 | 说明 |
 |------|------|
 | `keyboardDismissStrategy` | 键盘关闭策略。`esc-first` 优先发送 ESC 键，`back-first` 优先发送返回键 |
-| `imeStrategy` | 输入法策略。`adbBroadcast` 通过广播发送文字，`adbInput` 通过 adb input text 发送 |
+| `imeStrategy` | 输入法策略。`always-yadb` 始终使用 YADB 输入，`yadb-for-non-ascii` 仅对非 ASCII 字符使用 YADB（默认） |
 | `scrcpyConfig` | scrcpy 屏幕投射配置，`enabled` 启用，`maxSize` 最大分辨率，`videoBitRate` 视频比特率 |
 
 #### Computer 高级配置
@@ -1968,12 +1992,14 @@ tasks:
 | `sleep` | 工具 | 暂停执行指定毫秒数 |
 | `javascript` | 工具 | 在页面上下文执行 JavaScript（可选 `name` 捕获返回值） |
 | `recordToReport` | 工具 | 记录自定义信息到执行报告（配合 `content`） |
+| `freezePageContext` | 工具 | 冻结页面上下文，确保多次提取数据一致（值为 `true`） |
+| `unfreezePageContext` | 工具 | 恢复页面上下文，解除冻结状态（值为 `true`） |
 | `launch` | 工具 | 启动移动端或桌面端应用（包名或路径） |
 | `runAdbShell` | 平台 | 执行 ADB shell 命令（Android 专用） |
 | `runWdaRequest` | 平台 | 发送 WDA 请求（iOS 专用） |
 | `deepThink` | 选项 | 启用深度分析，提高复杂元素定位准确率 |
 | `cacheable` | 选项 | 控制单个步骤是否使用 AI 缓存 |
-| `mode` | 选项 | aiInput 输入模式（`replace`/`clear`/`typeOnly`/`append`） |
+| `mode` | 选项 | aiInput 输入模式（`replace`/`clear`/`typeOnly`） |
 | `images` | 选项 | 图片辅助定位，提供参考图片数组 |
 | `xpath` | 选项 | 使用 XPath 选择器精确定位元素 |
 | `userAgent` | web 配置 | 自定义浏览器 User-Agent |
