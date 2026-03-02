@@ -1,6 +1,6 @@
 ---
 name: midscene-runner
-version: 4.0.0
+version: 5.0.0
 description: >
   Execute, validate, and debug Midscene YAML automation files.
   Handles dry-run, execution, report analysis, and iterative debugging.
@@ -219,7 +219,7 @@ npx @midscene/web "tests/**/*.yaml" --concurrent --continue-on-error
 - `--report-dir <path>` — 报告输出目录（默认 `./midscene-report`）
 - `--template puppeteer|playwright` — 选择 TS 模板（默认 puppeteer；playwright 适合需要多浏览器兼容的场景）
 - `--clean` — 清理 `.midscene-tmp/` 中超过 24 小时的过期临时文件
-- `--verbose` / `-v` — 显示详细输出（验证详情、检测信息、步骤计数、错误修复建议）。注意：错误分类和失败任务详情默认已显示，无需 `--verbose`
+- `--verbose` / `-v` — 显示详细输出（验证详情、检测信息、步骤计数）。注意：错误分类、失败任务详情和修复建议默认已显示，无需 `--verbose`
 - `--help` / `-h` — 显示帮助信息
 - `--version` / `-V` — 显示版本号
 
@@ -242,6 +242,7 @@ node scripts/midscene-run.js test.yaml --output-ts ./debug-output.ts
 - 告知报告文件位置
 - 如果有 `aiQuery` 结果，展示提取的数据
 - 如果有 `output` 导出，确认文件生成位置
+- 显示执行耗时和执行摘要（如 "3 个任务全部通过，耗时 45.2s"）
 
 #### 失败
 按以下决策树分析错误并修复：
@@ -402,6 +403,7 @@ ios:
 7. **降级到 xpath**: 自然语言无法定位时使用 `xpath` 精确选择
 8. **使用 javascript**: 通过 `javascript` 步骤直接执行 JS 代码调试页面状态
 9. **使用 recordToReport**: 在关键节点插入 `recordToReport` 截图记录
+10. **iframe/shadow DOM**: 目标元素在 iframe 内时，使用 `ai:` 描述操作（AI 可跨 iframe 交互），或用 `javascript` 步骤切换上下文。Shadow DOM 元素优先用自然语言描述定位
 
 ## 执行常见陷阱
 

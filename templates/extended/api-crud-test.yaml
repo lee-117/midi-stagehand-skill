@@ -1,0 +1,67 @@
+# API CRUD 测试模板
+# API CRUD (Create, Read, Update, Delete) Test Template
+# 演示完整的 HTTP 增删改查操作和响应验证
+# Usage: node scripts/midscene-run.js templates/extended/api-crud-test.yaml --dry-run
+
+engine: extended
+features: [variables, logic, external_call, try_catch]
+
+web:
+  url: "https://jsonplaceholder.typicode.com"
+
+variables:
+  apiBase: "https://jsonplaceholder.typicode.com"
+  createdId: null
+
+tasks:
+  - name: "API CRUD 完整流程"
+    flow:
+      # Create — POST 新建资源
+      - external_call:
+          type: http
+          method: POST
+          url: "${apiBase}/posts"
+          headers:
+            Content-Type: "application/json"
+          body:
+            title: "Midscene 自动化测试"
+            body: "通过 YAML 发起的 API 请求"
+            userId: 1
+          response_as: "createResult"
+
+      # Read — GET 查询资源
+      - external_call:
+          type: http
+          method: GET
+          url: "${apiBase}/posts/1"
+          response_as: "readResult"
+
+      # Update — PUT 更新资源
+      - external_call:
+          type: http
+          method: PUT
+          url: "${apiBase}/posts/1"
+          headers:
+            Content-Type: "application/json"
+          body:
+            title: "更新后的标题"
+            body: "更新后的内容"
+            userId: 1
+          response_as: "updateResult"
+
+      # Delete — DELETE 删除资源
+      - external_call:
+          type: http
+          method: DELETE
+          url: "${apiBase}/posts/1"
+          response_as: "deleteResult"
+
+      # 在浏览器中验证 API 数据
+      - aiWaitFor: "页面加载完成"
+        timeout: 10000
+      - aiQuery:
+          query: "页面上显示的 JSON 数据内容"
+          name: "pageContent"
+
+      - recordToReport: "API CRUD 测试完成"
+        content: "完成了 POST/GET/PUT/DELETE 四种 HTTP 操作"

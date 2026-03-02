@@ -119,8 +119,8 @@
         },
         "imeStrategy": {
           "type": "string",
-          "enum": ["adbBroadcast", "adbInput", "yadb-for-non-ascii"],
-          "description": "Input method strategy for text input (default: yadb-for-non-ascii)"
+          "enum": ["always-yadb", "yadb-for-non-ascii"],
+          "description": "Input method strategy for text input: always-yadb or yadb-for-non-ascii (default: yadb-for-non-ascii)"
         },
         "scrcpyConfig": {
           "type": "object",
@@ -465,7 +465,7 @@
           ]
         },
         "value": { "oneOf": [{ "type": "string" }, { "type": "number" }], "description": "Value to input (flat format)" },
-        "mode": { "type": "string", "enum": ["replace", "clear", "typeOnly", "append"], "description": "Input mode" },
+        "mode": { "type": "string", "enum": ["replace", "clear", "typeOnly"], "description": "Input mode" },
         "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
@@ -554,7 +554,11 @@
             }
           ]
         },
-        "to": { "type": "string", "description": "Target element (flat format)" }
+        "to": { "type": "string", "description": "Target element (flat format)" },
+        "deepThink": { "type": "boolean" },
+        "xpath": { "type": "string" },
+        "timeout": { "type": "integer" },
+        "cacheable": { "type": "boolean" }
       },
       "additionalProperties": false
     },
@@ -860,7 +864,21 @@
       "type": "object",
       "required": ["aiLongPress"],
       "properties": {
-        "aiLongPress": { "type": "string", "description": "Element to long-press" },
+        "aiLongPress": {
+          "oneOf": [
+            { "type": "string", "description": "Element to long-press" },
+            {
+              "type": "object",
+              "properties": {
+                "locator": { "type": "string" },
+                "xpath": { "type": "string" },
+                "deepThink": { "type": "boolean" }
+              },
+              "required": ["locator"],
+              "additionalProperties": false
+            }
+          ]
+        },
         "duration": { "type": "integer", "minimum": 0, "description": "Long press duration in ms" },
         "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },

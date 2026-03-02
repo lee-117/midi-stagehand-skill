@@ -1,3 +1,8 @@
+# 条件分支测试模板
+# Web Conditional Flow Template
+# 演示 if/else 条件判断和变量使用
+# Usage: node scripts/midscene-run.js templates/extended/web-conditional-flow.yaml --dry-run
+
 engine: extended
 features:
   - logic

@@ -1,3 +1,8 @@
+# 数据流水线模板
+# Web Data Pipeline Template
+# 演示 data_transform 数据过滤、排序、映射
+# Usage: node scripts/midscene-run.js templates/extended/web-data-pipeline.yaml --dry-run
+
 engine: extended
 features:
   - variables

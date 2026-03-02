@@ -1,3 +1,8 @@
+# iOS 应用测试模板
+# iOS App Testing Template
+# 演示 iOS 应用启动、交互、数据提取
+# Usage: node scripts/midscene-run.js templates/native/ios-app.yaml --dry-run
+
 engine: native
 
 ios:

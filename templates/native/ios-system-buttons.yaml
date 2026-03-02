@@ -1,0 +1,40 @@
+# iOS 系统按钮操作模板
+# 场景: iOS 设备系统按钮操作 + WDA 请求
+# 适用平台: iOS
+
+engine: native
+
+ios:
+  wdaPort: 8100
+  wdaHost: "localhost"
+  autoDismissKeyboard: true
+
+tasks:
+  - name: "iOS 系统按钮操作"
+    flow:
+      # 启动 Safari 浏览器
+      - launch: "com.apple.mobilesafari"
+      - sleep: 2000
+      - ai: "在 Safari 地址栏输入 https://midscenejs.com 并访问"
+      - aiWaitFor: "页面加载完成"
+        timeout: 15000
+
+      # iOS 主页按钮 — 返回主屏幕
+      - IOSHomeButton: true
+      - sleep: 1000
+
+      # iOS 应用切换器 — 打开多任务视图
+      - IOSAppSwitcher: true
+      - sleep: 1000
+      - aiTap: "Safari 应用卡片"
+      - aiWaitFor: "Safari 页面恢复显示"
+
+      # WDA 请求示例 — 获取设备信息
+      - runWdaRequest:
+          method: "GET"
+          endpoint: "/status"
+      - sleep: 500
+
+      - aiAssert: "Safari 页面正常显示"
+      - recordToReport: "iOS 系统按钮测试完成"
+        content: "已测试 IOSHomeButton、IOSAppSwitcher 和 runWdaRequest"

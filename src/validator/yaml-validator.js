@@ -88,7 +88,7 @@ const VALID_OUTPUT_FORMATS = new Set(['single-html', 'html-and-external-assets']
 const VALID_KEYBOARD_DISMISS_STRATEGIES = new Set(['esc-first', 'back-first']);
 
 // Valid Android imeStrategy values.
-const VALID_IME_STRATEGIES = new Set(['adbBroadcast', 'adbInput', 'yadb-for-non-ascii']);
+const VALID_IME_STRATEGIES = new Set(['always-yadb', 'yadb-for-non-ascii']);
 
 // Valid scrcpyConfig sub-fields.
 const VALID_SCRCPY_CONFIG_FIELDS = new Set(['enabled', 'maxSize', 'videoBitRate', 'idleTimeoutMs']);
@@ -674,10 +674,10 @@ function validateLoopStep(step, stepPath, errors, warnings) {
       }
     }
 
-    // Warn if while loop has no maxIterations (safety best practice).
+    // Error if while loop has no maxIterations (safety requirement).
     if (loop.type === 'while' && loop.maxIterations === undefined) {
-      warnings.push(makeWarning(
-        'While loop has no "maxIterations" safety limit. Consider adding one to prevent infinite loops.',
+      errors.push(makeError(
+        'While loop must have a "maxIterations" safety limit to prevent infinite loops.',
         `${loopPath}/maxIterations`
       ));
     }
@@ -917,6 +917,16 @@ function validateNativeActionFormats(doc, warnings) {
         '"recordToReport" is used without a title value. ' +
         'Use: recordToReport: "title" with optional content as sibling key.',
         `${stepPath}/recordToReport`
+      ));
+    }
+
+    // Check aiInput without value (most common user mistake).
+    if (step.aiInput !== undefined && step.value === undefined) {
+      warnings.push(makeWarning(
+        '"aiInput" is used without a "value" sibling key. ' +
+        'This is likely a mistake — aiInput requires a value to type. ' +
+        'Use: aiInput: "target" with value: "text to type" as sibling key.',
+        `${stepPath}/aiInput`
       ));
     }
 

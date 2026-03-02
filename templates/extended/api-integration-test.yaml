@@ -1,3 +1,8 @@
+# API 集成测试模板
+# API Integration Test Template
+# 演示 HTTP 调用、并行请求和数据验证
+# Usage: node scripts/midscene-run.js templates/extended/api-integration-test.yaml --dry-run
+
 engine: extended
 features:
   - external_call

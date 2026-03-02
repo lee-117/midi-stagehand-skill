@@ -1,3 +1,8 @@
+# 数据提取模板
+# Web Data Extraction Template
+# 演示 aiQuery 提取结构化数据
+# Usage: node scripts/midscene-run.js templates/native/web-data-extract.yaml --dry-run
+
 engine: native
 
 web:

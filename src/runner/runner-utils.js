@@ -49,11 +49,14 @@ function normaliseExecError(error) {
   return { errorMessage, exitCode };
 }
 
+let _cachedChrome;
+
 /**
  * Find system Chrome/Chromium for Puppeteer.
  * @returns {string|null}
  */
 function findSystemChrome() {
+  if (_cachedChrome !== undefined) return _cachedChrome;
   const { execFileSync } = require('child_process');
   const platform = os.platform();
   const candidates = [];
@@ -93,13 +96,23 @@ function findSystemChrome() {
   }
 
   for (const p of candidates) {
-    if (fs.existsSync(p)) return p;
+    if (fs.existsSync(p)) {
+      _cachedChrome = p;
+      return _cachedChrome;
+    }
   }
-  return null;
+  _cachedChrome = null;
+  return _cachedChrome;
 }
+
+/**
+ * Reset the cached Chrome path (for testing).
+ */
+function _resetChromeCache() { _cachedChrome = undefined; }
 
 module.exports = {
   resolveLocalBin,
   normaliseExecError,
   findSystemChrome,
+  _resetChromeCache,
 };

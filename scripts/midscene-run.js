@@ -345,6 +345,24 @@ function main() {
     if (!args.yamlPath) process.exit(0);
   }
 
+  // Validate output paths are within project boundary
+  if (args.outputTs) {
+    const resolvedTs = path.resolve(args.outputTs);
+    const cwd = process.cwd();
+    if (!resolvedTs.startsWith(cwd + path.sep) && resolvedTs !== cwd && !resolvedTs.startsWith(cwd)) {
+      console.error('[midscene-run] Error: --output-ts path must be within the project directory.');
+      process.exit(1);
+    }
+  }
+  if (args.reportDir && args.reportDir !== DEFAULT_REPORT_DIR) {
+    const resolvedReport = path.resolve(args.reportDir);
+    const cwd = process.cwd();
+    if (!resolvedReport.startsWith(cwd + path.sep) && resolvedReport !== cwd && !resolvedReport.startsWith(cwd)) {
+      console.error('[midscene-run] Error: --report-dir path must be within the project directory.');
+      process.exit(1);
+    }
+  }
+
   // Clean stale temp files at startup (non-disruptive)
   try { cleanStaleTempFiles(); } catch { /* non-critical */ }
 
@@ -473,6 +491,7 @@ function processFile(yamlPath, args) {
   // -----------------------------------------------------------------------
   // Step 3: Execute (with retry support)
   // -----------------------------------------------------------------------
+  const startTime = Date.now();
   let result;
   let attempts = 0;
   const maxAttempts = 1 + (args.retry || 0);
@@ -492,6 +511,8 @@ function processFile(yamlPath, args) {
 
     if (attempts < maxAttempts) {
       console.log(`[midscene-run] Attempt ${attempts} failed, retrying...`);
+      // Brief pause before retry to handle transient failures
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2000);
     }
   }
 
@@ -532,23 +553,28 @@ function processFile(yamlPath, args) {
   // Step 5: Return exit code
   // -----------------------------------------------------------------------
   if (result.success) {
-    console.log('[midscene-run] Done.');
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`[midscene-run] Done. Execution completed in ${elapsed}s.`);
     return 0;
   } else {
     const errorMsg = truncateError(result.error || 'unknown error');
     console.error(`[midscene-run] Execution failed: ${errorMsg}`);
 
-    // Print quick-fix hints based on error message
-    printQuickFixHints('', result.error || '');
-
-    // Classify error for additional context (always show category; verbose adds suggestion)
+    // Classify error for additional context (always show category and suggestion)
+    let hasClassification = false;
     if (result.error) {
       const { classifyError } = reportParser;
       const classification = classifyError(result.error);
-      console.error(`  Error category: ${classification.category} (${classification.severity})`);
-      if (args.verbose) {
-        console.error(`  Suggestion: ${classification.suggestion}`);
+      if (classification.category !== 'unknown') {
+        hasClassification = true;
       }
+      console.error(`  Error category: ${classification.category} (${classification.severity})`);
+      console.error(`  Suggestion: ${classification.suggestion}`);
+    }
+
+    // Print quick-fix hints only if classifyError did not produce a known classification (avoid duplicate hints)
+    if (!hasClassification) {
+      printQuickFixHints('', result.error || '');
     }
 
     const exitCode = typeof result.exitCode === 'number' ? result.exitCode : 1;
@@ -626,10 +652,10 @@ function executeFile(yamlPath, detection, args) {
 
   const tsCode = transpileResult.code;
 
-  // Display transpiler warnings if any
+  // Display transpiler warnings prominently
   if (transpileResult.warnings && transpileResult.warnings.length > 0) {
-    console.log('\n  Transpiler warnings:');
-    transpileResult.warnings.forEach(w => console.log(`    - ${w}`));
+    console.warn('\n  [WARN] Transpiler warnings:');
+    transpileResult.warnings.forEach(w => console.warn(`    [WARN] ${w}`));
   }
 
   if (typeof tsCode !== 'string') {

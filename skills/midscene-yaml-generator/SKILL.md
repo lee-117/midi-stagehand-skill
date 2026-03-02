@@ -1,10 +1,10 @@
 ---
 name: midscene-yaml-generator
-version: 4.0.0
+version: 5.0.0
 description: >
   Generate Midscene YAML browser automation files from natural language.
   Supports Web, Android, iOS with Native and Extended modes.
-argument-hint: <描述你要自动化的操作，如 "登录 example.com 并提取商品价格">
+argument-hint: <describe your automation task / 描述你要自动化的操作>
 allowed-tools:
   - Read
   - Write
@@ -131,17 +131,27 @@ English trigger phrases:
 - `closeNewTabsAfterDisconnect` — 断开时关闭新打开的标签页（默认 false）
 - `outputFormat` — 报告输出格式：`'single-html'` | `'html-and-external-assets'`
 - `forceSameTabNavigation` — 限制导航在当前标签页（默认 true）
+- `enableTouchEventsInActionSpace` — 启用触摸事件（`true`/`false`，默认 false）。启用后 AI 可使用 Swipe 手势
+- `forceChromeSelectRendering` — 强制 Chrome 渲染 `<select>` 元素（需 Puppeteer >24.6.0 或 Playwright >=1.52.0）
+- `unstableLogContent` — 日志持久化（实验性）
 
 ### 第 3 步：自然语言 → YAML 转换
 
 #### 动作选择优先级（重要）
 
-1. **首选 `ai:`** — 用自然语言描述整个意图，让 AI 自动规划并执行多步骤。适合绝大多数场景，成功率最高
-2. **需要精确控制时** — 使用 `aiTap`、`aiInput` 等具体动作（如填写特定表单字段）
-3. **需要提取数据时** — 必须使用 `aiQuery`（`ai:` 不能返回结构化数据）
-4. **需要验证状态时** — 使用 `aiAssert` 或 `aiWaitFor`
+根据场景选择最合适的动作类型：
 
-**经验法则**: 如果用户需求可以用一句自然语言描述完成，优先用一个 `ai:` 步骤，而不是拆成多个 `aiInput` + `aiTap`。
+| 场景 | 推荐动作 | 理由 |
+|------|---------|------|
+| 探索性/多步骤操作（"完成整个结账流程"） | `ai:` | AI 自动规划路径，适合不确定具体步骤的场景 |
+| 已知精确操作（"点击登录按钮"、"输入用户名"） | `aiTap`/`aiInput` 等即时动作 | 更快、更可靠、更可预测 |
+| 提取数据 | `aiQuery`/`aiBoolean`/`aiNumber`/`aiString` | `ai:` 无法返回结构化数据 |
+| 验证状态 | `aiAssert` / `aiWaitFor` | 专用断言/等待 API |
+
+**经验法则**:
+- **用户需求模糊或涉及多步决策** → 用 `ai:` 让 AI 自主规划
+- **用户需求明确且步骤清晰** → 用 `aiTap`/`aiInput` 等即时动作，执行更快更稳定
+- 两者可混合使用：先用 `ai:` 处理复杂交互，再用 `aiQuery` 提取数据
 
 **黄金路径 — 最简可工作示例**:
 
@@ -264,6 +274,63 @@ Native 模式的动作参数支持两种格式：
 | "冻结页面上下文" | `freezePageContext: true` |
 | "解冻页面上下文" | `unfreezePageContext: true` |
 
+#### `logic.if` 条件格式说明
+
+`if` 条件支持两种格式，根据需要选择：
+
+| 格式 | 适用场景 | 示例 |
+|------|---------|------|
+| 自然语言描述 | 判断页面视觉状态 | `if: "页面上显示了登录按钮"` |
+| JavaScript 表达式 | 判断变量值或 DOM 状态 | `if: "${isLoggedIn} === false"` |
+
+> **注意**: 自然语言条件由 AI 视觉模型评估（基于当前页面截图），适合 UI 状态判断；JavaScript 表达式在浏览器上下文中执行，适合变量和 DOM 检查。
+
+#### Extended 模式 YAML 结构规范
+
+Extended 模式的控制流结构使用步骤级别的键：
+
+```yaml
+# logic: if/then/else
+- logic:
+    if: "条件"
+    then:
+      - aiTap: "..."      # then 分支的步骤列表
+    else:
+      - aiTap: "..."      # else 分支（可选）
+
+# loop: 三种类型
+- loop:
+    type: for|while|repeat
+    items: "数据源"        # for 循环
+    condition: "条件"      # while 循环
+    count: 5               # repeat 循环
+    maxIterations: 50      # while 必须设置安全上限
+    flow:
+      - aiTap: "..."
+
+# try/catch/finally: 兄弟键格式（非嵌套）
+- try:
+    flow:
+      - aiTap: "可能失败的操作"
+  catch:
+    flow:
+      - ai: "错误恢复操作"
+  finally:
+    flow:
+      - recordToReport: "清理完成"
+
+# parallel: 并行分支
+- parallel:
+    branches:
+      - flow:
+          - aiQuery: { query: "...", name: "a" }
+      - flow:
+          - aiQuery: { query: "...", name: "b" }
+    waitAll: true
+```
+
+> **缩进规则**: `then`/`else`/`flow` 内的步骤列表缩进 2 级（相对于父键）。`catch`/`finally` 与 `try` 是同一步骤对象的兄弟键，缩进对齐。
+
 **Extended 模式完整示例**：
 
 ```yaml
@@ -374,7 +441,7 @@ tasks:
 
 1. **文件头部**：添加注释说明需求来源和生成时间
 2. **engine 字段**：Extended 模式必须显式声明 `engine: extended`
-3. **features 列表**：Extended 模式下声明使用的特性（如 `features: [logic, variables, loop]`），Native 模式可省略
+3. **features 列表**：Extended 模式下声明使用的特性（如 `features: [logic, variables, loop]`）。Schema 中为可选字段，但**强烈建议始终声明**以提高可读性和可维护性。有效值：`variables`、`logic`、`loop`、`import`、`data_transform`、`try_catch`、`external_call`、`parallel`
 4. **agent 配置**（可选）：控制 AI 行为和报告生成
    - `testId` — 标识测试用例
    - `groupName` / `groupDescription` — 报告分组和描述
@@ -420,14 +487,9 @@ tasks:
     #   dataName: "variableName"
 ```
 
-#### 输出验证自检清单（生成后立即检查）
+#### 输出验证
 
-- [ ] 每个 `aiInput` 都有对应的 `value` 参数？
-- [ ] 关键操作后有 `aiWaitFor` 确保页面状态就绪？
-- [ ] Extended 模式声明了 `engine: extended` 和 `features` 列表？
-- [ ] 循环有安全上限（`maxIterations` 或合理的 `count`）？
-- [ ] 敏感信息（密码、Token）使用 `${ENV:XXX}` 引用环境变量？
-- [ ] AI 指令描述足够精确（包含位置、文字、颜色等特征）？
+生成后立即按「输出前自检清单」（见下方）逐项核验。
 
 ### 澄清问题指南
 
@@ -571,12 +633,13 @@ Extended 模式下 `data_transform` 支持的操作：
 - `url` 必须包含完整协议（`https://`）；无协议默认补 `https://`，`localhost` 默认补 `http://`
 - 使用 `aiWaitFor` 等待页面加载完成后再操作
 - 表单操作前确保输入框处于可交互状态
+- **防检测注意**: 如果目标网站有反爬/Bot 检测，建议：(1) 在连续操作间添加 `sleep` (2) 使用 `bridgeMode` 复用已登录浏览器 (3) 设置真实 `userAgent` (4) 使用 `headless: false`
 
 ### Android 平台
 - 需要配置 `deviceId`（ADB 设备 ID，如 `emulator-5554`）
 - 使用 `launch: "com.example.app"` 启动应用（在 flow 中作为 action 步骤）
 - 可使用 `runAdbShell` 执行 ADB 命令
-- 额外配置：`keyboardDismissStrategy`（`esc-first` | `back-first`）、`imeStrategy`（`adbBroadcast` | `adbInput` | `yadb-for-non-ascii`，默认 `yadb-for-non-ascii`）、`scrcpyConfig`
+- 额外配置：`keyboardDismissStrategy`（`esc-first` | `back-first`）、`imeStrategy`（`always-yadb` | `yadb-for-non-ascii`，默认 `yadb-for-non-ascii`）、`scrcpyConfig`
 
 ### iOS 平台
 - 需要配置 `wdaPort`（WebDriverAgent 端口，默认 8100）和 `wdaHost`（默认 localhost）
@@ -625,14 +688,14 @@ tasks: [...]
 - loop:
     type: while
     condition: "hasMore"
-    steps: [...]
+    flow: [...]
 
 # RIGHT
 - loop:
     type: while
     condition: "hasMore"
     maxIterations: 50
-    steps: [...]
+    flow: [...]
 ```
 
 **4. aiWaitFor 使用嵌套格式（Native 模式下可能失败）**

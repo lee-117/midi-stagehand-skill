@@ -590,12 +590,12 @@ describe('resolveYamlFiles', () => {
   // Edge cases
   // -----------------------------------------------------------------------
   describe('edge cases', () => {
-    it('works with the templates directory to find all 22 templates', () => {
+    it('works with the templates directory to find all 31 templates', () => {
       const pattern = path.resolve(__dirname, '..', 'templates', '**', '*.yaml');
       const result = resolveYamlFiles(pattern);
-      // We know there are 22 templates — allow small variance in case of additions
-      assert.ok(result.length >= 20,
-        `Should find at least 20 templates, found ${result.length}`);
+      // We know there are 31 templates (19 native + 12 extended)
+      assert.ok(result.length >= 28,
+        `Should find at least 28 templates, found ${result.length}`);
     });
   });
 });

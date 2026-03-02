@@ -273,6 +273,85 @@ tasks:
     });
   });
 
+  describe('detect() with pre-parsed objects', () => {
+    it('detects native mode from pre-parsed object', () => {
+      const doc = {
+        web: { url: 'https://example.com' },
+        tasks: [{ name: 'test', flow: [{ aiTap: 'button' }] }],
+      };
+      const result = detect(doc);
+      assert.strictEqual(result.mode, 'native');
+      assert.deepStrictEqual(result.features, []);
+    });
+
+    it('detects extended mode from pre-parsed object', () => {
+      const doc = {
+        engine: 'extended',
+        features: ['variables', 'logic'],
+        web: { url: 'https://example.com' },
+        variables: { x: 1 },
+        tasks: [{ name: 'test', flow: [{ logic: { if: 'true', then: [] } }] }],
+      };
+      const result = detect(doc);
+      assert.strictEqual(result.mode, 'extended');
+      assert.ok(result.features.includes('variables'));
+      assert.ok(result.features.includes('logic'));
+    });
+
+    it('respects engine declaration in pre-parsed object', () => {
+      const doc = {
+        engine: 'native',
+        web: { url: 'https://example.com' },
+        tasks: [{ name: 'test', flow: [{ aiTap: 'button' }] }],
+      };
+      const result = detect(doc);
+      assert.strictEqual(result.mode, 'native');
+    });
+
+    it('returns native for null input', () => {
+      const result = detect(null);
+      assert.strictEqual(result.mode, 'native');
+    });
+
+    it('returns native for array input', () => {
+      const result = detect([1, 2, 3]);
+      assert.strictEqual(result.mode, 'native');
+    });
+  });
+
+  describe('ENV reference exclusion', () => {
+    it('does not trigger variables feature for ENV-only references', () => {
+      const yaml = `
+web:
+  url: "\${ENV:BASE_URL}"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = detect(yaml);
+      assert.strictEqual(result.mode, 'native');
+      assert.ok(!result.features.includes('variables'));
+    });
+
+    it('still triggers variables for non-ENV template syntax', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+variables:
+  name: "test"
+tasks:
+  - name: test
+    flow:
+      - aiInput: "field"
+        value: "\${name}"
+`;
+      const result = detect(yaml);
+      assert.ok(result.features.includes('variables'));
+    });
+  });
+
   describe('TEMPLATE_SYNTAX_REGEX', () => {
     it('matches template syntax', () => {
       assert.ok(TEMPLATE_SYNTAX_REGEX.test('${variable}'));

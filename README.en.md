@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node >= 22](https://img.shields.io/badge/Node-%3E%3D22-green.svg)](https://nodejs.org/)
-[![Tests: 678](https://img.shields.io/badge/Tests-678-brightgreen.svg)](#development)
+[![Tests: 698](https://img.shields.io/badge/Tests-698-brightgreen.svg)](#development)
 [![Skills: 2](https://img.shields.io/badge/Claude%20Code%20Skills-2-purple.svg)](#install-as-skills)
 
 > AI-powered low-code browser automation via natural language.
@@ -78,7 +78,7 @@ When you describe a browser automation task, the Generator will:
 
 - Analyze complexity and choose **Native** or **Extended** mode
 - Determine target platform (Web / Android / iOS / Computer)
-- Map natural language to YAML actions using 25 built-in templates
+- Map natural language to YAML actions using 31 built-in templates
 - Auto-validate and output to `./midscene-output/`
 
 ### YAML Runner — Execute and Report
@@ -117,7 +117,7 @@ Extended mode is auto-detected when YAML contains: `variables`, `logic`, `loop`,
 
 - **Long press**: `aiLongPress` with optional `duration` parameter (milliseconds)
 - **System buttons**: Android (`AndroidBackButton`, `AndroidHomeButton`, `AndroidRecentAppsButton`) and iOS (`IOSHomeButton`, `IOSAppSwitcher`)
-- **Android advanced config**: `keyboardDismissStrategy` (`esc-first`|`back-first`), `imeStrategy` (`adbBroadcast`|`adbInput`), `scrcpyConfig` object
+- **Android advanced config**: `keyboardDismissStrategy` (`esc-first`|`back-first`), `imeStrategy` (`always-yadb`|`yadb-for-non-ascii`), `scrcpyConfig` object
 - **Computer config**: `xvfbResolution` (format `WIDTHxHEIGHTxDEPTH`)
 - **Agent config**: `modelConfig` object, `outputFormat` (`single-html`|`html-and-external-assets`)
 - **CLI improvements**: Failed task details and error classification displayed by default (no longer requires `--verbose`)
@@ -139,6 +139,10 @@ Extended mode is auto-detected when YAML contains: `variables`, `logic`, `loop`,
 - `MAX_WALK_DEPTH` constant centralized in constants.js
 - Guide unified `steps:` → `flow:` throughout
 - 678 unit tests (+15)
+
+### V5.0 Highlights
+
+- Full official API alignment, SKILL.md multi-persona refactor, 6 new templates, code optimization (single YAML parse, Chrome caching), 698 tests
 
 ## Model Configuration
 
@@ -187,7 +191,7 @@ node scripts/midscene-run.js "tests/**/*.yaml"
 
 ## Templates
 
-25 built-in templates (15 native + 10 extended) covering common automation scenarios:
+31 built-in templates (19 native + 12 extended) covering common automation scenarios:
 
 - **Native**: web basics, login, search, data extraction, file upload, multi-tab, deep-think locator, bridge mode, cookie session, local serve, long press, Android, Android system buttons, iOS, Computer
 - **Extended**: conditional flows, pagination loops, retry logic, sub-flow reuse, API integration, data pipelines, auth flows, responsive testing, e2e workflows, data-driven testing
@@ -203,7 +207,7 @@ Browse all templates in [`templates/`](templates/).
 
 ```bash
 npm install          # Install dependencies
-npm test             # Run 678 tests
+npm test             # Run 698 tests
 npm run test:coverage # Tests with coverage report
 npm run lint         # ESLint check
 ```
@@ -216,7 +220,7 @@ src/
   runner/         Native runner + TS runner + report parser
 scripts/          CLI entry point
 schema/           Keyword schemas + JSON Schema
-templates/        25 YAML templates
+templates/        31 YAML templates
 skills/           Claude Code Skill definitions
 ```
 

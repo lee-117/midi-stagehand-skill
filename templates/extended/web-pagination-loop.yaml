@@ -1,3 +1,8 @@
+# 分页循环模板
+# Web Pagination Loop Template
+# 演示 while 循环翻页和数据采集
+# Usage: node scripts/midscene-run.js templates/extended/web-pagination-loop.yaml --dry-run
+
 engine: extended
 features:
   - loop

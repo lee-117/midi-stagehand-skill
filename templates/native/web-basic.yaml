@@ -1,3 +1,8 @@
+# 基础网页操作模板
+# Web Basic Operations Template
+# 演示打开网页、搜索、断言等基础操作
+# Usage: node scripts/midscene-run.js templates/native/web-basic.yaml --dry-run
+
 engine: native
 
 web:

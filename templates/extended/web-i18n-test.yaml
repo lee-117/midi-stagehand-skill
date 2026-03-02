@@ -1,0 +1,45 @@
+# 国际化测试模板
+# Web Internationalization (i18n) Test Template
+# 演示多语言切换、RTL 布局验证和 CJK 文字输入
+# Usage: node scripts/midscene-run.js templates/extended/web-i18n-test.yaml --dry-run
+
+engine: extended
+features: [variables, loop]
+
+web:
+  url: "https://example.com"
+  viewportWidth: 1280
+  viewportHeight: 960
+
+variables:
+  locales:
+    - { code: "zh-CN", name: "简体中文", testInput: "你好世界" }
+    - { code: "en-US", name: "English", testInput: "Hello World" }
+    - { code: "ja-JP", name: "日本語", testInput: "こんにちは世界" }
+
+tasks:
+  - name: "多语言切换验证"
+    flow:
+      - aiWaitFor: "页面加载完成"
+        timeout: 10000
+
+      - loop:
+          type: for
+          items: "${locales}"
+          itemVar: "locale"
+          flow:
+            # 切换语言
+            - ai: "找到语言切换按钮或下拉菜单，选择 ${locale.name}"
+            - sleep: 2000
+
+            # 验证语言切换成功
+            - aiAssert: "页面内容已切换为 ${locale.name} 语言"
+              errorMessage: "语言切换到 ${locale.code} 失败"
+
+            # 测试输入框的多语言输入
+            - aiInput: "搜索框或文本输入框"
+              value: "${locale.testInput}"
+            - aiAssert: "输入框中显示了 ${locale.testInput}"
+
+            - recordToReport: "${locale.code} 语言测试"
+              content: "已验证 ${locale.name} 的页面显示和文字输入"

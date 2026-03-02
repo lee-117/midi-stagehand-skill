@@ -18,7 +18,7 @@ tasks:
         timeout: 10000
 
       # 使用 fileChooserAccept 处理文件选择对话框
-      - aiAct: "点击文件上传按钮"
+      - ai: "点击文件上传按钮"
         fileChooserAccept: "/path/to/test-file.pdf"
 
       # 等待文件上传完成

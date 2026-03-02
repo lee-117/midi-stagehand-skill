@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node >= 22](https://img.shields.io/badge/Node-%3E%3D22-green.svg)](https://nodejs.org/)
-[![Tests: 678](https://img.shields.io/badge/Tests-678-brightgreen.svg)](#开发)
+[![Tests: 698](https://img.shields.io/badge/Tests-698-brightgreen.svg)](#开发)
 [![Skills: 2](https://img.shields.io/badge/Claude%20Code%20Skills-2-purple.svg)](#安装-skills)
 
 > 基于自然语言的 AI 低代码浏览器自动化框架。
@@ -78,7 +78,7 @@ npx skills list
 
 - 分析需求复杂度，自动选择 **Native** 或 **Extended** 模式
 - 确定目标平台（Web / Android / iOS / Computer）
-- 基于 25 个内置模板，将自然语言映射为 YAML 动作
+- 基于 31 个内置模板，将自然语言映射为 YAML 动作
 - 自动验证并输出到 `./midscene-output/`
 
 ### YAML 执行器 — 执行与报告
@@ -117,7 +117,7 @@ npx skills list
 
 - **长按操作**: `aiLongPress` 支持 `duration` 参数（毫秒）
 - **系统按钮**: Android (`AndroidBackButton`, `AndroidHomeButton`, `AndroidRecentAppsButton`) 和 iOS (`IOSHomeButton`, `IOSAppSwitcher`)
-- **Android 高级配置**: `keyboardDismissStrategy` (`esc-first`|`back-first`)、`imeStrategy` (`adbBroadcast`|`adbInput`)、`scrcpyConfig` 对象
+- **Android 高级配置**: `keyboardDismissStrategy` (`esc-first`|`back-first`)、`imeStrategy` (`always-yadb`|`yadb-for-non-ascii`)、`scrcpyConfig` 对象
 - **Computer 配置**: `xvfbResolution`（格式 `WIDTHxHEIGHTxDEPTH`）
 - **Agent 配置**: `modelConfig` 对象、`outputFormat` (`single-html`|`html-and-external-assets`)
 - **CLI 改进**: 失败任务详情和错误分类默认显示（不再需要 `--verbose`）
@@ -139,6 +139,10 @@ npx skills list
 - `MAX_WALK_DEPTH` 常量集中管理
 - Guide 全文 `steps:` → `flow:` 统一
 - 678 个单元测试（+15）
+
+### V5.0 新特性
+
+- 官方 API 全面对齐、SKILL.md 多角色重构、6 个新模板、代码优化（YAML 单次解析、Chrome 缓存）、698 个测试
 
 ## 模型配置
 
@@ -187,7 +191,7 @@ node scripts/midscene-run.js "tests/**/*.yaml"
 
 ## 模板
 
-内置 25 个模板（15 个 Native + 10 个 Extended），覆盖常见自动化场景：
+内置 31 个模板（19 个 Native + 12 个 Extended），覆盖常见自动化场景：
 
 - **Native**：Web 基础操作、登录、搜索、数据提取、文件上传、多标签页、深度定位、桥接模式、Cookie 会话、本地静态服务、长按操作、Android、Android 系统按钮、iOS、Computer
 - **Extended**：条件流程、分页循环、重试逻辑、子流程复用、API 集成、数据管道、认证流程、响应式测试、端到端工作流、数据驱动测试
@@ -203,7 +207,7 @@ node scripts/midscene-run.js "tests/**/*.yaml"
 
 ```bash
 npm install          # 安装依赖
-npm test             # 运行 678 个测试
+npm test             # 运行 698 个测试
 npm run test:coverage # 测试 + 覆盖率报告
 npm run lint         # ESLint 检查
 ```
@@ -216,7 +220,7 @@ src/
   runner/         Native 执行器 + TS 执行器 + 报告解析器
 scripts/          CLI 入口
 schema/           关键字 Schema + JSON Schema
-templates/        25 个 YAML 模板
+templates/        31 个 YAML 模板
 skills/           Claude Code Skill 定义
 ```
 

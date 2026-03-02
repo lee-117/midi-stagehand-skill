@@ -141,13 +141,13 @@ describe('Integration: Template Files', () => {
     }
   });
 
-  it('has exactly 15 native templates', () => {
+  it('has exactly 19 native templates', () => {
     const files = fs.readdirSync(nativeTemplateDir).filter(f => f.endsWith('.yaml'));
-    assert.strictEqual(files.length, 15);
+    assert.strictEqual(files.length, 19);
   });
 
-  it('has exactly 10 extended templates', () => {
+  it('has exactly 12 extended templates', () => {
     const files = fs.readdirSync(extendedTemplateDir).filter(f => f.endsWith('.yaml'));
-    assert.strictEqual(files.length, 10);
+    assert.strictEqual(files.length, 12);
   });
 });

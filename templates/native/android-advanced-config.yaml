@@ -1,0 +1,41 @@
+# Android 高级配置模板
+# 场景: scrcpy 配置、输入法策略、键盘关闭策略等高级配置
+# 适用平台: Android
+
+engine: native
+
+android:
+  deviceId: "emulator-5554"
+  keyboardDismissStrategy: "esc-first"
+  imeStrategy: "yadb-for-non-ascii"
+  scrcpyConfig:
+    enabled: true
+    maxSize: 1280
+    videoBitRate: 2000000
+  screenshotResizeScale: 0.75
+  alwaysRefreshScreenInfo: true
+
+tasks:
+  - name: "CJK 文字输入测试"
+    flow:
+      # 启动 Chrome 浏览器
+      - launch: "com.android.chrome"
+      - sleep: 2000
+      - ai: "在地址栏输入 https://www.baidu.com 并回车"
+      - aiWaitFor: "百度搜索首页加载完成"
+        timeout: 15000
+
+      # 使用 yadb-for-non-ascii 策略输入中文
+      - aiInput: "搜索框"
+        value: "Midscene 自动化测试"
+      - aiTap: "搜索按钮"
+      - aiWaitFor: "搜索结果加载完成"
+
+      # 验证搜索结果
+      - aiAssert: "页面显示了与 Midscene 相关的搜索结果"
+
+      # 使用 ADB 命令查看设备信息
+      - runAdbShell: "getprop ro.build.version.release"
+
+      - recordToReport: "Android 高级配置测试完成"
+        content: "已验证 imeStrategy、scrcpyConfig 和 CJK 输入"

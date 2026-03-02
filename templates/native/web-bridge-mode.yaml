@@ -1,8 +1,11 @@
-# Template: Bridge Mode — connect to an already running browser
-# Use case: Reuse a desktop browser where the user is already logged in
-# bridgeMode options:
-#   - 'newTabWithUrl': Opens a new tab with the specified URL
-#   - 'currentTab': Uses the currently active tab (url is optional)
+# Bridge 模式模板 — 连接已运行的浏览器
+# Bridge Mode Template
+# 演示复用已登录的桌面浏览器会话
+# Usage: node scripts/midscene-run.js templates/native/web-bridge-mode.yaml --dry-run
+#
+# bridgeMode 选项:
+#   - 'newTabWithUrl': 打开新标签页并导航到指定 URL
+#   - 'currentTab': 使用当前活动标签页（url 可选）
 
 engine: native
 
@@ -12,13 +15,13 @@ web:
   closeNewTabsAfterDisconnect: true
 
 tasks:
-  - name: "Operate on existing session"
+  - name: "操作已有会话"
     flow:
-      - aiWaitFor: "Dashboard page has loaded"
+      - aiWaitFor: "仪表盘页面已加载完成"
         timeout: 10000
-      - aiAssert: "User is logged in and dashboard is visible"
+      - aiAssert: "用户已登录且仪表盘可见"
       - aiQuery:
-          query: "Extract the username shown in the top navigation bar"
+          query: "提取顶部导航栏中显示的用户名"
           name: "currentUser"
-      - recordToReport: "Bridge mode session"
-        content: "Connected to existing browser session"
+      - recordToReport: "Bridge 模式会话"
+        content: "已成功连接到已有浏览器会话"

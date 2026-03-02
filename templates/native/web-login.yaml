@@ -1,3 +1,8 @@
+# 登录流程模板
+# Web Login Flow Template
+# 演示用户名密码登录、断言登录成功
+# Usage: node scripts/midscene-run.js templates/native/web-login.yaml --dry-run
+
 engine: native
 
 web:

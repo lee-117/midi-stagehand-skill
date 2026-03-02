@@ -226,6 +226,7 @@ function extractAgentConfig(doc) {
     'generateReport', 'autoPrintReportMsg', 'reportFileName',
     'replanningCycleLimit', 'aiActContext',
     'screenshotShrinkFactor', 'waitAfterAction',
+    'outputFormat', 'modelConfig',
   ];
 
   const config = {};

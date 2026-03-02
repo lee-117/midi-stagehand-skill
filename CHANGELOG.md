@@ -1,5 +1,58 @@
 # Changelog
 
+## [5.0.0] — 2026-03-02
+
+### Schema & API Alignment
+- Updated `imeStrategy` enum: replaced `adbBroadcast`/`adbInput` with `always-yadb` (official API parity)
+- Added `forceSameTabNavigation`, `unstableLogContent` to `native-keywords.json` allKeywords
+- Added `output` to taskStructure keywords
+- Fixed `aiDragAndDrop` schema: added missing `deepThink`, `xpath`, `timeout`, `cacheable` properties
+- Fixed `aiInput` mode enum: removed unofficial `append` value
+- Added nested object format support for `aiLongPress` in JSON Schema
+- Removed `append` from `aiInput` mode enum (not in official API)
+
+### Generator SKILL.md Improvements
+- Fixed contradictory `ai:` vs specific actions guidance — now scenario-based table
+- Added `logic.if` condition format guide (natural language vs JavaScript)
+- Added Extended mode YAML structure specification section
+- Added missing web config fields (`enableTouchEventsInActionSpace`, `forceChromeSelectRendering`, `unstableLogContent`)
+- Added CAPTCHA/bot-detection guidance for Web platform
+- Deduplicated self-check checklists (single authoritative checklist)
+- Clarified `features` field: optional in schema but strongly recommended
+- Fixed anti-pattern #3: `steps:` → `flow:` in examples
+- Made `argument-hint` bilingual
+
+### Runner SKILL.md Improvements
+- Unified error display: suggestions always shown (not just in `--verbose`)
+- Added iframe/shadow DOM debugging guidance
+- Added success summary with elapsed time
+
+### Code Optimizations
+- `detect()` now accepts pre-parsed YAML objects (avoids 3-5x redundant parsing)
+- `findSystemChrome()` memoized (eliminates repeated filesystem checks)
+- Retry loop adds 2-second delay between attempts
+- Output path traversal validation for `--output-ts` and `--report-dir`
+- ENV references (`${ENV:xxx}`) in platform config no longer trigger extended mode detection
+- `while` loop without `maxIterations` upgraded from warning to error
+- Transpiler warnings displayed with `[WARN]` prefix
+
+### Transpiler
+- `extractAgentConfig` now includes `outputFormat` and `modelConfig` fields
+
+### Validator
+- Added `aiInput` missing `value` warning (most common user mistake)
+- Updated `imeStrategy` enum to `always-yadb`/`yadb-for-non-ascii`
+
+### Templates (31 total: 19 native + 12 extended)
+- **6 new templates**: `ios-system-buttons`, `android-advanced-config`, `web-file-download`, `computer-headless`, `api-crud-test`, `web-i18n-test`
+- Standardized comment headers on all 31 templates
+- Fixed language consistency: all templates now use Chinese content
+- Fixed `aiAct` → `ai` in `web-file-upload.yaml`
+
+### Tests
+- 686+ tests (up from 678)
+- New tests: pre-parsed object detection, ENV exclusion, aiInput value warning, agent config fields, Chrome memoization
+
 ## [4.0.0] - 2026-03-02
 
 ### Schema & API Alignment

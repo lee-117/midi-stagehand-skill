@@ -1040,7 +1040,7 @@ tasks:
       assert.ok(countWarnings.length > 0, 'Should warn on zero count');
     });
 
-    it('warns when while loop has no maxIterations', () => {
+    it('errors when while loop has no maxIterations', () => {
       const yaml = `
 engine: extended
 features: [loop]
@@ -1056,8 +1056,8 @@ tasks:
             - aiTap: "next"
 `;
       const result = validate(yaml);
-      const maxIterWarnings = result.warnings.filter(w => w.message.includes('maxIterations'));
-      assert.ok(maxIterWarnings.length > 0, 'Should warn about missing maxIterations');
+      const maxIterErrors = result.errors.filter(e => e.message.includes('maxIterations'));
+      assert.ok(maxIterErrors.length > 0, 'Should error about missing maxIterations');
     });
 
     it('does not warn when while loop has maxIterations', () => {
@@ -2050,11 +2050,11 @@ tasks:
   });
 
   describe('Android imeStrategy validation', () => {
-    it('accepts valid imeStrategy adbBroadcast', () => {
+    it('accepts valid imeStrategy always-yadb', () => {
       const yaml = `
 android:
   deviceId: "emulator-5554"
-  imeStrategy: "adbBroadcast"
+  imeStrategy: "always-yadb"
 tasks:
   - name: test
     flow:
@@ -2443,8 +2443,8 @@ tasks:
       assert.equal(imeWarnings.length, 0, 'Should not warn about valid yadb-for-non-ascii imeStrategy');
     });
 
-    it('accepts all three valid imeStrategy values', () => {
-      for (const strategy of ['adbBroadcast', 'adbInput', 'yadb-for-non-ascii']) {
+    it('accepts both valid imeStrategy values', () => {
+      for (const strategy of ['always-yadb', 'yadb-for-non-ascii']) {
         const yaml = `
 android:
   deviceId: "test"
@@ -2461,6 +2461,41 @@ tasks:
         });
         assert.equal(imeWarnings.length, 0, `Should not warn about valid imeStrategy "${strategy}"`);
       }
+    });
+  });
+
+  describe('aiInput missing value warning', () => {
+    it('warns when aiInput has no value sibling', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiInput: "search box"
+`;
+      const result = validate(yaml);
+      assert.ok(result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('aiInput') && msg.includes('value');
+      }), 'Should warn about aiInput without value');
+    });
+
+    it('does not warn when aiInput has value', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiInput: "search box"
+        value: "hello"
+`;
+      const result = validate(yaml);
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('aiInput') && msg.includes('value');
+      }), 'Should not warn when aiInput has value');
     });
   });
 
@@ -2532,7 +2567,7 @@ tasks:
 android:
   deviceId: "emulator-5554"
   keyboardDismissStrategy: "esc-first"
-  imeStrategy: "adbBroadcast"
+  imeStrategy: "always-yadb"
   displayId: "0"
   launch: true
   output: "result.json"

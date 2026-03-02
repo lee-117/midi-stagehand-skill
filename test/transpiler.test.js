@@ -2704,6 +2704,42 @@ tasks:
     });
   });
 
+  describe('agent config outputFormat and modelConfig', () => {
+    it('passes outputFormat to agent config', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+agent:
+  outputFormat: "html-and-external-assets"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('html-and-external-assets'),
+        'Should include outputFormat in generated code');
+    });
+
+    it('passes modelConfig to agent config', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+agent:
+  modelConfig:
+    model: "gpt-4o"
+    temperature: 0.5
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = transpile(yaml);
+      assert.ok(result.code.includes('modelConfig'),
+        'Should include modelConfig in generated code');
+    });
+  });
+
   describe('loop for with indexVar', () => {
     it('generates destructured entries() loop', () => {
       const yaml = `

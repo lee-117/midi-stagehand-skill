@@ -159,6 +159,14 @@ describe('findSystemChrome', () => {
     assert.equal(result1, result2, 'Should return the same path on repeated calls');
   });
 
+  it('returns same result on consecutive calls (memoization)', () => {
+    const { _resetChromeCache } = require('../src/runner/runner-utils');
+    _resetChromeCache();
+    const result1 = findSystemChrome();
+    const result2 = findSystemChrome();
+    assert.strictEqual(result1, result2, 'Consecutive calls should return same result');
+  });
+
   it('returned path includes browser-like name (if found)', () => {
     const result = findSystemChrome();
     if (result !== null) {

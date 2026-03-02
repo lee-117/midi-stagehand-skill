@@ -1,0 +1,28 @@
+# Computer 无头模式模板
+# Computer Headless Mode Template (CI/Linux)
+# 演示 xvfbResolution 和 headless 模式配置
+# Usage: node scripts/midscene-run.js templates/native/computer-headless.yaml --dry-run
+
+engine: native
+
+computer:
+  headless: true
+  xvfbResolution: "1920x1080x24"
+  displayId: "0"
+
+tasks:
+  - name: "无头模式桌面自动化"
+    flow:
+      - ai: "打开计算器应用"
+      - sleep: 2000
+      - aiWaitFor: "计算器应用已打开"
+        timeout: 10000
+
+      - ai: "输入 123 + 456"
+      - sleep: 1000
+      - ai: "点击等号按钮"
+
+      - aiAssert: "计算结果显示 579"
+
+      - recordToReport: "无头模式桌面自动化完成"
+        content: "在 Xvfb 虚拟显示器中完成了计算器操作"
