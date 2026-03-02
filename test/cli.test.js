@@ -30,7 +30,7 @@ describe('parseArgs', () => {
       assert.equal(args.dryRun, false);
       assert.equal(args.outputTs, null);
       assert.equal(args.reportDir, DEFAULT_REPORT_DIR);
-      assert.equal(args.template, 'puppeteer');
+      assert.equal(args.template, 'playwright');
       assert.equal(args.timeout, DEFAULT_TIMEOUT);
       assert.equal(args.retry, 0);
       assert.equal(args.clean, false);

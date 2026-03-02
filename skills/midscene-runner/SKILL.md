@@ -248,7 +248,7 @@ npx @midscene/web "tests/**/*.yaml" --concurrent --continue-on-error
 - `--retry <count>` — 失败后自动重试次数（默认 0，即不重试）。适合 flaky 场景
 - `--output-ts <path>` — 保存转换后的 TypeScript 文件（仅 Extended 模式）。排查转译错误时，建议配合 `--dry-run` 一起使用
 - `--report-dir <path>` — 报告输出目录（默认 `./midscene-report`）
-- `--template puppeteer|playwright` — 选择 TS 模板（默认 puppeteer；playwright 适合需要多浏览器兼容的场景）
+- `--template puppeteer|playwright` — 选择 TS 模板（默认 playwright；puppeteer 适合仅需 Chrome 的场景）
 - `--clean` — 清理 `.midscene-tmp/` 中超过 24 小时的过期临时文件
 - `--verbose` / `-v` — 显示详细输出（验证详情、检测信息、步骤计数）。注意：错误分类、失败任务详情和修复建议默认已显示，无需 `--verbose`
 - `--help` / `-h` — 显示帮助信息

@@ -395,7 +395,7 @@ function processStep(step, indent, varScope, _extra) {
  * @param {string|object} yamlInput - File path, raw YAML string, or pre-parsed
  *   object.
  * @param {object} [options]
- * @param {'puppeteer'|'playwright'} [options.templateType='puppeteer']
+ * @param {'puppeteer'|'playwright'} [options.templateType='playwright']
  * @param {string} [options.outputPath] - If set, the TS file is also written to
  *   this path.
  * @returns {{ code: string, outputPath?: string }}
@@ -404,7 +404,7 @@ const SUPPORTED_TEMPLATES = new Set(['puppeteer', 'playwright']);
 
 function transpile(yamlInput, options) {
   options = options || {};
-  const templateType = options.templateType || 'puppeteer';
+  const templateType = options.templateType || 'playwright';
 
   if (!SUPPORTED_TEMPLATES.has(templateType)) {
     throw new Error('transpiler: unsupported templateType "' + templateType + '". Supported: ' + Array.from(SUPPORTED_TEMPLATES).join(', '));

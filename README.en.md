@@ -187,7 +187,7 @@ node scripts/midscene-run.js <yaml-file|glob> [options]
 | `--dry-run` | Validate and transpile only, do not execute |
 | `--output-ts <path>` | Save transpiled TypeScript to file |
 | `--report-dir <path>` | Custom report output directory |
-| `--template puppeteer\|playwright` | TS template engine (default: puppeteer) |
+| `--template puppeteer\|playwright` | TS template engine (default: playwright) |
 | `--timeout <ms>` | Execution timeout (includes browser startup, min 60000 recommended) |
 | `--retry <count>` | Retry failed executions for flaky scenarios (default: 0) |
 | `--clean` | Clean stale temp files from `.midscene-tmp/` (>24h old) |

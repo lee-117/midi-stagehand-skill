@@ -187,7 +187,7 @@ node scripts/midscene-run.js <yaml文件|glob模式> [选项]
 | `--dry-run` | 仅验证和转译，不执行 |
 | `--output-ts <路径>` | 保存转译后的 TypeScript 文件 |
 | `--report-dir <路径>` | 自定义报告输出目录 |
-| `--template puppeteer\|playwright` | TS 模板引擎（默认 puppeteer） |
+| `--template puppeteer\|playwright` | TS 模板引擎（默认 playwright） |
 | `--timeout <毫秒>` | 执行超时时间（含浏览器启动，建议最低 60000） |
 | `--retry <次数>` | 失败后自动重试（应对 flaky 场景，默认 0） |
 | `--clean` | 清理 `.midscene-tmp/` 中超过 24 小时的临时文件 |

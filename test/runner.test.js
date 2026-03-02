@@ -316,7 +316,7 @@ describe('CLI Argument Parsing', () => {
     assert.equal(args.dryRun, false);
     assert.equal(args.outputTs, null);
     assert.equal(args.reportDir, './midscene-report');
-    assert.equal(args.template, 'puppeteer');
+    assert.equal(args.template, 'playwright');
     assert.equal(args.timeout, 300000);
     assert.equal(args.verbose, false);
     assert.equal(args.version, false);

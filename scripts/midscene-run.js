@@ -23,7 +23,7 @@ function parseArgs(argv) {
     dryRun: false,
     outputTs: null,
     reportDir: DEFAULT_REPORT_DIR,
-    template: 'puppeteer',
+    template: 'playwright',
     timeout: DEFAULT_TIMEOUT,
     retry: 0,
     clean: false,
@@ -159,7 +159,7 @@ Options:
   --report-dir <path>      Directory for Midscene reports
                            (default: ./midscene-report)
   --template <name>        Boilerplate template: puppeteer | playwright
-                           (default: puppeteer)
+                           (default: playwright)
   --timeout <ms>           Execution timeout in milliseconds
                            (default: 300000 = 5 minutes)
   --retry <count>          Retry failed executions (for flaky scenarios)
@@ -172,7 +172,7 @@ Options:
 
 Examples:
   midscene-run tests/login.yaml
-  midscene-run tests/checkout.yaml --template playwright
+  midscene-run tests/checkout.yaml --template puppeteer
   midscene-run tests/extended.yaml --dry-run --output-ts ./generated.ts
   midscene-run "tests/**/*.yaml"             # batch: run all YAML files
   midscene-run "tests/smoke-*.yaml" -v       # batch with verbose output

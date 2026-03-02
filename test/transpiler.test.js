@@ -535,7 +535,7 @@ tasks:
   });
 
   describe('boilerplate generation', () => {
-    it('generates puppeteer boilerplate by default', () => {
+    it('generates playwright boilerplate by default', () => {
       const yaml = `
 web:
   url: "https://example.com"
@@ -545,8 +545,8 @@ tasks:
       - aiTap: "button"
 `;
       const result = transpile(yaml);
-      assert.ok(result.code.includes('puppeteer'));
-      assert.ok(result.code.includes('PuppeteerAgent'));
+      assert.ok(result.code.includes('playwright'));
+      assert.ok(result.code.includes('PlaywrightAgent'));
       assert.ok(result.code.includes('example.com'));
     });
 
@@ -569,7 +569,7 @@ tasks:
     it('transpiles extended-logic.yaml fixture', () => {
       const result = transpile(fixtures('extended-logic.yaml'));
       assert.ok(result.code.length > 0);
-      assert.ok(result.code.includes('puppeteer'));
+      assert.ok(result.code.includes('playwright'));
       assert.ok(result.code.includes('aiBoolean'));
     });
 
@@ -1620,8 +1620,8 @@ tasks:
       - aiTap: "button"
 `;
       const result = transpile(yaml);
-      assert.ok(result.code.includes('setUserAgent'),
-        'Should include setUserAgent call for puppeteer');
+      assert.ok(result.code.includes('userAgent'),
+        'Should include userAgent in playwright context options');
       assert.ok(result.code.includes('Mozilla/5.0 Custom'),
         'Should include the user agent string');
     });
@@ -1637,8 +1637,8 @@ tasks:
       - aiTap: "button"
 `;
       const result = transpile(yaml);
-      assert.ok(result.code.includes('setCookie'),
-        'Should include setCookie call');
+      assert.ok(result.code.includes('addCookies'),
+        'Should include addCookies call');
       assert.ok(result.code.includes("import * as fs from 'fs'"),
         'Should import fs for cookie file reading');
     });
@@ -1684,8 +1684,8 @@ tasks:
       - aiTap: "button"
 `;
       const result = transpile(yaml);
-      assert.ok(result.code.includes('waitForNetworkIdle'),
-        'Should include waitForNetworkIdle call');
+      assert.ok(result.code.includes('networkidle'),
+        'Should include networkidle in waitForLoadState call');
     });
   });
 
@@ -1740,8 +1740,8 @@ tasks:
         'Should include testId in agent config');
       assert.ok(result.code.includes('login-tests'),
         'Should include groupName in agent config');
-      assert.ok(result.code.includes('PuppeteerAgent(page,'),
-        'Should pass config to PuppeteerAgent constructor');
+      assert.ok(result.code.includes('PlaywrightAgent(page,'),
+        'Should pass config to PlaywrightAgent constructor');
     });
 
     it('does not pass config when agent key is absent', () => {
@@ -1754,7 +1754,7 @@ tasks:
       - aiTap: "button"
 `;
       const result = transpile(yaml);
-      assert.ok(result.code.includes('PuppeteerAgent(page)'),
+      assert.ok(result.code.includes('PlaywrightAgent(page)'),
         'Should not pass config when no agent key');
     });
   });
