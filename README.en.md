@@ -2,45 +2,63 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node >= 22](https://img.shields.io/badge/Node-%3E%3D22-green.svg)](https://nodejs.org/)
-[![Tests: 698](https://img.shields.io/badge/Tests-698-brightgreen.svg)](#development)
-[![Skills: 2](https://img.shields.io/badge/Claude%20Code%20Skills-2-purple.svg)](#install-as-skills)
+[![CI](https://github.com/lee-117/midi-stagehand-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/lee-117/midi-stagehand-skill/actions/workflows/ci.yml)
+[![AI Agent Skills: 2](https://img.shields.io/badge/AI%20Agent%20Skills-2-purple.svg)](#install-as-skills)
 
-> AI-powered low-code browser automation via natural language.
-> Two Claude Code Skills: **YAML Generator** + **Runner**.
+> AI-powered low-code browser automation — describe what you need, generate YAML, execute in one step.
 
 **[简体中文](README.md)** | English
 
-## Table of Contents
-
-- [What Is This](#what-is-this)
-- [Quick Start](#quick-start)
-- [Install as Skills](#install-as-skills)
-- [Using Skills](#using-skills)
-- [How It Works](#how-it-works)
-- [Two Modes](#two-modes)
-- [Features](#features)
-- [Model Configuration](#model-configuration)
-- [CLI Reference](#cli-reference)
-- [Templates](#templates)
-- [FAQ](#faq)
-- [Known Limitations](#known-limitations)
-- [Documentation](#documentation)
-- [Development](#development)
-- [License](#license)
-
 ## What Is This
 
-Midi Stagehand Skill is a **Midscene YAML superset ecosystem** that turns natural language into executable browser automation. It ships as **two Claude Code Skills** — a Generator that converts requirements into YAML, and a Runner that validates, executes, and reports results.
-
-```
-Natural Language → YAML (Native / Extended) → Detect → Execute → Report
-```
+Midi Stagehand Skill is a **Midscene YAML superset ecosystem** that turns natural language into executable browser automation. It ships as **two AI Agent Skills** — a Generator that converts requirements into YAML, and a Runner that validates, executes, and reports results.
 
 Supports **Web**, **Android**, **iOS**, and **Computer** platforms.
 
 ## Quick Start
 
-### 1. Generate YAML with Natural Language
+### Prerequisites
+
+- **Node.js >= 22** and **npm**
+- **Chrome** browser (for web automation)
+- An AI coding agent (see [compatibility table](#install-as-skills))
+
+### Install as Skills
+
+```bash
+# Install both skills globally (Claude Code example)
+npx skills add https://github.com/lee-117/midi-stagehand-skill -a claude-code -y -g
+```
+
+Supported AI Agents:
+
+| Agent | Install Flag |
+|-------|-------------|
+| **Claude Code** | `-a claude-code` |
+| **Trae** | `-a trae` |
+| **Qoder** | `-a qoder` |
+| **Cursor** | `-a cursor` |
+| **Cline** | `-a cline` |
+
+Install a single skill:
+
+```bash
+npx skills add https://github.com/lee-117/midi-stagehand-skill --skill midscene-yaml-generator -a claude-code -y -g
+npx skills add https://github.com/lee-117/midi-stagehand-skill --skill midscene-runner -a claude-code -y -g
+```
+
+From Gitee (clone first):
+
+```bash
+git clone https://gitee.com/lee-zh/midi-stagehand-skill.git
+npx skills add ./midi-stagehand-skill -a claude-code -y -g
+```
+
+Verify installation: `npx skills list`
+
+### 30-Second Experience
+
+**1. Generate YAML with Natural Language**
 
 Describe your automation needs directly in your AI Agent:
 
@@ -48,9 +66,23 @@ Describe your automation needs directly in your AI Agent:
 You: "Write an automation script to open Google, search for Midscene, and screenshot the results"
 ```
 
-The Generator automatically picks the right mode and template, outputting YAML to `./midscene-output/`.
+The Generator will output YAML like this to `./midscene-output/`:
 
-### 2. Execute YAML
+```yaml
+web:
+  url: "https://www.google.com"
+
+tasks:
+  - name: "Search Midscene"
+    flow:
+      - aiInput: "search box"
+        value: "Midscene"
+      - aiTap: "Google Search"
+      - aiWaitFor: "search results loaded"
+      - recordToReport: "search results screenshot"
+```
+
+**2. Execute YAML**
 
 ```
 You: "Run midscene-output/search-google.yaml"
@@ -58,66 +90,19 @@ You: "Run midscene-output/search-google.yaml"
 
 The Runner validates, executes, and interprets the report.
 
-### 3. Or Run Templates Directly via CLI
+**3. Or use the CLI directly**
 
 ```bash
-# Validate a template
-node scripts/midscene-run.js templates/native/web-basic.yaml --dry-run
-
-# Execute a template
-node scripts/midscene-run.js templates/native/web-search.yaml
-```
-
-## Install as Skills
-
-### Prerequisites
-
-- **Node.js >= 22** and **npm**
-- **Chrome** browser (for web automation)
-- An AI coding agent: **Claude Code**, Trae, Qoder, Cursor, Cline, etc.
-
-### From GitHub (recommended)
-
-```bash
-# Install both skills globally
-npx skills add https://github.com/lee-117/midi-stagehand-skill -a claude-code -y -g
-
-# Other agents
-npx skills add https://github.com/lee-117/midi-stagehand-skill -a trae -y -g
-npx skills add https://github.com/lee-117/midi-stagehand-skill -a qoder -y -g
-```
-
-### Install a single skill
-
-```bash
-npx skills add https://github.com/lee-117/midi-stagehand-skill --skill midscene-yaml-generator -a claude-code -y -g
-npx skills add https://github.com/lee-117/midi-stagehand-skill --skill midscene-runner -a claude-code -y -g
-```
-
-### From Gitee (clone first)
-
-```bash
-git clone https://gitee.com/lee-zh/midi-stagehand-skill.git
-npx skills add ./midi-stagehand-skill -a claude-code -y -g
-```
-
-After installation, verify it was successful:
-
-```bash
-npx skills list
+node scripts/midscene-run.js templates/native/web-basic.yaml --dry-run   # validate only
+node scripts/midscene-run.js templates/native/web-search.yaml            # execute
 ```
 
 ### Update / Uninstall
 
 ```bash
-# Check for updates
-npx skills check
-
-# Update all installed skills
-npx skills update
-
-# Remove a specific skill
-npx skills remove midscene-yaml-generator
+npx skills check          # check for updates
+npx skills update          # update all skills
+npx skills remove midscene-yaml-generator   # uninstall
 npx skills remove midscene-runner
 ```
 
@@ -141,44 +126,10 @@ Example trigger phrases:
 - "Dry-run validate this YAML"
 - "Execute templates/native/web-search.yaml and analyze the report"
 
-### Typical Workflow
+### Workflow
 
 ```
 Describe needs → [Generator] output YAML → [Runner --dry-run] validate → [Runner] execute → view report
-```
-
-## How It Works
-
-### YAML Generator — Natural Language to YAML
-
-When you describe a browser automation task, the Generator will:
-
-- Analyze complexity and choose **Native** or **Extended** mode
-- Determine target platform (Web / Android / iOS / Computer)
-- Map natural language to YAML actions using 31 built-in templates
-- Auto-validate and output to `./midscene-output/`
-
-### YAML Runner — Execute and Report
-
-When you need to run a YAML file, the Runner will:
-
-- Check the runtime environment (Node.js, dependencies, browser)
-- Locate and pre-validate the YAML file
-- Execute and analyze results
-- Parse the Midscene report with actionable fix suggestions
-
-### End-to-End Workflow
-
-```
-You: "Write an automation script to open Google and search for Midscene"
-  ↓ [Generator]
-Output: midscene-output/search-google.yaml
-  ↓ [Runner --dry-run]
-Validate: passed
-  ↓ [Runner]
-Execute: open browser → type query → click search
-  ↓
-Report: midscene-report/ (HTML + JSON)
 ```
 
 ## Two Modes
@@ -196,15 +147,13 @@ Extended mode is auto-detected when YAML contains: `variables`, `logic`, `loop`,
 
 ## Features
 
-- **Write automation in natural language** — describe what you need, get YAML generated automatically
-- **Full platform coverage** — Web, Android, iOS, Computer with unified YAML syntax
-- **4-layer validation catches errors early** — syntax → structure → schema → semantic, with security checks (JS injection / SSRF / path traversal) before execution
-- **31 templates ready to use** — 19 Native + 12 Extended, covering login, search, data collection, API testing, and more
-- **Smart AI operations** — 11 interaction actions + 6 data extractors + 2 assertions, locate elements with natural language
-- **Complex logic support** — conditional branches, loops, sub-flow reuse, parallel execution, error handling via Extended mode
-- **CLI toolchain** — `--dry-run` pre-validation, `--retry` for flaky tests, glob batch execution, 13-category error auto-classification with fix suggestions
-- **Security by design** — `execFileSync` prevents command injection, UUID-isolated temp files, path traversal detection
-- **698 tests for reliability** — full coverage across detector / validator / transpiler / CLI / runner / report-parser
+- **Natural language driven** — describe what you need, get executable YAML
+- **Unified across platforms** — Web, Android, iOS, Computer share the same YAML syntax
+- **Pre-execution validation** — multi-layer checks + security detection catch errors before running
+- **Rich templates** — covering login, search, data collection, API testing, and more
+- **Smart AI operations** — locate and interact with page elements using natural language
+- **Complex logic support** — conditional branches, loops, sub-flow reuse, parallel execution, error handling
+- **CLI toolchain** — pre-validation, retry, batch execution, automatic error classification with fix suggestions
 
 ## Model Configuration
 
@@ -253,10 +202,10 @@ node scripts/midscene-run.js "tests/**/*.yaml"
 
 ## Templates
 
-31 built-in templates (19 Native + 12 Extended) covering common automation scenarios:
+Built-in templates covering common automation scenarios:
 
-- **Native**: web basics, login, search, data extraction, file upload, file download, multi-tab, deep-think locator, bridge mode, cookie session, local serve, long press, Android, Android system buttons, Android advanced config, iOS, iOS system buttons, Computer, Computer headless
-- **Extended**: conditional flows, pagination loops, retry logic, sub-flow reuse, API integration, API CRUD test, data pipelines, auth flows, responsive testing, e2e workflows, data-driven testing, i18n testing
+- **Native**: web basics, login, search, data extraction, file upload/download, multi-tab, mobile (Android / iOS), Computer, and more
+- **Extended**: conditional flows, pagination loops, retry logic, sub-flow reuse, API integration, data pipelines, auth flows, e2e workflows, and more
 
 Browse all templates in [`templates/`](templates/).
 
@@ -284,27 +233,17 @@ For more, see the [Guide FAQ](guide/MIDSCENE_YAML_GUIDE.md#附录-d-常见问题
 
 - **[Progressive Guide (L1-L5)](guide/MIDSCENE_YAML_GUIDE.md)** — comprehensive tutorial from beginner to advanced
 - **[Skills CLI](https://github.com/vercel-labs/skills)** — install, update, and manage skills
+- **[CLAUDE.md](CLAUDE.md)** — project architecture and developer guide (for contributors)
 
-## Development
+## Contributing
 
 ```bash
-npm install          # Install dependencies
-npm test             # Run 698 tests
-npm run test:coverage # Tests with coverage report
-npm run lint         # ESLint check
+npm install              # install dependencies
+npm test                 # run tests
+npm run test:coverage    # tests with coverage report
 ```
 
-```
-src/
-  detector/       Mode detector (native vs extended)
-  validator/      4-layer YAML validation
-  transpiler/     YAML → TypeScript transpiler + 10 generators
-  runner/         Native runner + TS runner + report parser
-scripts/          CLI entry point
-schema/           Keyword schemas + JSON Schema
-templates/        31 YAML templates
-skills/           Claude Code Skill definitions
-```
+For detailed project architecture, code conventions, and test structure, see [CLAUDE.md](CLAUDE.md).
 
 ## License
 
