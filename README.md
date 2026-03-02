@@ -42,7 +42,7 @@ Midi Stagehand Skill 是一个 **Midscene YAML 超集生态系统**，将自然�
 
 ### 1. 用自然语言生成 YAML
 
-在 Claude Code 中直接描述你的自动化需求：
+在 AI Agent 中直接描述你的自动化需求：
 
 ```
 你: "帮我写个自动化脚本，打开百度搜索 Midscene，截图保存结果"
@@ -125,7 +125,7 @@ npx skills remove midscene-runner
 
 ### YAML 生成器
 
-当你在 Claude Code 中描述浏览器自动化需求时，生成器会自动触发。
+当你在 AI Agent 中描述浏览器自动化需求时，生成器会自动触发。
 
 示例触发短语：
 - "帮我写一个自动化脚本，测试登录功能"

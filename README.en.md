@@ -42,7 +42,7 @@ Supports **Web**, **Android**, **iOS**, and **Computer** platforms.
 
 ### 1. Generate YAML with Natural Language
 
-Describe your automation needs directly in Claude Code:
+Describe your automation needs directly in your AI Agent:
 
 ```
 You: "Write an automation script to open Google, search for Midscene, and screenshot the results"
@@ -125,7 +125,7 @@ npx skills remove midscene-runner
 
 ### YAML Generator
 
-The Generator triggers automatically when you describe browser automation needs in Claude Code.
+The Generator triggers automatically when you describe browser automation needs in your AI Agent.
 
 Example trigger phrases:
 - "Write an automation script to test the login flow"
