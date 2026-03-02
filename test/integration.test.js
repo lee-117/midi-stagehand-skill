@@ -108,7 +108,7 @@ describe('Integration: Template Files', () => {
   it('all native templates pass validation', () => {
     const nativeDir = path.join(templatesDir, 'native');
     const files = fs.readdirSync(nativeDir).filter(f => f.endsWith('.yaml'));
-    assert.ok(files.length >= 8, 'Should have at least 8 native templates');
+    assert.ok(files.length >= 10, 'Should have at least 10 native templates');
 
     for (const file of files) {
       const filePath = path.join(nativeDir, file);
@@ -124,7 +124,7 @@ describe('Integration: Template Files', () => {
   it('all extended templates pass validation and transpile', () => {
     const extDir = path.join(templatesDir, 'extended');
     const files = fs.readdirSync(extDir).filter(f => f.endsWith('.yaml'));
-    assert.ok(files.length >= 9, 'Should have at least 9 extended templates');
+    assert.ok(files.length >= 10, 'Should have at least 10 extended templates');
 
     for (const file of files) {
       const filePath = path.join(extDir, file);

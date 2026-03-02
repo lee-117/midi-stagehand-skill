@@ -1995,4 +1995,376 @@ tasks:
       }), 'Should not warn when bridgeMode is absent');
     });
   });
+
+  describe('Android keyboardDismissStrategy validation', () => {
+    it('accepts valid keyboardDismissStrategy esc-first', () => {
+      const yaml = `
+android:
+  deviceId: "emulator-5554"
+  keyboardDismissStrategy: "esc-first"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Invalid keyboardDismissStrategy');
+      }));
+    });
+
+    it('accepts valid keyboardDismissStrategy back-first', () => {
+      const yaml = `
+android:
+  deviceId: "emulator-5554"
+  keyboardDismissStrategy: "back-first"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Invalid keyboardDismissStrategy');
+      }));
+    });
+
+    it('warns on invalid keyboardDismissStrategy', () => {
+      const yaml = `
+android:
+  deviceId: "emulator-5554"
+  keyboardDismissStrategy: "invalid"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Invalid keyboardDismissStrategy');
+      }));
+    });
+  });
+
+  describe('Android imeStrategy validation', () => {
+    it('accepts valid imeStrategy adbBroadcast', () => {
+      const yaml = `
+android:
+  deviceId: "emulator-5554"
+  imeStrategy: "adbBroadcast"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Invalid imeStrategy');
+      }));
+    });
+
+    it('warns on invalid imeStrategy', () => {
+      const yaml = `
+android:
+  deviceId: "emulator-5554"
+  imeStrategy: "badStrategy"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Invalid imeStrategy');
+      }));
+    });
+  });
+
+  describe('Android scrcpyConfig validation', () => {
+    it('accepts valid scrcpyConfig object', () => {
+      const yaml = `
+android:
+  deviceId: "emulator-5554"
+  scrcpyConfig:
+    enabled: true
+    maxSize: 1080
+    videoBitRate: 800000
+    idleTimeoutMs: 5000
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('scrcpyConfig');
+      }));
+    });
+
+    it('warns when scrcpyConfig is not an object', () => {
+      const yaml = `
+android:
+  deviceId: "emulator-5554"
+  scrcpyConfig: "invalid"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('scrcpyConfig') && msg.includes('must be an object');
+      }));
+    });
+
+    it('warns on unknown scrcpyConfig field', () => {
+      const yaml = `
+android:
+  deviceId: "emulator-5554"
+  scrcpyConfig:
+    enabled: true
+    unknownField: 123
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Unknown scrcpyConfig field');
+      }));
+    });
+  });
+
+  describe('Computer xvfbResolution validation', () => {
+    it('accepts valid xvfbResolution', () => {
+      const yaml = `
+computer:
+  launch: "app"
+  xvfbResolution: "1920x1080x24"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Invalid xvfbResolution');
+      }));
+    });
+
+    it('warns on invalid xvfbResolution format', () => {
+      const yaml = `
+computer:
+  launch: "app"
+  xvfbResolution: "1920x1080"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Invalid xvfbResolution');
+      }));
+    });
+
+    it('warns when xvfbResolution is not a string', () => {
+      const yaml = `
+computer:
+  launch: "app"
+  xvfbResolution: 1920
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Invalid xvfbResolution');
+      }));
+    });
+  });
+
+  describe('Agent outputFormat validation', () => {
+    it('accepts valid outputFormat single-html', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+agent:
+  outputFormat: "single-html"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Invalid outputFormat');
+      }));
+    });
+
+    it('accepts valid outputFormat html-and-external-assets', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+agent:
+  outputFormat: "html-and-external-assets"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Invalid outputFormat');
+      }));
+    });
+
+    it('warns on invalid outputFormat', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+agent:
+  outputFormat: "badFormat"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Invalid outputFormat');
+      }));
+    });
+  });
+
+  describe('Agent modelConfig validation', () => {
+    it('accepts valid modelConfig object', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+agent:
+  modelConfig:
+    model: "gpt-4o"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('modelConfig');
+      }));
+    });
+
+    it('warns when modelConfig is not an object', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+agent:
+  modelConfig: "invalid"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('modelConfig') && msg.includes('must be an object');
+      }));
+    });
+  });
+
+  describe('new platform actions do not trigger unknown warnings', () => {
+    it('aiLongPress is recognized as a valid action', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiLongPress: "element"
+        duration: 2000
+`;
+      const result = validate(yaml);
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('unknown') && msg.toLowerCase().includes('ailongpress');
+      }));
+    });
+
+    it('AndroidBackButton is recognized as a valid action', () => {
+      const yaml = `
+android:
+  deviceId: "emulator-5554"
+tasks:
+  - name: test
+    flow:
+      - AndroidBackButton: true
+`;
+      const result = validate(yaml);
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('unknown') && msg.includes('AndroidBackButton');
+      }));
+    });
+
+    it('new Android config fields are accepted without warnings', () => {
+      const yaml = `
+android:
+  deviceId: "emulator-5554"
+  keyboardDismissStrategy: "esc-first"
+  imeStrategy: "adbBroadcast"
+  displayId: "0"
+  launch: true
+  output: "result.json"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Unknown android config field');
+      }));
+    });
+
+    it('new agent config fields are accepted without warnings', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+agent:
+  outputFormat: "single-html"
+  modelConfig:
+    model: "gpt-4o"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.ok(!result.warnings.some(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('Unknown agent config field');
+      }));
+    });
+  });
 });

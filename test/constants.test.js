@@ -48,3 +48,46 @@ describe('Shared Constants', () => {
     }
   });
 });
+
+describe('Schema keyword coverage', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const nativeSchema = JSON.parse(fs.readFileSync(
+    path.resolve(__dirname, '..', 'schema', 'native-keywords.json'), 'utf8'));
+
+  it('native-keywords includes aiLongPress in aiActions', () => {
+    assert.ok(nativeSchema.aiActions.includes('aiLongPress'));
+  });
+
+  it('native-keywords includes Android system buttons in platformSpecific', () => {
+    assert.ok(nativeSchema.platformSpecific.includes('AndroidBackButton'));
+    assert.ok(nativeSchema.platformSpecific.includes('AndroidHomeButton'));
+    assert.ok(nativeSchema.platformSpecific.includes('AndroidRecentAppsButton'));
+  });
+
+  it('native-keywords includes iOS system buttons in platformSpecific', () => {
+    assert.ok(nativeSchema.platformSpecific.includes('IOSHomeButton'));
+    assert.ok(nativeSchema.platformSpecific.includes('IOSAppSwitcher'));
+  });
+
+  it('native-keywords includes outputFormat and modelConfig in agentOptions', () => {
+    assert.ok(nativeSchema.agentOptions.includes('outputFormat'));
+    assert.ok(nativeSchema.agentOptions.includes('modelConfig'));
+  });
+
+  it('native-keywords includes duration and prompt in actionOptions', () => {
+    assert.ok(nativeSchema.actionOptions.includes('duration'));
+    assert.ok(nativeSchema.actionOptions.includes('prompt'));
+  });
+
+  it('native-keywords allKeywords includes new platform config fields', () => {
+    const all = nativeSchema.allKeywords;
+    assert.ok(all.includes('keyboardDismissStrategy'));
+    assert.ok(all.includes('imeStrategy'));
+    assert.ok(all.includes('scrcpyConfig'));
+    assert.ok(all.includes('xvfbResolution'));
+    assert.ok(all.includes('aiLongPress'));
+    assert.ok(all.includes('AndroidBackButton'));
+    assert.ok(all.includes('IOSHomeButton'));
+  });
+});

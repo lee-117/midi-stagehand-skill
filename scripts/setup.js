@@ -15,7 +15,7 @@
  *   node scripts/setup.js --postinstall  # Lightweight mode (npx cache only)
  */
 
-const { execSync } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -125,8 +125,16 @@ function installDependencies(registry) {
     log('[OK]', 'node_modules already exists, running npm install to sync...');
   }
 
-  const registryFlag = registry !== DEFAULT_REGISTRY ? ' --registry=' + registry : '';
-  exec('npm install' + registryFlag, { env: { MIDI_SETUP_RUNNING: '1' } });
+  const npmArgs = ['install'];
+  if (registry !== DEFAULT_REGISTRY) {
+    npmArgs.push('--registry=' + registry);
+  }
+  execFileSync('npm', npmArgs, {
+    stdio: 'inherit',
+    cwd: projectRoot,
+    env: Object.assign({}, process.env, { MIDI_SETUP_RUNNING: '1' }),
+    timeout: 120000,
+  });
   log('[OK]', 'Project dependencies installed');
 }
 
@@ -135,8 +143,8 @@ function installDependencies(registry) {
 function warmNpxCache(registry) {
   logSection('Step 3: Warming npx cache');
 
-  const registryFlag = registry !== DEFAULT_REGISTRY ? ' --registry=' + registry : '';
-  const envSkipPuppeteer = { PUPPETEER_SKIP_DOWNLOAD: 'true' };
+  const registryArgs = registry !== DEFAULT_REGISTRY ? ['--registry=' + registry] : [];
+  const envSkipPuppeteer = Object.assign({}, process.env, { PUPPETEER_SKIP_DOWNLOAD: 'true' });
 
   // Check if @midscene/web is already locally installed
   const midsceneBin = path.join(projectRoot, 'node_modules', '.bin', 'midscene');
@@ -146,11 +154,11 @@ function warmNpxCache(registry) {
   } else {
     log('[..]', 'Warming @midscene/web into npx cache (skipping Chromium download)...');
     try {
-      exec('npx' + registryFlag + ' --yes @midscene/web@1 --version', {
+      execFileSync('npx', [].concat(registryArgs, '--yes', '@midscene/web@1', '--version'), {
+        stdio: 'pipe',
+        cwd: projectRoot,
         env: envSkipPuppeteer,
-        silent: true,
         timeout: 180000,
-        ignoreError: true
       });
       log('[OK]', '@midscene/web cached');
     } catch {
@@ -166,10 +174,10 @@ function warmNpxCache(registry) {
   } else {
     log('[..]', 'Warming tsx into npx cache...');
     try {
-      exec('npx' + registryFlag + ' --yes tsx --version', {
-        silent: true,
+      execFileSync('npx', [].concat(registryArgs, '--yes', 'tsx', '--version'), {
+        stdio: 'pipe',
+        cwd: projectRoot,
         timeout: 60000,
-        ignoreError: true
       });
       log('[OK]', 'tsx cached');
     } catch {
@@ -244,11 +252,14 @@ function setupChrome(registry) {
     log('[OK]', 'Using China mirror for Chromium download');
   }
 
-  const registryFlag = registry !== CHINA_MIRROR ? '' : ' --registry=' + registry;
+  const registryArgs = registry === CHINA_MIRROR ? ['--registry=' + registry] : [];
   try {
     // Trigger puppeteer's browser download
-    exec('npx' + registryFlag + ' --yes puppeteer browsers install chrome', {
-      timeout: 600000 // 10 min for large download
+    execFileSync('npx', [].concat(registryArgs, '--yes', 'puppeteer', 'browsers', 'install', 'chrome'), {
+      stdio: 'inherit',
+      cwd: projectRoot,
+      env: process.env,
+      timeout: 600000, // 10 min for large download
     });
     log('[OK]', 'Chromium downloaded successfully');
     return { chromePath: null, downloaded: true };

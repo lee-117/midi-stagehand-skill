@@ -2,7 +2,7 @@ const { execFileSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const { resolveLocalBin, normaliseExecError, findSystemChrome } = require('./runner-utils');
-const { DEFAULT_TIMEOUT, DEFAULT_REPORT_DIR, MIDSCENE_PKG } = require('../constants');
+const { DEFAULT_TIMEOUT, DEFAULT_REPORT_DIR, MIDSCENE_PKG, MAX_FILE_SIZE } = require('../constants');
 
 /**
  * Check if a YAML file exists and is readable.
@@ -20,6 +20,10 @@ function checkYamlFile(filePath) {
   const ext = path.extname(resolved).toLowerCase();
   if (ext !== '.yaml' && ext !== '.yml') {
     return { ok: false, error: 'File must have .yaml or .yml extension: ' + resolved };
+  }
+  const stat = fs.statSync(resolved);
+  if (stat.size > MAX_FILE_SIZE) {
+    return { ok: false, error: 'YAML file exceeds 1MB size limit (' + Math.round(stat.size / 1024) + 'KB). Consider splitting into smaller files using import.' };
   }
   return { ok: true };
 }

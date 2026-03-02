@@ -4,7 +4,7 @@ version: 2.1.0
 description: >
   Generate Midscene YAML browser automation files from natural language.
   Supports Web, Android, iOS with Native and Extended modes.
-argument-hint: <natural-language-requirement>
+argument-hint: <描述你要自动化的操作，如 "登录 example.com 并提取商品价格">
 allowed-tools:
   - Read
   - Write
@@ -13,6 +13,8 @@ allowed-tools:
   - Glob
   - Grep
 ---
+
+你是 Midscene YAML 自动化专家。你的职责是将自然语言浏览器自动化需求转换为有效的、生产级的 Midscene YAML 文件。
 
 # Midscene YAML Generator
 
@@ -25,6 +27,11 @@ allowed-tools:
 5. **生成前必须读取 schema 和模板** — 使用 Read 工具读取 `schema/native-keywords.json` 和选中的模板文件，不要生成 schema 中未定义的关键字
 6. **仅在平台配置字段中使用的 `${ENV:XXX}` 不需要 Extended 模式**；在 flow 步骤中使用变量插值才需要 Extended 模式
 7. **viewportHeight 默认值为 960**（非 720），viewportWidth 默认值为 1280
+
+**常见致命错误速查**：
+- aiInput 必须包含 value 字段
+- Extended 模式必须声明 engine: extended
+- 循环（while/for）必须设置 maxIterations 上限
 
 ## 首次使用
 
@@ -70,6 +77,8 @@ English trigger phrases:
 ## 工作流程
 
 ### 第 1 步：分析需求复杂度
+
+生成前先说明：(a) 选择的模式及原因 (b) 基于的模板 (c) 需要的澄清
 
 根据用户描述判断所需模式：
 
@@ -150,6 +159,27 @@ tasks:
       - aiAssert: "页面显示了搜索结果"
 ```
 
+**Extended 黄金路径 — 变量 + 条件最简示例**:
+
+```yaml
+engine: extended
+features: [variables, logic]
+web:
+  url: "https://example.com"
+tasks:
+  - name: "条件登录示例"
+    flow:
+      - variables:
+          isLoggedIn: false
+      - logic:
+          if: "${isLoggedIn} === false"
+          then:
+            flow:
+              - aiTap: "登录按钮"
+              - aiInput: "用户名输入框"
+                value: "testuser"
+```
+
 #### Native 模式 YAML 格式规范（重要）
 
 Native 模式的动作参数支持两种格式：
@@ -176,6 +206,8 @@ Native 模式的动作参数支持两种格式：
     name: "products"
 ```
 
+> 使用 `flow:` 保持一致性命名；`steps:` 是支持的别名但推荐使用 `flow:`
+
 使用以下映射规则表将用户需求转换为 YAML：
 
 #### Native 动作映射
@@ -184,9 +216,9 @@ Native 模式的动作参数支持两种格式：
 |-------------|-----------|------|
 | "打开/访问/进入 XXX 网站" | `web: { url: "XXX" }` | 平台配置 |
 | "自动规划并执行 XXX" | `ai: "XXX"` | AI 自动拆解为多步骤执行；`aiAct` 为等价别名；可选 `fileChooserAccept: "path"` 处理文件上传对话框 |
-| "点击/按/选择 XXX" | `aiTap: "XXX"` | 简写形式；通用选项 `deepThink`、`xpath`、`cacheable` |
-| "悬停/移到 XXX 上" | `aiHover: "XXX"` | 触发下拉菜单或 tooltip |
-| "在 XXX 输入 YYY" | `aiInput: "XXX"` + `value: "YYY"` | 扁平兄弟格式；`mode: "replace"(默认)\|"clear"\|"typeOnly"`（官方 API）；`"append"` 为超集扩展（非官方，慎用） |
+| "点击/按/选择 XXX" | `aiTap: "XXX"` | 简写形式；通用选项 `deepThink`、`xpath`、`cacheable`；支持 `locate` 对象 |
+| "悬停/移到 XXX 上" | `aiHover: "XXX"` | 触发下拉菜单或 tooltip；支持 `locate` 对象 |
+| "在 XXX 输入 YYY" | `aiInput: "XXX"` + `value: "YYY"` | 扁平兄弟格式；`mode: "replace"(默认)\|"clear"\|"typeOnly"`（官方 API）；`"append"` 为超集扩展（非官方，慎用）；支持 `locate` 对象 |
 | "按键盘 XXX 键" | `aiKeyboardPress: "XXX"` | 支持组合键如 "Control+A"；`keyName` 可作为替代参数 |
 | "向下/上/左/右滚动" | `aiScroll: "目标区域"` + `direction: "down"` | 扁平兄弟格式；可选 `distance`、`scrollType: "singleAction"\|"scrollToBottom"\|"scrollToTop"\|"scrollToRight"\|"scrollToLeft"` |
 | "等待 XXX 出现" | `aiWaitFor: "XXX"` | 可选 `timeout`（默认 15000ms）、`checkIntervalMs`（轮询间隔）；可选 `domIncluded`/`screenshotIncluded` 控制 AI 分析范围 |
@@ -195,18 +227,24 @@ Native 模式的动作参数支持两种格式：
 | "暂停/等待 N 秒" | `sleep: N*1000` | 参数为毫秒 |
 | "执行 JS 代码" | `javascript: "代码内容"` | 直接执行 JavaScript |
 | "截图记录到报告" | `recordToReport: "标题"` + `content: "描述"` | 截图并记录描述到报告 |
-| "双击 XXX" | `aiDoubleClick: "XXX"` | 双击操作；可选 `deepThink: true` |
-| "右键点击 XXX" | `aiRightClick: "XXX"` | 右键操作；可选 `deepThink: true` |
+| "双击 XXX" | `aiDoubleClick: "XXX"` | 双击操作；可选 `deepThink: true`；支持 `locate` 对象 |
+| "右键点击 XXX" | `aiRightClick: "XXX"` | 右键操作；可选 `deepThink: true`；支持 `locate` 对象 |
 | "定位 XXX 元素" | `aiLocate: "XXX"` + `name: "elem"` | 定位元素，结果存入变量（Extended 模式可引用） |
 | "XXX 是否为真？" | `aiBoolean: "XXX"` + `name: "flag"` | 返回布尔值；`domIncluded`(true/false/"visible-only") 控制是否使用 DOM 文本，`screenshotIncluded`(true/false) 控制是否使用截图 |
 | "获取 XXX 数量" | `aiNumber: "XXX"` + `name: "count"` | 返回数字；同上 `domIncluded`/`screenshotIncluded` 选项 |
 | "获取 XXX 文本" | `aiString: "XXX"` + `name: "text"` | 返回字符串；同上 `domIncluded`/`screenshotIncluded` 选项 |
 | "询问 AI XXX" | `aiAsk: "XXX"` + `name: "answer"` | 自由提问，返回文本答案 |
-| "拖拽 A 到 B" | `aiDragAndDrop: { from: "A", to: "B" }` | 推荐嵌套格式；也支持扁平简写 `aiDragAndDrop: "A"` + `to: "B"` |
+| "拖拽 A 到 B" | `aiDragAndDrop: { from: "A", to: "B" }` | 推荐嵌套格式；也支持扁平简写 `aiDragAndDrop: "A"` + `to: "B"`；支持 `locate` 对象 |
 | "清空 XXX 输入框" | `aiClearInput: "XXX"` | 清除输入框内容 |
 | "执行 ADB 命令" | `runAdbShell: "命令"` | Android 平台特有 |
 | "执行 WDA 请求" | `runWdaRequest: { ... }` | iOS 平台特有 |
 | "启动应用" | `launch: "包名"` | 移动端启动应用 |
+| "长按 XXX" | `aiLongPress: "XXX"` | 长按元素；可选 `duration`（ms）指定长按时长 |
+| "Android 返回" | `AndroidBackButton: true` | Android 系统返回按钮 |
+| "Android 主页" | `AndroidHomeButton: true` | Android 系统主页按钮 |
+| "Android 最近任务" | `AndroidRecentAppsButton: true` | Android 最近应用按钮 |
+| "iOS 主页" | `IOSHomeButton: true` | iOS 系统主页按钮 |
+| "iOS 切换应用" | `IOSAppSwitcher: true` | iOS 应用切换器 |
 
 #### Extended 控制流映射
 
@@ -216,9 +254,9 @@ Native 模式的动作参数支持两种格式：
 | "使用环境变量 XXX" | `${ENV:XXX}` 或 `${ENV.XXX}` |
 | "如果 XXX 则 YYY 否则 ZZZ" | `logic: { if: "XXX", then: [YYY], else: [ZZZ] }` |
 | "重复 N 次" | `loop: { type: repeat, count: N, steps: [...] }` |
-| "对每个 XXX 执行" | `loop: { type: for, items: "XXX", itemVar: "item", steps: [...] }` （`itemVar`/`as`/`item` 均可） |
+| "对每个 XXX 执行" | `loop: { type: for, items: "XXX", itemVar: "item", steps: [...] }` （`itemVar`/`as`/`item` 均可）。循环支持 `indexVar: "i"` 自定义索引变量名（零基索引） |
 | "当 XXX 时持续做 YYY" | `loop: { type: while, condition: "XXX", maxIterations: N, steps: [...] }` |
-| "先做 A，失败了就做 B" | `try: { steps: [A] }, catch: { steps: [B] }` |
+| "先做 A，失败了就做 B" | `try:` / `flow: [A]` / `catch:` / `flow: [B]`（try 和 catch 是步骤级别的兄弟键） |
 | "同时做 A 和 B" | `parallel: { branches: [{steps: [A]}, {steps: [B]}], waitAll: true, merge_results: true }` |
 | "调用 XXX 接口" | `external_call: { type: http, method: POST, url: "XXX", response_as: "varName" }` |
 | "执行 Shell 命令" | `external_call: { type: shell, command: "XXX" }` |
@@ -341,6 +379,8 @@ tasks:
    - `aiActContext` — 为 AI 提供背景知识（如多语言网站标注语言、特殊领域术语）
    - `screenshotShrinkFactor` — 截图缩放因子（0-1，节省 token）
    - `waitAfterAction` — 每次操作后等待时间（ms，默认 300）
+   - `modelConfig` — 自定义模型配置（覆盖环境变量中的模型设置）
+   - `outputFormat` — 报告输出格式：`'single-html'` | `'html-and-external-assets'`
 5. **continueOnError**（可选）：任务级别设置，该任务失败后后续任务仍会继续执行（注意：是任务级别非步骤级别）
 6. **output 导出**（可选）：将 `aiQuery` 等结果导出为 JSON 文件。`name` 变量仅在当前 task 内有效，跨 task 需用 `output: { filePath, dataName }` 导出
 
@@ -375,7 +415,18 @@ tasks:
     #   dataName: "variableName"
 ```
 
+#### 输出验证自检清单（生成后立即检查）
+
+- [ ] 每个 `aiInput` 都有对应的 `value` 参数？
+- [ ] 关键操作后有 `aiWaitFor` 确保页面状态就绪？
+- [ ] Extended 模式声明了 `engine: extended` 和 `features` 列表？
+- [ ] 循环有安全上限（`maxIterations` 或合理的 `count`）？
+- [ ] 敏感信息（密码、Token）使用 `${ENV:XXX}` 引用环境变量？
+- [ ] AI 指令描述足够精确（包含位置、文字、颜色等特征）？
+
 ### 澄清问题指南
+
+如果用户已提供 URL、清晰的操作描述且无认证歧义，直接生成。仅在关键信息缺失时才提问。
 
 需求不明确时，应向用户确认以下信息（按优先级排序）：
 
@@ -500,7 +551,7 @@ Extended 模式下 `data_transform` 支持的操作：
 ## 平台特定注意事项
 
 ### Web 平台
-- `url` 必须包含完整协议（`https://`）
+- `url` 必须包含完整协议（`https://`）；无协议默认补 `https://`，`localhost` 默认补 `http://`
 - 使用 `aiWaitFor` 等待页面加载完成后再操作
 - 表单操作前确保输入框处于可交互状态
 
@@ -508,6 +559,7 @@ Extended 模式下 `data_transform` 支持的操作：
 - 需要配置 `deviceId`（ADB 设备 ID，如 `emulator-5554`）
 - 使用 `launch: "com.example.app"` 启动应用（在 flow 中作为 action 步骤）
 - 可使用 `runAdbShell` 执行 ADB 命令
+- 额外配置：`keyboardDismissStrategy`（`esc-first` | `back-first`）、`imeStrategy`（`adbBroadcast` | `adbInput`）、`scrcpyConfig`
 
 ### iOS 平台
 - 需要配置 `wdaPort`（WebDriverAgent 端口，默认 8100）和 `wdaHost`（默认 localhost）
@@ -516,6 +568,7 @@ Extended 模式下 `data_transform` 支持的操作：
 
 ### Computer 平台
 - 用于通用桌面自动化场景
+- 额外配置：`xvfbResolution`（如 `'1920x1080x24'`，Linux 虚拟显示器分辨率）
 
 ## 常见错误模式（Anti-patterns）
 
@@ -607,12 +660,15 @@ tasks: [...]
 - AI 指令（aiTap、aiAssert 等）的参数使用自然语言描述，不需要 CSS 选择器
 - 中文和英文描述均可，Midscene 的 AI 引擎支持多语言
 - `aiQuery` 的结果通过 `name` 字段存储，在后续步骤中用 `${name}` 引用（仅 Extended 模式）
-- `aiWaitFor` 建议设置合理的 `timeout`（毫秒），官方默认 15000ms（30 秒）；`checkIntervalMs` 控制轮询间隔
+- `aiWaitFor` 建议设置合理的 `timeout`（毫秒），官方默认 15000ms（15 秒）；`checkIntervalMs` 控制轮询间隔
 - 循环中务必设置 `maxIterations` 作为安全上限，防止无限循环
 - `${ENV:XXX}` 或 `${ENV.XXX}` 可引用环境变量，避免在 YAML 中硬编码敏感信息
 - 始终显式声明 `engine` 字段，避免自动检测带来的意外行为
+- 变量名必须是合法 JavaScript 标识符（字母/下划线开头），推荐 camelCase
 - 变量引用区分大小写：`${userName}` 和 `${username}` 是不同的变量
+- 数值参数范围：`sleep`: 100-30000ms，`timeout`: 5000-60000ms，`maxIterations`: 1-1000
 - 避免循环导入：A.yaml 导入 B.yaml、B.yaml 又导入 A.yaml 会导致运行时错误
+- 复杂需求拆分：>10 步建议拆分为多个 task，跨域操作拆分为多文件 + import/use
 - 生成后务必通过 `--dry-run` 验证语法和结构（注意：`--dry-run` 不检测模型配置，AI 操作需要配置 `MIDSCENE_MODEL_API_KEY` 才能实际执行）
 - 提示用户可以用 **Midscene Runner** skill 来执行生成的文件
 
@@ -623,6 +679,7 @@ tasks: [...]
 1. **Runner 可自行修复**：缩进、缺少 engine 声明、缺少 timeout 等简单错误，Runner Skill 会直接修改并重试
 2. **接收 Runner 错误上下文**：当 Runner 发送 `[ESCALATE]` 格式的错误时，解析错误类型、失败步骤和建议，针对性地重新生成或修改 YAML
 3. **推荐流程**：生成 → dry-run 验证 → 执行 → 如失败，描述错误让 Generator 修复 → 重新执行
+4. **自动修复上限**：自动修复最多尝试 3 次。3 次 dry-run 均失败后，将错误展示给用户并请求指导
 
 ## 协作协议
 

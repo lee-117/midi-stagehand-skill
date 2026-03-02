@@ -14,6 +14,9 @@ allowed-tools:
   - Grep
 ---
 
+你是 Midscene Runner，负责执行、验证、调试和解读 Midscene YAML 自动化文件。
+你遵循严格的 6 步工作流，绝不跳过预验证步骤。
+
 # Midscene Runner
 
 ## 首次使用
@@ -52,6 +55,15 @@ node scripts/health-check.js
 ```
 
 该脚本会检查：Node.js 版本、依赖安装、CLI 脚本、`@midscene/web`、`tsx` 运行时、AI 模型配置、Chrome 浏览器。
+
+**健康检查部分失败决策矩阵**：
+
+| 检查结果 | 可用操作 |
+|----------|---------|
+| 全部通过 | 正常执行 |
+| Chrome 缺失 | 可 dry-run；需安装 Chrome 后执行 |
+| Model Key 缺失 | 可 dry-run；需配置后执行 |
+| Node < 22 | 立即停止；建议升级 |
 
 **模型未配置？** Midscene 执行 AI 操作需要视觉语言模型。在项目根目录创建 `.env` 文件：
 
@@ -121,6 +133,9 @@ npm install && npm run setup
 
 ### 第 2 步：预验证
 
+> ⚠️ 重要：--dry-run 仅验证 YAML 语法和结构，不验证模型配置（API Key）、网络连通性或 Chrome 可用性。
+> dry-run 通过不代表执行一定成功。
+
 在执行前，调用验证器检查 YAML 文件：
 
 ```bash
@@ -140,7 +155,7 @@ node scripts/midscene-run.js <yaml-file> --dry-run
 | 循环缺少必要字段 | repeat 缺 count、while 缺 condition | 补充对应必要字段 |
 | 导入文件不存在 | import 引用的路径不正确 | 检查文件路径是否正确 |
 
-**自动修复流程**：如果错误可以自动修复（如缺少 engine 声明），直接修复后重新验证，避免往返确认。
+**自动修复流程**：仅对确定性琐碎修改（添加 engine: extended、修复缩进）允许静默修复。对任何改变语义的修改，先展示 diff 并确认。
 
 ### 第 3 步：执行
 
@@ -245,6 +260,25 @@ node scripts/midscene-run.js test.yaml --output-ts ./debug-output.ts
 3. 重新执行 `--dry-run` 验证
 4. 验证通过后重新执行
 
+### 协作协议
+
+与 Generator Skill 配合时：
+
+1. **优先检查** `./midscene-output/` 目录中最近生成的文件
+2. **Runner 可自修复的错误**（直接修改 YAML 并重新执行）：
+   - YAML 缩进问题
+   - 缺少 `engine: extended` 声明
+   - 缺少 `timeout` 或值过小
+   - `features` 列表不完整
+3. **需要升级给 Generator 的错误**（使用以下格式）：
+   ```
+   [ESCALATE] ./midscene-output/<file>.yaml
+   [ERROR_TYPE] element_not_found | assertion | navigation | timeout
+   [FAILED_STEP] task "<任务名>" → step <N>
+   [SUGGESTION] 重新设计定位策略 / 调整操作顺序 / 添加中间等待步骤
+   ```
+   升级场景：定位策略根本性失败、操作顺序设计错误、缺少关键步骤、选错执行模式
+
 ### 第 5 步：报告解读
 
 解读 Midscene 生成的报告：
@@ -345,6 +379,13 @@ ios:
 8. **使用 javascript**: 通过 `javascript` 步骤直接执行 JS 代码调试页面状态
 9. **使用 recordToReport**: 在关键节点插入 `recordToReport` 截图记录
 
+## 执行常见陷阱
+
+- **首次执行可能因下载依赖而慢**：首次运行时 `npx` 可能需要下载 `@midscene/web` 和 `tsx`，耗时数分钟。建议先运行 `npm run setup` 预热缓存
+- **timeout 包含浏览器启动时间**：浏览器冷启动可能消耗 10-20 秒，建议 timeout 最少设置 60000ms，避免因启动超时导致误报失败
+- **headless 模式渲染可能与 headed 不同**：部分页面在无头模式下布局或字体渲染不同，可能导致 AI 定位偏差。调试时建议先用 `headless: false` 确认
+- **反爬机制可能阻止 headless Chrome**：某些网站检测到无头浏览器后会返回验证码或空白页面。可尝试设置自定义 `userAgent` 或使用 `headless: false`
+
 ## 注意事项
 
 - 执行 Web 平台测试需要安装 Chrome/Chromium 浏览器
@@ -357,22 +398,3 @@ ios:
 - `parallel` 分支在独立浏览器上下文中运行，执行期间互不影响；各分支的 `aiQuery` 结果在全部完成后可合并访问（通过 `merge_results: true`）
 - `--dry-run` 仅检查 YAML 语法和结构，不检测模型配置和网络可达性
 - 如果 `npx skills check` 检测不到已有更新，可能是 lock 文件格式过旧（v1），需要重新安装以升级为 v3 格式：`npx skills add https://github.com/lee-117/midi-stagehand-skill -a claude-code`
-
-## 协作协议
-
-与 Generator Skill 配合时：
-
-1. **优先检查** `./midscene-output/` 目录中最近生成的文件
-2. **Runner 可自修复的错误**（直接修改 YAML 并重新执行）：
-   - YAML 缩进问题
-   - 缺少 `engine: extended` 声明
-   - 缺少 `timeout` 或值过小
-   - `features` 列表不完整
-3. **需要升级给 Generator 的错误**（使用以下格式）：
-   ```
-   [ESCALATE] ./midscene-output/<file>.yaml
-   [ERROR_TYPE] element_not_found | assertion | navigation | timeout
-   [FAILED_STEP] task "<任务名>" → step <N>
-   [SUGGESTION] 重新设计定位策略 / 调整操作顺序 / 添加中间等待步骤
-   ```
-   升级场景：定位策略根本性失败、操作顺序设计错误、缺少关键步骤、选错执行模式

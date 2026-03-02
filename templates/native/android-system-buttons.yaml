@@ -1,0 +1,38 @@
+# Android 系统按钮操作模板
+# 场景: Android 设备物理/虚拟按键操作 + ADB Shell 命令
+# 适用平台: Android
+
+engine: native
+
+android:
+  deviceId: "emulator-5554"
+
+tasks:
+  - name: "系统按钮操作"
+    flow:
+      # 启动应用
+      - launch: "com.example.app"
+      - sleep: 2000
+
+      # 使用 Android 系统按钮
+      - AndroidBackButton: true
+      - sleep: 500
+
+      - AndroidHomeButton: true
+      - sleep: 1000
+
+      - AndroidRecentAppsButton: true
+      - sleep: 1000
+
+      # 返回应用
+      - AndroidBackButton: true
+      - sleep: 500
+
+      # 通过 ADB Shell 执行自定义命令
+      - runAdbShell: "input keyevent KEYCODE_VOLUME_UP"
+      - sleep: 300
+
+      - runAdbShell: "dumpsys activity top | head -5"
+
+      - aiAssert: "应用处于正常运行状态"
+      - recordToReport: "Android 系统按钮测试完成"

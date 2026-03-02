@@ -1,0 +1,36 @@
+# 长按操作模板
+# 场景: 移动端 Web 长按触发上下文菜单、拖拽预览等
+# 适用平台: Web（需启用 enableTouchEventsInActionSpace）、Android、iOS
+
+engine: native
+
+web:
+  url: "https://example.com/mobile-demo"
+  headless: false
+  viewportWidth: 375
+  viewportHeight: 812
+  enableTouchEventsInActionSpace: true
+
+tasks:
+  - name: "长按操作示例"
+    flow:
+      # 基本长按 — 使用默认时长
+      - aiLongPress: "目标元素"
+
+      # 自定义长按时长（毫秒）
+      - aiLongPress: "图片缩略图"
+        duration: 2000
+
+      # 长按后验证上下文菜单出现
+      - aiLongPress: "可长按的链接"
+        duration: 1500
+      - aiWaitFor: "上下文菜单已出现"
+        timeout: 5000
+
+      # 配合 deepThink 精确定位
+      - aiLongPress: "列表中第三个项目"
+        deepThink: true
+        duration: 1000
+
+      - aiAssert: "长按操作触发了预期的交互效果"
+      - recordToReport: "长按操作测试完成"

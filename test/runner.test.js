@@ -179,6 +179,24 @@ describe('Native Runner', () => {
     assert.equal(result.success, false);
     assert.ok(result.error.includes('.yaml'));
   });
+
+  it('returns error for oversized YAML file', () => {
+    const fs = require('fs');
+    const os = require('os');
+    const path = require('path');
+    const { MAX_FILE_SIZE } = require('../src/constants');
+    // Create a temp file larger than MAX_FILE_SIZE
+    const tmpFile = path.join(os.tmpdir(), 'oversized-test-' + Date.now() + '.yaml');
+    try {
+      // Write a file slightly larger than MAX_FILE_SIZE
+      fs.writeFileSync(tmpFile, 'x'.repeat(MAX_FILE_SIZE + 100));
+      const result = nativeRunner.run(tmpFile);
+      assert.equal(result.success, false);
+      assert.ok(result.error.includes('exceeds') || result.error.includes('size limit'));
+    } finally {
+      try { fs.unlinkSync(tmpFile); } catch { /* ignore cleanup errors */ }
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

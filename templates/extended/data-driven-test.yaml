@@ -1,0 +1,41 @@
+# 数据驱动测试模板
+# 场景: 从变量数组读取测试数据，循环执行相同流程
+# 适用: 批量测试、参数化执行
+
+engine: extended
+features: [variables, loop]
+
+web:
+  url: "https://example.com/search"
+  headless: false
+  viewportWidth: 1280
+  viewportHeight: 960
+
+variables:
+  testCases:
+    - keyword: "Midscene"
+      expectedResult: "自动化"
+    - keyword: "YAML"
+      expectedResult: "配置"
+    - keyword: "浏览器"
+      expectedResult: "Chrome"
+
+tasks:
+  - name: "数据驱动搜索测试"
+    flow:
+      - loop:
+          type: for
+          items: "${testCases}"
+          itemVar: "testCase"
+          indexVar: "i"
+          maxIterations: 100
+          flow:
+            - aiInput: "搜索输入框"
+              value: "${testCase.keyword}"
+            - aiTap: "搜索按钮"
+            - sleep: 2000
+            - aiAssert: "页面包含 '${testCase.expectedResult}'"
+            - aiClearInput: "搜索输入框"
+
+      - recordToReport: "数据驱动测试完成"
+        content: "共执行 3 组测试数据"

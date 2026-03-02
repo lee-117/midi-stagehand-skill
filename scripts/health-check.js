@@ -7,7 +7,7 @@
  * Consolidates all pre-flight checks from Runner Step 0.
  */
 
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { findSystemChrome } = require('../src/runner/runner-utils');
@@ -55,7 +55,7 @@ check('CLI script (midscene-run.js)', () => {
 // 4. @midscene/web available
 check('@midscene/web available', () => {
   try {
-    const out = execSync('npx @midscene/web --version', {
+    const out = execFileSync('npx', ['@midscene/web', '--version'], {
       cwd: ROOT,
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 15000,
@@ -69,7 +69,7 @@ check('@midscene/web available', () => {
 // 5. tsx runtime (for Extended mode)
 check('tsx runtime (Extended mode)', () => {
   try {
-    const out = execSync('npx tsx --version', {
+    const out = execFileSync('npx', ['tsx', '--version'], {
       cwd: ROOT,
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 10000,

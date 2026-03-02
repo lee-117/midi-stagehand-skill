@@ -8,7 +8,7 @@ web:
   url: "https://example.com/login"
   headless: false
   viewportWidth: 1280
-  viewportHeight: 720
+  viewportHeight: 960
 
 tasks:
   - name: "OAuth 认证流程"

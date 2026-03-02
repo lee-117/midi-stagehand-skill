@@ -23,6 +23,7 @@
 - [附录 D: 常见问题 (FAQ)](#附录-d-常见问题-faq)
 - [附录 E: 从 TypeScript 迁移到 YAML](#附录-e-从-typescript-迁移到-yaml)
 - [附录 F: 安全检测与验证](#附录-f-安全检测与验证)
+- [Appendix G: Cookbook — 实战 Recipe](#appendix-g-cookbook--实战-recipe)
 
 ---
 
@@ -397,7 +398,47 @@ tasks:
     to: "目标文件夹"
 ```
 
-#### 10. `aiClearInput` — 清空输入框
+#### 10. `aiLongPress` — 长按元素
+
+长按页面上的目标元素，常用于移动端触发上下文菜单或拖拽排序。
+
+```yaml
+# 长按元素（默认时长由引擎决定）
+- aiLongPress: "联系人列表中的第一个联系人"
+
+# 指定长按时长（毫秒）
+- aiLongPress: "文件图标"
+  duration: 2000
+```
+
+#### 11. Android 系统按钮
+
+Android 平台专用的系统级按钮操作，直接触发设备物理/虚拟按键。
+
+```yaml
+# 返回键
+- AndroidBackButton: true
+
+# Home 键
+- AndroidHomeButton: true
+
+# 最近任务键（打开多任务视图）
+- AndroidRecentAppsButton: true
+```
+
+#### 12. iOS 系统按钮
+
+iOS 平台专用的系统级按钮操作。
+
+```yaml
+# Home 键（回到主屏幕）
+- IOSHomeButton: true
+
+# 应用切换器（打开多任务视图）
+- IOSAppSwitcher: true
+```
+
+#### 13. `aiClearInput` — 清空输入框
 
 清除输入框中的全部内容。
 
@@ -574,6 +615,15 @@ tasks:
       - aiWaitFor: "注册成功提示出现，或跳转到欢迎页面"
       - aiAssert: "页面显示注册成功或欢迎信息"
 ```
+
+### 常见错误
+
+| 错误 | 原因 | 解决方案 |
+|------|------|---------|
+| `aiInput` 执行后输入框为空 | 缺少 `value` 字段 | 补上 `value: "要输入的文本"` |
+| `Unknown action keyword: xxx` | 使用了不存在的动作关键字 | 检查拼写，参考附录 A 关键字速查表 |
+| 动作执行超时（Timeout） | AI 无法在页面上找到描述的元素 | 使用更具体的自然语言描述，或启用 `deepThink: true` |
+| `aiScroll` 无效果 | 未指定 `direction` 或方向拼写错误 | 添加 `direction: "down"`，确认值为 up/down/left/right |
 
 ---
 
@@ -860,6 +910,71 @@ agent:
 - 首次运行无缓存，需完整调用 AI
 - 建议搭配 `testId` 使用，便于区分不同测试场景的缓存
 
+#### `outputFormat` — 报告输出格式
+
+控制执行报告的输出格式。
+
+```yaml
+agent:
+  outputFormat: "single-html"  # 默认，所有内容打包到单个 HTML 文件
+```
+
+| 值 | 说明 |
+|---|---|
+| `single-html` | 所有截图和数据内嵌到单个 HTML 文件（默认） |
+| `html-and-external-assets` | HTML 文件 + 外部资源文件（截图单独存储，适合大量截图场景） |
+
+#### `modelConfig` — 自定义模型配置
+
+为每个 agent 独立配置 AI 模型，覆盖全局环境变量设置。
+
+```yaml
+agent:
+  modelConfig:
+    model: "gpt-4o"
+    apiKey: "${ENV:CUSTOM_API_KEY}"
+```
+
+适用场景：同一项目中不同测试场景使用不同的 AI 模型或 API Key。
+
+#### Android 高级配置
+
+```yaml
+android:
+  deviceId: "emulator-5554"
+  keyboardDismissStrategy: "esc-first"  # 键盘关闭策略: "esc-first" | "back-first"
+  imeStrategy: "adbBroadcast"           # 输入法策略: "adbBroadcast" | "adbInput"
+  scrcpyConfig:                         # scrcpy 屏幕投射配置
+    enabled: true
+    maxSize: 1080
+    videoBitRate: 800000
+```
+
+| 字段 | 说明 |
+|------|------|
+| `keyboardDismissStrategy` | 键盘关闭策略。`esc-first` 优先发送 ESC 键，`back-first` 优先发送返回键 |
+| `imeStrategy` | 输入法策略。`adbBroadcast` 通过广播发送文字，`adbInput` 通过 adb input text 发送 |
+| `scrcpyConfig` | scrcpy 屏幕投射配置，`enabled` 启用，`maxSize` 最大分辨率，`videoBitRate` 视频比特率 |
+
+#### Computer 高级配置
+
+```yaml
+computer:
+  displayId: 0
+  xvfbResolution: "1920x1080x24"  # 虚拟帧缓冲分辨率（Linux CI 环境）
+```
+
+`xvfbResolution` 用于 Linux CI 环境中配置 Xvfb 虚拟显示器的分辨率，格式为 `宽x高x色深`。
+
+### 常见错误
+
+| 错误 | 原因 | 解决方案 |
+|------|------|---------|
+| `Invalid bridgeMode value` | `bridgeMode` 值不在允许范围内 | 使用 `false`、`"newTabWithUrl"` 或 `"currentTab"` |
+| `Unknown config field: xxx` | 在 `agent` 或平台配置中使用了未知字段 | 检查字段名拼写，参考附录 A |
+| `cache.id missing` 警告 | 设置了 `cache.strategy` 但未指定 `cache.id` | 添加 `id: "my-cache-id"` 区分不同缓存实例 |
+| `aiQuery` 返回 undefined | `query` 描述不够具体，AI 无法提取数据 | 在 `query` 中明确指定字段名和数据类型 |
+
 ---
 
 ## L4: 逻辑控制 — 超集入门 (Extended)
@@ -1110,6 +1225,15 @@ tasks:
       filePath: "./output/dashboard-data.json"
       dataName: "currentPageData"
 ```
+
+### 常见错误
+
+| 错误 | 原因 | 解决方案 |
+|------|------|---------|
+| `Missing engine: extended` | 使用了 `variables`/`logic`/`loop` 但未声明 engine | 文件顶部添加 `engine: extended` |
+| `loop must have a "type"` | 循环缺少 `type` 字段 | 添加 `type: for`、`type: repeat` 或 `type: while` |
+| `while` 循环无限执行 | 缺少 `maxIterations` | 添加 `maxIterations: 20`（或合适的上限值） |
+| 变量 `${xxx}` 为 undefined | 变量未在 `variables` 中定义或拼写不一致 | 检查变量名拼写，确保在引用前已定义 |
 
 ---
 
@@ -1523,20 +1647,14 @@ tasks:
       dataName: "sortedTechArticles"
 ```
 
-### Extended 模式常见错误与修复
+### 常见错误
 
-| 错误现象 | 原因 | 修复方式 |
-|---|---|---|
-| `Missing engine: extended` | 使用了 `variables`/`logic`/`loop` 但未声明 engine | 文件顶部添加 `engine: extended` |
-| `loop must have a "type"` | 循环缺少 `type` 字段 | 添加 `type: for`、`type: repeat` 或 `type: while` |
-| `features 数组缺失` | 使用了扩展特性但未在 `features` 中声明 | 添加 `features: [variables, logic, loop]`（按实际使用添加） |
-| 变量 `${xxx}` 为 undefined | 变量未在 `variables` 中定义，或 `aiQuery` 的 `name` 拼写不一致 | 检查变量名拼写，确保在引用前已定义 |
-| `while` 循环无限执行 | 缺少 `maxIterations` | 添加 `maxIterations: 20`（或合适的上限值） |
+| 错误 | 原因 | 解决方案 |
+|------|------|---------|
 | `Circular import detected` | 两个 YAML 文件互相 import | 重构为单向依赖，或将共享逻辑提取到第三个文件 |
 | `import path resolves outside project` | import 路径使用了 `../` 穿越项目目录 | 使用项目内的相对路径 |
-| Shell 命令注入警告 | `external_call` shell 命令包含 `${...}` 变量 | 改用 `http` 类型调用后端 API，或确保变量来源可控 |
-| `catch` / `finally` 不生效 | 错误地将 `catch` 嵌套在 `try.flow` 内部 | `catch` 和 `finally` 是 `try` 的**兄弟键**，与 `try` 同级 |
 | `parallel` 分支变量不可见 | 未设置 `waitAll: true` | 添加 `waitAll: true` 等待所有分支完成后变量才可用 |
+| Shell 命令注入警告 | `external_call` shell 命令包含 `${...}` 变量 | 改用 `http` 类型调用后端 API，或确保变量来源可控 |
 
 ---
 
@@ -1811,6 +1929,12 @@ tasks:
 | `aiRightClick` | 动作 | 右键点击页面元素 |
 | `aiDragAndDrop` | 动作 | 拖拽元素到目标位置（扁平：`to`；嵌套：`from`/`to`） |
 | `aiClearInput` | 动作 | 清空输入框内容 |
+| `aiLongPress` | 动作 | 长按元素（可选 `duration` 指定长按时长） |
+| `AndroidBackButton` | 平台 | Android 返回键 |
+| `AndroidHomeButton` | 平台 | Android Home 键 |
+| `AndroidRecentAppsButton` | 平台 | Android 最近任务键 |
+| `IOSHomeButton` | 平台 | iOS Home 键 |
+| `IOSAppSwitcher` | 平台 | iOS 应用切换器 |
 | `aiBoolean` | 提取 | 从页面提取布尔值（`name` 存储结果） |
 | `aiNumber` | 提取 | 从页面提取数值（`name` 存储结果） |
 | `aiString` | 提取 | 从页面提取文本（`name` 存储结果） |
@@ -2312,6 +2436,215 @@ tasks:
 [ERR] "loop" construct must have a "type".
       Valid types: for (iterate items), while (condition-based), repeat (fixed count).
       Add: type: for
+```
+
+---
+
+## Appendix G: Cookbook — 实战 Recipe
+
+### G.1 登录带验证码的站点
+
+用 `sleep` 等待用户手动输入验证码，或使用 `aiWaitFor` 等待验证码消失。
+
+```yaml
+tasks:
+  - name: 登录带验证码的站点
+    flow:
+      - aiInput: "用户名输入框"
+        value: "admin"
+      - aiInput: "密码输入框"
+        value: "password123"
+      - aiTap: "获取验证码按钮"
+      - sleep: 30000  # 等待用户手动输入验证码
+      - aiWaitFor: "验证码已填写完成"
+      - aiTap: "登录按钮"
+      - aiWaitFor: "登录成功，进入主页"
+```
+
+### G.2 无限滚动页面数据提取
+
+使用 `while` 循环 + `aiScroll` + `aiQuery` 提取数据直到没有更多内容。
+
+```yaml
+- loop:
+    type: while
+    condition: "页面底部显示了'加载更多'或还有新内容正在加载"
+    maxIterations: 50
+    steps:
+      - aiQuery:
+          query: "当前可见的所有商品名称和价格"
+          name: "pageItems"
+      - aiScroll: "商品列表区域"
+        direction: "down"
+        scrollType: "scrollToBottom"
+      - sleep: 1000
+```
+
+### G.3 多标签页操作
+
+通过 `javascript` 步骤管理新标签页。
+
+```yaml
+tasks:
+  - name: 多标签页操作
+    flow:
+      - javascript: "window.open('https://example.com/page2', '_blank')"
+      - sleep: 2000
+      - aiWaitFor: "新页面内容加载完成"
+      - aiQuery:
+          query: "新页面的标题"
+          name: "newPageTitle"
+```
+
+### G.4 文件上传
+
+使用 `aiTap` + `fileChooserAccept` 上传文件。
+
+```yaml
+tasks:
+  - name: 上传文件
+    flow:
+      - ai: "点击上传文件按钮"
+        fileChooserAccept: "./data/report.pdf"
+      - aiWaitFor: "文件上传成功提示出现"
+      - aiAssert: "页面显示已上传的文件名 report.pdf"
+```
+
+### G.5 表单填写与提交
+
+组合 `aiInput` + `aiTap` 填写并提交表单。
+
+```yaml
+tasks:
+  - name: 填写反馈表单
+    flow:
+      - aiInput: "姓名输入框"
+        value: "张三"
+      - aiInput: "邮箱输入框"
+        value: "zhangsan@example.com"
+      - aiInput: "反馈内容文本框"
+        value: "产品体验非常好，建议增加导出功能。"
+      - aiTap: "提交按钮"
+      - aiWaitFor: "提交成功提示出现"
+```
+
+### G.6 Android App 自动化基础
+
+配置 Android 平台 + `launch` + 基本操作。
+
+```yaml
+android:
+  deviceId: "emulator-5554"
+
+tasks:
+  - name: 测试 Android 设置
+    flow:
+      - launch: "com.android.settings"
+      - aiWaitFor: "设置主页加载完成"
+      - aiTap: "WLAN"
+      - aiWaitFor: "WLAN 设置页面出现"
+      - aiAssert: "能看到 WLAN 开关和可用网络列表"
+```
+
+### G.7 iOS App 自动化基础
+
+配置 iOS 平台 + WDA + 基本操作。
+
+```yaml
+ios:
+  deviceId: "00001234-ABCDEFGH"
+  wdaPort: 8100
+
+tasks:
+  - name: 测试 iOS 设置
+    flow:
+      - launch: "com.apple.Preferences"
+      - aiWaitFor: "设置主页加载完成"
+      - aiTap: "通用"
+      - aiWaitFor: "通用设置页面出现"
+      - aiAssert: "能看到关于本机选项"
+```
+
+### G.8 数据驱动批量测试
+
+使用 `variables` + `loop` 从数组读取测试数据。
+
+```yaml
+engine: extended
+
+variables:
+  testCases:
+    - { keyword: "手机", expectedCount: 10 }
+    - { keyword: "电脑", expectedCount: 5 }
+    - { keyword: "耳机", expectedCount: 8 }
+
+tasks:
+  - name: 批量搜索测试
+    flow:
+      - loop:
+          type: for
+          items: "${testCases}"
+          itemVar: "tc"
+          steps:
+            - aiInput: "搜索框"
+              value: "${tc.keyword}"
+            - aiTap: "搜索按钮"
+            - aiWaitFor: "搜索结果加载完成"
+            - aiAssert: "搜索结果列表不为空"
+```
+
+### G.9 失败重试策略
+
+使用 `try`/`catch` + `loop` 实现重试。
+
+```yaml
+engine: extended
+
+tasks:
+  - name: 带重试的操作
+    flow:
+      - loop:
+          type: repeat
+          count: 3
+          steps:
+            - try:
+                steps:
+                  - aiTap: "提交订单按钮"
+                  - aiWaitFor:
+                      condition: "订单提交成功提示出现"
+                      timeout: 10000
+              catch:
+                steps:
+                  - sleep: 2000
+                  - aiTap: "关闭错误弹窗"
+```
+
+### G.10 跨文件模块化
+
+使用 `import` + `use` 复用子流程。
+
+```yaml
+engine: extended
+
+import:
+  - flow: "./common/login-flow.yaml"
+    as: loginFlow
+  - flow: "./common/search-flow.yaml"
+    as: searchFlow
+
+web:
+  url: "https://example.com"
+
+tasks:
+  - name: 登录后搜索
+    flow:
+      - use: "${loginFlow}"
+        with:
+          username: "${ENV:USERNAME}"
+          password: "${ENV:PASSWORD}"
+      - use: "${searchFlow}"
+        with:
+          keyword: "Midscene 自动化"
 ```
 
 ---

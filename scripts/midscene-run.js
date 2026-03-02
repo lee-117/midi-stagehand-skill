@@ -505,15 +505,15 @@ function processFile(yamlPath, args) {
       console.log(`  Status: ${report.summary.status}\n`);
     }
 
-    // Display failed task details
-    if (report.failedTasks && report.failedTasks.length > 0 && args.verbose) {
+    // Display failed task details (always show names + errors; verbose adds extras)
+    if (report.failedTasks && report.failedTasks.length > 0) {
       console.log('  Failed tasks:');
       for (const ft of report.failedTasks) {
         console.log(`    - ${ft.name}${ft.error ? ': ' + truncateError(ft.error) : ''}`);
       }
     }
 
-    // Display total duration if available
+    // Display total duration and extra detail in verbose mode
     if (report.totalDuration && args.verbose) {
       console.log(`  Duration: ${Math.round(report.totalDuration / 1000)}s`);
     }
@@ -534,12 +534,14 @@ function processFile(yamlPath, args) {
     // Print quick-fix hints based on error message
     printQuickFixHints('', result.error || '');
 
-    // Classify error for additional context
-    if (args.verbose && result.error) {
+    // Classify error for additional context (always show category; verbose adds suggestion)
+    if (result.error) {
       const { classifyError } = reportParser;
       const classification = classifyError(result.error);
       console.error(`  Error category: ${classification.category} (${classification.severity})`);
-      console.error(`  Suggestion: ${classification.suggestion}`);
+      if (args.verbose) {
+        console.error(`  Suggestion: ${classification.suggestion}`);
+      }
     }
 
     const exitCode = typeof result.exitCode === 'number' ? result.exitCode : 1;

@@ -52,6 +52,8 @@ const VALID_WEB_CONFIG_FIELDS = new Set([
 const VALID_ANDROID_CONFIG_FIELDS = new Set([
   'deviceId', 'androidAdbPath', 'remoteAdbHost', 'remoteAdbPort',
   'screenshotResizeScale', 'alwaysRefreshScreenInfo',
+  'keyboardDismissStrategy', 'imeStrategy', 'scrcpyConfig', 'displayId',
+  'launch', 'output',
 ]);
 
 // Valid iOS platform config sub-fields.
@@ -61,7 +63,7 @@ const VALID_IOS_CONFIG_FIELDS = new Set([
 
 // Valid computer platform config sub-fields.
 const VALID_COMPUTER_CONFIG_FIELDS = new Set([
-  'displayId', 'launch', 'output',
+  'displayId', 'launch', 'output', 'xvfbResolution',
 ]);
 
 // Valid agent config sub-fields.
@@ -70,6 +72,7 @@ const VALID_AGENT_CONFIG_FIELDS = new Set([
   'generateReport', 'autoPrintReportMsg', 'reportFileName',
   'replanningCycleLimit', 'aiActContext',
   'screenshotShrinkFactor', 'waitAfterAction',
+  'outputFormat', 'modelConfig',
 ]);
 
 // Valid cache strategy values.
@@ -77,6 +80,18 @@ const VALID_CACHE_STRATEGIES = new Set(['read-write', 'read-only', 'write-only']
 
 // Valid bridgeMode values.
 const VALID_BRIDGE_MODES = new Set(['newTabWithUrl', 'currentTab']);
+
+// Valid outputFormat values.
+const VALID_OUTPUT_FORMATS = new Set(['single-html', 'html-and-external-assets']);
+
+// Valid Android keyboardDismissStrategy values.
+const VALID_KEYBOARD_DISMISS_STRATEGIES = new Set(['esc-first', 'back-first']);
+
+// Valid Android imeStrategy values.
+const VALID_IME_STRATEGIES = new Set(['adbBroadcast', 'adbInput']);
+
+// Valid scrcpyConfig sub-fields.
+const VALID_SCRCPY_CONFIG_FIELDS = new Set(['enabled', 'maxSize', 'videoBitRate', 'idleTimeoutMs']);
 
 // Required fields per loop type.
 const LOOP_REQUIRED_FIELDS = {
@@ -239,6 +254,24 @@ function validateStructure(doc, errors, warnings) {
         ));
       }
     }
+
+    // Validate outputFormat enum.
+    if (doc.agent.outputFormat !== undefined && !VALID_OUTPUT_FORMATS.has(doc.agent.outputFormat)) {
+      warnings.push(makeWarning(
+        `Invalid outputFormat "${doc.agent.outputFormat}". Valid values: ${[...VALID_OUTPUT_FORMATS].join(', ')}.`,
+        '/agent/outputFormat'
+      ));
+    }
+
+    // Validate modelConfig is an object.
+    if (doc.agent.modelConfig !== undefined) {
+      if (typeof doc.agent.modelConfig !== 'object' || doc.agent.modelConfig === null || Array.isArray(doc.agent.modelConfig)) {
+        warnings.push(makeWarning(
+          '"modelConfig" must be an object.',
+          '/agent/modelConfig'
+        ));
+      }
+    }
   }
 
   // Validate bridgeMode in web config if present.
@@ -262,6 +295,43 @@ function validateStructure(doc, errors, warnings) {
         ));
       }
     }
+
+    // Validate keyboardDismissStrategy enum.
+    if (doc.android.keyboardDismissStrategy !== undefined &&
+        !VALID_KEYBOARD_DISMISS_STRATEGIES.has(doc.android.keyboardDismissStrategy)) {
+      warnings.push(makeWarning(
+        `Invalid keyboardDismissStrategy "${doc.android.keyboardDismissStrategy}". Valid values: ${[...VALID_KEYBOARD_DISMISS_STRATEGIES].join(', ')}.`,
+        '/android/keyboardDismissStrategy'
+      ));
+    }
+
+    // Validate imeStrategy enum.
+    if (doc.android.imeStrategy !== undefined &&
+        !VALID_IME_STRATEGIES.has(doc.android.imeStrategy)) {
+      warnings.push(makeWarning(
+        `Invalid imeStrategy "${doc.android.imeStrategy}". Valid values: ${[...VALID_IME_STRATEGIES].join(', ')}.`,
+        '/android/imeStrategy'
+      ));
+    }
+
+    // Validate scrcpyConfig object structure.
+    if (doc.android.scrcpyConfig !== undefined) {
+      if (typeof doc.android.scrcpyConfig !== 'object' || doc.android.scrcpyConfig === null || Array.isArray(doc.android.scrcpyConfig)) {
+        warnings.push(makeWarning(
+          '"scrcpyConfig" must be an object.',
+          '/android/scrcpyConfig'
+        ));
+      } else {
+        for (const key of Object.keys(doc.android.scrcpyConfig)) {
+          if (!VALID_SCRCPY_CONFIG_FIELDS.has(key)) {
+            warnings.push(makeWarning(
+              `Unknown scrcpyConfig field "${key}". Known fields: ${[...VALID_SCRCPY_CONFIG_FIELDS].join(', ')}.`,
+              `/android/scrcpyConfig/${key}`
+            ));
+          }
+        }
+      }
+    }
   }
 
   // Validate iOS config sub-fields if present.
@@ -283,6 +353,16 @@ function validateStructure(doc, errors, warnings) {
         warnings.push(makeWarning(
           `Unknown computer config field "${key}". Known fields: ${[...VALID_COMPUTER_CONFIG_FIELDS].join(', ')}.`,
           `/computer/${key}`
+        ));
+      }
+    }
+
+    // Validate xvfbResolution format (e.g. '1920x1080x24').
+    if (doc.computer.xvfbResolution !== undefined) {
+      if (typeof doc.computer.xvfbResolution !== 'string' || !/^\d+x\d+x\d+$/.test(doc.computer.xvfbResolution)) {
+        warnings.push(makeWarning(
+          `Invalid xvfbResolution "${doc.computer.xvfbResolution}". Expected format: "WIDTHxHEIGHTxDEPTH" (e.g. "1920x1080x24").`,
+          '/computer/xvfbResolution'
         ));
       }
     }

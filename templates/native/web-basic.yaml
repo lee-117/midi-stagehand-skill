@@ -4,7 +4,7 @@ web:
   url: "https://example.com"
   headless: false
   viewportWidth: 1280
-  viewportHeight: 720
+  viewportHeight: 960
 
 tasks:
   - name: "基础网页浏览"

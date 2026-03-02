@@ -118,6 +118,34 @@
         "remoteAdbPort": { "type": "integer", "description": "Remote ADB port" },
         "screenshotResizeScale": { "type": "number", "minimum": 0, "maximum": 1, "description": "Screenshot resize scale factor" },
         "alwaysRefreshScreenInfo": { "type": "boolean", "description": "Always refresh screen info before actions" },
+        "keyboardDismissStrategy": {
+          "type": "string",
+          "enum": ["esc-first", "back-first"],
+          "description": "Strategy to dismiss keyboard (default esc-first)"
+        },
+        "imeStrategy": {
+          "type": "string",
+          "enum": ["adbBroadcast", "adbInput"],
+          "description": "Input method strategy for text input"
+        },
+        "scrcpyConfig": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "description": "Enable scrcpy for screen capture" },
+            "maxSize": { "type": "integer", "description": "Max screen size (pixels)" },
+            "videoBitRate": { "type": "integer", "description": "Video bit rate" },
+            "idleTimeoutMs": { "type": "integer", "description": "Idle timeout in ms" }
+          },
+          "additionalProperties": false,
+          "description": "Scrcpy configuration for screen capture"
+        },
+        "displayId": {
+          "oneOf": [
+            { "type": "integer" },
+            { "type": "string" }
+          ],
+          "description": "Display ID for multi-display devices"
+        },
         "launch": {
           "oneOf": [
             { "type": "boolean" },
@@ -160,7 +188,8 @@
             { "type": "string" }
           ]
         },
-        "output": { "type": "string", "description": "JSON output file path" }
+        "output": { "type": "string", "description": "JSON output file path" },
+        "xvfbResolution": { "type": "string", "pattern": "^\\d+x\\d+x\\d+$", "description": "Xvfb virtual display resolution (e.g. '1920x1080x24')" }
       },
       "additionalProperties": false
     },
@@ -193,7 +222,17 @@
         "replanningCycleLimit": { "type": "integer", "description": "Max replanning cycles (default 20, UI-TARS 40)" },
         "aiActContext": { "type": "string", "description": "Background knowledge for AI actions" },
         "screenshotShrinkFactor": { "type": "number", "minimum": 0, "description": "Screenshot scale factor to save tokens (0-1)" },
-        "waitAfterAction": { "type": "integer", "minimum": 0, "description": "Wait time after each action in ms (default 300)" }
+        "waitAfterAction": { "type": "integer", "minimum": 0, "description": "Wait time after each action in ms (default 300)" },
+        "outputFormat": {
+          "type": "string",
+          "enum": ["single-html", "html-and-external-assets"],
+          "description": "Report output format"
+        },
+        "modelConfig": {
+          "type": "object",
+          "description": "Per-agent model configuration override",
+          "additionalProperties": true
+        }
       },
       "additionalProperties": false
     },
@@ -236,6 +275,7 @@
         { "$ref": "#/definitions/aiScrollAction" },
         { "$ref": "#/definitions/aiDragAndDropAction" },
         { "$ref": "#/definitions/aiClearInputAction" },
+        { "$ref": "#/definitions/aiLongPressAction" },
         { "$ref": "#/definitions/aiQueryAction" },
         { "$ref": "#/definitions/aiBooleanAction" },
         { "$ref": "#/definitions/aiNumberAction" },
@@ -252,6 +292,11 @@
         { "$ref": "#/definitions/launchAction" },
         { "$ref": "#/definitions/freezePageContextAction" },
         { "$ref": "#/definitions/unfreezePageContextAction" },
+        { "$ref": "#/definitions/androidBackButtonAction" },
+        { "$ref": "#/definitions/androidHomeButtonAction" },
+        { "$ref": "#/definitions/androidRecentAppsButtonAction" },
+        { "$ref": "#/definitions/iosHomeButtonAction" },
+        { "$ref": "#/definitions/iosAppSwitcherAction" },
         { "$ref": "#/definitions/variablesStep" },
         { "$ref": "#/definitions/logicStep" },
         { "$ref": "#/definitions/loopStep" },
@@ -794,6 +839,59 @@
       "required": ["unfreezePageContext"],
       "properties": {
         "unfreezePageContext": { "type": "boolean", "const": true, "description": "Unfreeze page context after data extraction" }
+      },
+      "additionalProperties": false
+    },
+    "aiLongPressAction": {
+      "type": "object",
+      "required": ["aiLongPress"],
+      "properties": {
+        "aiLongPress": { "type": "string", "description": "Element to long-press" },
+        "duration": { "type": "integer", "minimum": 0, "description": "Long press duration in ms" },
+        "deepThink": { "type": "boolean" },
+        "xpath": { "type": "string" },
+        "timeout": { "type": "integer" },
+        "cacheable": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "androidBackButtonAction": {
+      "type": "object",
+      "required": ["AndroidBackButton"],
+      "properties": {
+        "AndroidBackButton": { "type": "boolean", "const": true, "description": "Press Android back button" }
+      },
+      "additionalProperties": false
+    },
+    "androidHomeButtonAction": {
+      "type": "object",
+      "required": ["AndroidHomeButton"],
+      "properties": {
+        "AndroidHomeButton": { "type": "boolean", "const": true, "description": "Press Android home button" }
+      },
+      "additionalProperties": false
+    },
+    "androidRecentAppsButtonAction": {
+      "type": "object",
+      "required": ["AndroidRecentAppsButton"],
+      "properties": {
+        "AndroidRecentAppsButton": { "type": "boolean", "const": true, "description": "Press Android recent apps button" }
+      },
+      "additionalProperties": false
+    },
+    "iosHomeButtonAction": {
+      "type": "object",
+      "required": ["IOSHomeButton"],
+      "properties": {
+        "IOSHomeButton": { "type": "boolean", "const": true, "description": "Press iOS home button" }
+      },
+      "additionalProperties": false
+    },
+    "iosAppSwitcherAction": {
+      "type": "object",
+      "required": ["IOSAppSwitcher"],
+      "properties": {
+        "IOSAppSwitcher": { "type": "boolean", "const": true, "description": "Open iOS app switcher" }
       },
       "additionalProperties": false
     },
