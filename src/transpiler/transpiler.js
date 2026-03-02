@@ -172,7 +172,7 @@ function extractPlatformConfig(doc) {
     url: '',
     headless: false,
     viewportWidth: 1280,
-    viewportHeight: 720,
+    viewportHeight: 960,
     chromeArgs: '',
     platform: 'web',
   };
@@ -225,6 +225,7 @@ function extractAgentConfig(doc) {
     'testId', 'groupName', 'groupDescription', 'cache',
     'generateReport', 'autoPrintReportMsg', 'reportFileName',
     'replanningCycleLimit', 'aiActContext',
+    'screenshotShrinkFactor', 'waitAfterAction',
   ];
 
   const config = {};

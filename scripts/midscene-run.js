@@ -97,13 +97,19 @@ function parseArgs(argv) {
         args.reportDir = rawArgs[++i];
         break;
 
-      case '--template':
+      case '--template': {
         if (!rawArgs[i + 1] || rawArgs[i + 1].startsWith('-')) {
           console.error('[midscene-run] --template requires a template name (puppeteer | playwright).');
           process.exit(1);
         }
-        args.template = rawArgs[++i];
+        const tmpl = rawArgs[++i];
+        if (tmpl !== 'puppeteer' && tmpl !== 'playwright') {
+          console.error(`[midscene-run] Invalid template "${tmpl}". Must be "puppeteer" or "playwright".`);
+          process.exit(1);
+        }
+        args.template = tmpl;
         break;
+      }
 
       default:
         // First positional argument is the YAML file path
@@ -203,13 +209,19 @@ function tryTranspile(yamlPath, options) {
 function resolveYamlFiles(inputPath) {
   // Check if the input contains glob characters.
   if (inputPath.includes('*') || inputPath.includes('?') || inputPath.includes('{')) {
-    const matched = fs.globSync(inputPath, { cwd: process.cwd() })
-      .map(f => path.resolve(f))
-      .filter(f => {
-        const ext = path.extname(f).toLowerCase();
-        return ext === '.yaml' || ext === '.yml';
-      })
-      .sort();
+    let matched;
+    try {
+      matched = fs.globSync(inputPath, { cwd: process.cwd() })
+        .map(f => path.resolve(f))
+        .filter(f => {
+          const ext = path.extname(f).toLowerCase();
+          return ext === '.yaml' || ext === '.yml';
+        })
+        .sort();
+    } catch (err) {
+      console.error(`[midscene-run] Invalid glob pattern "${inputPath}": ${err.message}`);
+      return [];
+    }
 
     return matched;
   }
@@ -248,6 +260,12 @@ function printQuickFixHints(allMsgs, errorMsg) {
   }
   if (/EACCES|EPERM|permission|denied/i.test(combined)) {
     console.error('  Hint: Check file permissions and ensure the process has access to the required directories.');
+  }
+  if (/assert.*fail|assertion|expect.*but.*got/i.test(combined)) {
+    console.error('  Hint: Check the expected condition in aiAssert. View the HTML report screenshots to compare actual vs expected page state.');
+  }
+  if (/ReferenceError|TypeError|EvalError|script\s*error/i.test(combined)) {
+    console.error('  Hint: Review the JavaScript code in your YAML steps. Check variable names, data types, and browser vs Node.js API compatibility.');
   }
 }
 
@@ -422,6 +440,17 @@ function processFile(yamlPath, args) {
   }
 
   if (args.verbose) {
+    // Parse YAML to show task/step summary
+    try {
+      const yaml = require('js-yaml');
+      const doc = yaml.load(fs.readFileSync(yamlPath, 'utf-8'));
+      const tasks = Array.isArray(doc.tasks) ? doc.tasks : [];
+      const totalSteps = tasks.reduce((sum, t) => {
+        const flow = Array.isArray(t.flow || t.steps) ? (t.flow || t.steps) : [];
+        return sum + flow.length;
+      }, 0);
+      console.log(`[midscene-run] Tasks: ${tasks.length}, Steps: ${totalSteps}`);
+    } catch (_e) { /* non-critical */ }
     console.log('-'.repeat(40));
     console.log(`[midscene-run] Timeout: ${args.timeout}ms`);
     console.log(`[midscene-run] Report dir: ${args.reportDir}`);
@@ -528,12 +557,16 @@ function executeFile(yamlPath, detection, args) {
   // -----------------------------------------------------------------------
   if (detection.mode === 'native') {
     if (args.dryRun) {
-      console.log('[midscene-run] Dry-run: native YAML requires no transpilation.');
       try {
         const yaml = require('js-yaml');
         const doc = yaml.load(fs.readFileSync(yamlPath, 'utf-8'));
         const platform = ['web', 'android', 'ios', 'computer'].find(p => doc[p]) || 'unknown';
         const tasks = Array.isArray(doc.tasks) ? doc.tasks : [];
+        const totalSteps = tasks.reduce((sum, t) => {
+          const flow = Array.isArray(t.flow || t.steps) ? (t.flow || t.steps) : [];
+          return sum + flow.length;
+        }, 0);
+        console.log(`[midscene-run] Dry-run passed: ${tasks.length} task(s), ${totalSteps} step(s), mode: native, platform: ${platform}`);
         console.log('\n  Summary:');
         console.log(`    Platform : ${platform}`);
         console.log(`    Tasks    : ${tasks.length}`);

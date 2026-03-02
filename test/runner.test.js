@@ -93,7 +93,7 @@ describe('Report Parser', () => {
     const result = reportParser.parse(tmpDir);
     assert.equal(result.found, true);
     assert.equal(result.files.length, 1);
-    assert.equal(result.files[0].error, 'Parse error');
+    assert.ok(result.files[0].error.startsWith('Parse error:'), 'should start with Parse error:');
   });
 
   it('detects HTML report files', () => {

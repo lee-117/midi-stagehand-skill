@@ -1,6 +1,6 @@
 ---
 name: midscene-runner
-version: 2.0.0
+version: 2.1.0
 description: >
   Execute, validate, and debug Midscene YAML automation files.
   Handles dry-run, execution, report analysis, and iterative debugging.
@@ -15,6 +15,10 @@ allowed-tools:
 ---
 
 # Midscene Runner
+
+## 首次使用
+
+快速体验："运行 templates/native/web-basic.yaml"
 
 ## 触发条件
 
@@ -301,35 +305,7 @@ npx @midscene/web test.yaml
 
 ## YAML 配置速查
 
-### agent 配置（可选）
-
-```yaml
-agent:
-  testId: "test-001"
-  groupName: "回归测试"
-  groupDescription: "每日回归测试套件"
-  cache: true                        # 或对象格式: { strategy: "read-write", id: "cache-key" }
-  generateReport: true
-  autoPrintReportMsg: true
-  reportFileName: "custom-report"
-  replanningCycleLimit: 20           # 默认 20, UI-TARS 模型设 40
-  aiActContext: "这是一个中文电商网站"  # AI 背景知识
-  screenshotShrinkFactor: 0.5        # 截图缩放（节省 token）
-  waitAfterAction: 500               # 每次操作后等待 ms（默认 300）
-```
-
-### continueOnError（可选）
-
-当一个任务失败后继续执行后续任务：
-
-```yaml
-tasks:
-  - name: 任务 A
-    continueOnError: true
-    flow: [...]
-  - name: 任务 B（即使 A 失败也会执行）
-    flow: [...]
-```
+> 完整 YAML 配置参考（agent 配置、动作映射、data_transform 等）请查看 Generator Skill 或 `guide/MIDSCENE_YAML_GUIDE.md`。
 
 ### 平台配置选项
 
@@ -339,7 +315,7 @@ web:
   url: "https://example.com"
   headless: false       # true = 无头模式（适合 CI/CD）; false = 有界面（适合调试）
   viewportWidth: 1920   # 默认 1280；移动端模拟可用 375
-  viewportHeight: 1080  # 默认 720；移动端模拟可用 667
+  viewportHeight: 1080  # 默认 960；移动端模拟可用 667
   userAgent: "Custom User Agent"
   waitForNetworkIdle:
     timeout: 2000
@@ -387,6 +363,16 @@ ios:
 与 Generator Skill 配合时：
 
 1. **优先检查** `./midscene-output/` 目录中最近生成的文件
-2. **执行失败时**，提供结构化错误信息：
-   - 错误类型、错误位置（步骤/行号）、建议修复
-3. 如果错误可通过修改 YAML 修复，直接修改并重新执行（无需回调 Generator）
+2. **Runner 可自修复的错误**（直接修改 YAML 并重新执行）：
+   - YAML 缩进问题
+   - 缺少 `engine: extended` 声明
+   - 缺少 `timeout` 或值过小
+   - `features` 列表不完整
+3. **需要升级给 Generator 的错误**（使用以下格式）：
+   ```
+   [ESCALATE] ./midscene-output/<file>.yaml
+   [ERROR_TYPE] element_not_found | assertion | navigation | timeout
+   [FAILED_STEP] task "<任务名>" → step <N>
+   [SUGGESTION] 重新设计定位策略 / 调整操作顺序 / 添加中间等待步骤
+   ```
+   升级场景：定位策略根本性失败、操作顺序设计错误、缺少关键步骤、选错执行模式

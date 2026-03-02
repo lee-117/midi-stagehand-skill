@@ -1,6 +1,6 @@
 ---
 name: midscene-yaml-generator
-version: 2.0.0
+version: 2.1.0
 description: >
   Generate Midscene YAML browser automation files from natural language.
   Supports Web, Android, iOS with Native and Extended modes.
@@ -15,6 +15,26 @@ allowed-tools:
 ---
 
 # Midscene YAML Generator
+
+## 关键规则（必读）
+
+1. **Extended 模式必须声明 `engine: extended`** — 使用变量、循环、条件、导入等任何扩展功能时，缺少此声明会导致运行时静默失败
+2. **每个 `aiInput` 必须有 `value` 参数** — 没有 value 的 aiInput 等于空操作
+3. **循环必须有安全上限** — `while` 循环必须设置 `maxIterations`；`for`/`repeat` 的 count 不应超过 10000
+4. **`name` 变量仅 task 内有效** — 跨 task 传递数据需用 `output: { filePath, dataName }` 导出为 JSON 文件
+5. **生成前必须读取 schema 和模板** — 使用 Read 工具读取 `schema/native-keywords.json` 和选中的模板文件，不要生成 schema 中未定义的关键字
+6. **仅在平台配置字段中使用的 `${ENV:XXX}` 不需要 Extended 模式**；在 flow 步骤中使用变量插值才需要 Extended 模式
+7. **viewportHeight 默认值为 960**（非 720），viewportWidth 默认值为 1280
+
+## 首次使用
+
+如果是第一次使用，先运行环境健康检查：
+```bash
+node scripts/health-check.js
+```
+确认 `.env` 文件中已配置 `MIDSCENE_MODEL_API_KEY`。
+
+快速体验："生成一个在百度搜索 Midscene 的 YAML"
 
 ## 典型工作流
 
@@ -88,7 +108,7 @@ English trigger phrases:
 
 **Web 平台额外配置选项**：
 - `headless: true/false` — 是否无头模式运行（默认 false）
-- `viewportWidth` / `viewportHeight` — 视口大小（默认 1280×720）
+- `viewportWidth` / `viewportHeight` — 视口大小（默认 1280×960）
 - `userAgent` — 自定义 User-Agent
 - `deviceScaleFactor` — 设备像素比（如 Retina 屏设 2）
 - `waitForNetworkIdle` — 网络空闲等待配置，支持 `true` 或对象格式 `{ timeout: 2000, continueOnNetworkIdleError: true }`
@@ -100,6 +120,7 @@ English trigger phrases:
 - `serve` — 本地静态文件目录，启动内置服务器（本地开发测试用）
 - `acceptInsecureCerts` — 忽略 HTTPS 证书错误（默认 false）
 - `closeNewTabsAfterDisconnect` — 断开时关闭新打开的标签页（默认 false）
+- `outputFormat` — 报告输出格式：`'single-html'` | `'html-and-external-assets'`
 - `forceSameTabNavigation` — 限制导航在当前标签页（默认 true）
 
 ### 第 3 步：自然语言 → YAML 转换
@@ -168,7 +189,7 @@ Native 模式的动作参数支持两种格式：
 | "在 XXX 输入 YYY" | `aiInput: "XXX"` + `value: "YYY"` | 扁平兄弟格式；`mode: "replace"(默认)\|"clear"\|"typeOnly"`（官方 API）；`"append"` 为超集扩展（非官方，慎用） |
 | "按键盘 XXX 键" | `aiKeyboardPress: "XXX"` | 支持组合键如 "Control+A"；`keyName` 可作为替代参数 |
 | "向下/上/左/右滚动" | `aiScroll: "目标区域"` + `direction: "down"` | 扁平兄弟格式；可选 `distance`、`scrollType: "singleAction"\|"scrollToBottom"\|"scrollToTop"\|"scrollToRight"\|"scrollToLeft"` |
-| "等待 XXX 出现" | `aiWaitFor: "XXX"` | 可选 `timeout`（默认 30000ms）、`checkIntervalMs`（轮询间隔）；可选 `domIncluded`/`screenshotIncluded` 控制 AI 分析范围 |
+| "等待 XXX 出现" | `aiWaitFor: "XXX"` | 可选 `timeout`（默认 15000ms）、`checkIntervalMs`（轮询间隔）；可选 `domIncluded`/`screenshotIncluded` 控制 AI 分析范围 |
 | "检查/验证/确认 XXX" | `aiAssert: "XXX"` | 可选 errorMessage |
 | "获取/提取/读取 XXX" | `aiQuery: { query: "XXX", name: "result" }` | name 用于存储结果 |
 | "暂停/等待 N 秒" | `sleep: N*1000` | 参数为毫秒 |
@@ -203,10 +224,53 @@ Native 模式的动作参数支持两种格式：
 | "执行 Shell 命令" | `external_call: { type: shell, command: "XXX" }` |
 | "导入/复用 XXX 流程" | `import: [{ flow: "XXX.yaml", as: name }]` |
 | "过滤/排序/映射数据" | `data_transform: { source, operation, ... }` |
+| "冻结页面上下文" | `freezePageContext: true` |
+| "解冻页面上下文" | `unfreezePageContext: true` |
+
+**Extended 模式完整示例**：
+
+```yaml
+engine: extended
+features: [variables, logic, loop]
+
+web:
+  url: "https://example.com/products"
+
+variables:
+  keyword: "手机"
+  maxPages: 5
+
+tasks:
+  - name: "搜索并采集多页商品"
+    flow:
+      - aiInput: "搜索框"
+        value: "${keyword}"
+      - aiTap: "搜索按钮"
+      - aiWaitFor: "搜索结果列表已加载"
+        timeout: 10000
+      - loop:
+          type: repeat
+          count: "${maxPages}"
+          maxIterations: 10
+          steps:
+            - aiQuery:
+                query: "提取当前页所有商品名称，返回字符串数组"
+                name: "products"
+            - logic:
+                if: "document.querySelector('.next-page.disabled')"
+                then:
+                  - ai: "点击下一页按钮"
+                  - aiWaitFor: "新一页商品已加载"
+                else:
+                  - sleep: 1000
+      - aiAssert: "已完成多页商品采集"
+```
 
 ### 第 4 步：选择模板起点
 
-参考 `templates/` 目录下的模板文件，找到最接近用户需求的模板作为起点：
+参考 `templates/` 目录下的模板文件，找到最接近用户需求的模板作为起点。**使用 Read 工具读取选中的模板文件作为结构参考**。
+
+**多模板匹配时选最具体的；无匹配时 native 用 `web-basic.yaml`，extended 用 `e2e-workflow.yaml`**。
 
 **Native 模板**：
 - `templates/native/web-basic.yaml` — 基础网页操作
@@ -261,6 +325,8 @@ Native 模式的动作参数支持两种格式：
 
 ### 第 5 步：生成 YAML
 
+**生成前，使用 Read 工具读取 `schema/native-keywords.json`（Native 模式）或 `schema/extended-keywords.json`（Extended 模式）确认合法关键字。不要生成 schema 中未定义的关键字。**
+
 基于模板和转换规则生成 YAML 内容，注意以下要点：
 
 1. **文件头部**：添加注释说明需求来源和生成时间
@@ -284,6 +350,7 @@ Native 模式的动作参数支持两种格式：
 # 自动生成 by Midscene YAML Generator
 # 需求描述: [用户原始需求]
 # 生成时间: [YYYY-MM-DD HH:mm]
+# validated: [ISO-8601 时间戳，dry-run 通过后自动填入]
 
 engine: native|extended
 features: [...]  # 仅 extended 模式
@@ -454,11 +521,75 @@ Extended 模式下 `data_transform` 支持的操作：
 
 生成 YAML 时应避免以下常见错误：
 
-- **不必要地使用嵌套对象格式** — 推荐扁平格式（`aiInput: "搜索框"` + `value: "关键词"`），更简洁可读。嵌套格式（`aiInput: { locator: "搜索框", value: "关键词" }`）在两种模式中均有效，但通常只在需要 `locate` 图片定位等复杂参数时才使用
-- **Extended 模式遗漏 `engine: extended`** — 使用任何扩展功能（变量、循环、条件等）时必须声明引擎
-- **循环忘记 `maxIterations`** — `while` 循环必须设置安全上限，`for` 和 `repeat` 循环的 count 不应超过 10000
-- **`aiWaitFor` 使用嵌套对象格式** — 应使用 `aiWaitFor: "条件"` + `timeout: 10000`，而非 `aiWaitFor: { condition: "条件" }`
-- **缺少 `features` 声明** — Extended 模式应列出使用的特性，便于检测和优化
+**1. aiInput 缺少 value**
+
+```yaml
+# WRONG
+- aiInput: "搜索框"
+
+# RIGHT
+- aiInput: "搜索框"
+  value: "关键词"
+```
+
+**2. Extended 模式遗漏 engine 声明**
+
+```yaml
+# WRONG — 使用了 variables 但未声明 engine
+variables:
+  name: "test"
+tasks: [...]
+
+# RIGHT
+engine: extended
+features: [variables]
+variables:
+  name: "test"
+tasks: [...]
+```
+
+**3. while 循环无安全上限**
+
+```yaml
+# WRONG — 可能无限循环
+- loop:
+    type: while
+    condition: "hasMore"
+    steps: [...]
+
+# RIGHT
+- loop:
+    type: while
+    condition: "hasMore"
+    maxIterations: 50
+    steps: [...]
+```
+
+**4. aiWaitFor 使用嵌套格式（Native 模式下可能失败）**
+
+```yaml
+# WRONG (Native CLI 可能无法解析)
+- aiWaitFor:
+    condition: "页面加载完成"
+    timeout: 10000
+
+# RIGHT
+- aiWaitFor: "页面加载完成"
+  timeout: 10000
+```
+
+**5. 缺少 features 声明**
+
+```yaml
+# WRONG
+engine: extended
+tasks: [...]
+
+# RIGHT
+engine: extended
+features: [logic, variables, loop]
+tasks: [...]
+```
 
 ## 输出前自检清单
 
@@ -476,7 +607,7 @@ Extended 模式下 `data_transform` 支持的操作：
 - AI 指令（aiTap、aiAssert 等）的参数使用自然语言描述，不需要 CSS 选择器
 - 中文和英文描述均可，Midscene 的 AI 引擎支持多语言
 - `aiQuery` 的结果通过 `name` 字段存储，在后续步骤中用 `${name}` 引用（仅 Extended 模式）
-- `aiWaitFor` 建议设置合理的 `timeout`（毫秒），官方默认 30000ms（30 秒）；`checkIntervalMs` 控制轮询间隔
+- `aiWaitFor` 建议设置合理的 `timeout`（毫秒），官方默认 15000ms（30 秒）；`checkIntervalMs` 控制轮询间隔
 - 循环中务必设置 `maxIterations` 作为安全上限，防止无限循环
 - `${ENV:XXX}` 或 `${ENV.XXX}` 可引用环境变量，避免在 YAML 中硬编码敏感信息
 - 始终显式声明 `engine` 字段，避免自动检测带来的意外行为
@@ -489,8 +620,8 @@ Extended 模式下 `data_transform` 支持的操作：
 
 当生成的 YAML 执行失败时：
 
-1. **Runner 可自行修复**：如果错误可以通过修改 YAML 解决（如定位描述不够精确、等待时间不足），Runner Skill 会直接修改并重试
-2. **需要重新生成时**：如果错误涉及根本性设计问题（如选错模式、缺少关键步骤），用户可以向 Generator 描述失败情况，Generator 会基于错误信息重新生成改进版 YAML
+1. **Runner 可自行修复**：缩进、缺少 engine 声明、缺少 timeout 等简单错误，Runner Skill 会直接修改并重试
+2. **接收 Runner 错误上下文**：当 Runner 发送 `[ESCALATE]` 格式的错误时，解析错误类型、失败步骤和建议，针对性地重新生成或修改 YAML
 3. **推荐流程**：生成 → dry-run 验证 → 执行 → 如失败，描述错误让 Generator 修复 → 重新执行
 
 ## 协作协议

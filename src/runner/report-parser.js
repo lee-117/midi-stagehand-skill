@@ -10,6 +10,10 @@ const path = require('path');
 /**
  * Known error patterns and their classification.
  * Each entry: [regex, category, suggestion, severity]
+ *
+ * ORDER MATTERS: More specific patterns must come before broader ones.
+ * e.g. 'assertion' before 'javascript' (since assertion failures could
+ * contain 'Error' which the javascript pattern would also match).
  */
 const ERROR_PATTERNS = [
   [/MIDSCENE_MODEL_API_KEY|api[_-]?key|auth.*token|401/i, 'api_key',
@@ -222,8 +226,8 @@ function parse(reportDir) {
         allTaskDetails.push(...details.taskDetails);
         Object.assign(allAiQueryResults, details.aiQueryResults);
         totalDuration += details.totalDuration;
-      } catch (_e) {
-        reports.push({ file: path.basename(file), type: 'json', error: 'Parse error' });
+      } catch (parseErr) {
+        reports.push({ file: path.basename(file), type: 'json', error: 'Parse error: ' + (parseErr.message || 'unknown') });
       }
     } else {
       reports.push({ file: path.basename(file), type: 'html' });

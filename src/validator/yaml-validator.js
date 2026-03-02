@@ -46,13 +46,23 @@ const VALID_WEB_CONFIG_FIELDS = new Set([
   'chromeArgs', 'deviceScaleFactor', 'cookie', 'forceSameTabNavigation', 'output',
   'waitForNavigationTimeout', 'waitForNetworkIdleTimeout',
   'enableTouchEventsInActionSpace', 'forceChromeSelectRendering',
-  'closeNewTabsAfterDisconnect',
+  'closeNewTabsAfterDisconnect', 'unstableLogContent', 'outputFormat',
 ]);
 
 // Valid android platform config sub-fields.
 const VALID_ANDROID_CONFIG_FIELDS = new Set([
   'deviceId', 'androidAdbPath', 'remoteAdbHost', 'remoteAdbPort',
   'screenshotResizeScale', 'alwaysRefreshScreenInfo',
+]);
+
+// Valid iOS platform config sub-fields.
+const VALID_IOS_CONFIG_FIELDS = new Set([
+  'wdaPort', 'wdaHost', 'autoDismissKeyboard', 'launch', 'output', 'unstableLogContent',
+]);
+
+// Valid computer platform config sub-fields.
+const VALID_COMPUTER_CONFIG_FIELDS = new Set([
+  'displayId', 'launch', 'output',
 ]);
 
 // Valid agent config sub-fields.
@@ -222,6 +232,13 @@ function validateStructure(doc, errors, warnings) {
           '/agent/cache/strategy'
         ));
       }
+      // cache.id is required when strategy is present (official API requirement).
+      if (cache.strategy !== undefined && cache.id === undefined) {
+        warnings.push(makeWarning(
+          'Cache "strategy" is set but "id" is missing. The official API requires cache.id when strategy is specified.',
+          '/agent/cache/id'
+        ));
+      }
     }
   }
 
@@ -243,6 +260,30 @@ function validateStructure(doc, errors, warnings) {
         warnings.push(makeWarning(
           `Unknown android config field "${key}". Known fields: ${[...VALID_ANDROID_CONFIG_FIELDS].join(', ')}.`,
           `/android/${key}`
+        ));
+      }
+    }
+  }
+
+  // Validate iOS config sub-fields if present.
+  if (doc.ios && typeof doc.ios === 'object' && !Array.isArray(doc.ios)) {
+    for (const key of Object.keys(doc.ios)) {
+      if (!VALID_IOS_CONFIG_FIELDS.has(key)) {
+        warnings.push(makeWarning(
+          `Unknown ios config field "${key}". Known fields: ${[...VALID_IOS_CONFIG_FIELDS].join(', ')}.`,
+          `/ios/${key}`
+        ));
+      }
+    }
+  }
+
+  // Validate computer config sub-fields if present.
+  if (doc.computer && typeof doc.computer === 'object' && !Array.isArray(doc.computer)) {
+    for (const key of Object.keys(doc.computer)) {
+      if (!VALID_COMPUTER_CONFIG_FIELDS.has(key)) {
+        warnings.push(makeWarning(
+          `Unknown computer config field "${key}". Known fields: ${[...VALID_COMPUTER_CONFIG_FIELDS].join(', ')}.`,
+          `/computer/${key}`
         ));
       }
     }

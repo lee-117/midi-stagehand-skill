@@ -19,9 +19,10 @@
 - [多平台支持](#多平台支持)
 - [附录 A: 关键字速查表](#附录-a-关键字速查表)
 - [附录 B: engine 字段说明](#附录-b-engine-字段说明)
-- [附录 C: 常见问题 (FAQ)](#附录-c-常见问题-faq)
-- [附录 D: 从 TypeScript 迁移到 YAML](#附录-d-从-typescript-迁移到-yaml)
-- [附录 E: 安全检测与验证](#附录-e-安全检测与验证)
+- [附录 C: CI/CD 集成](#附录-c-cicd-集成)
+- [附录 D: 常见问题 (FAQ)](#附录-d-常见问题-faq)
+- [附录 E: 从 TypeScript 迁移到 YAML](#附录-e-从-typescript-迁移到-yaml)
+- [附录 F: 安全检测与验证](#附录-f-安全检测与验证)
 
 ---
 
@@ -128,7 +129,7 @@ web:
   url: "https://example.com"         # 目标网址（必填）
   headless: false                     # 无头模式（默认 false）
   viewportWidth: 1280                 # 视口宽度（默认 1280）
-  viewportHeight: 720                 # 视口高度（默认 720）
+  viewportHeight: 960                 # 视口高度（默认 960）
   userAgent: "Mozilla/5.0 Custom"     # 自定义 User-Agent
   deviceScaleFactor: 2                # 设备像素比（如 Retina 屏设为 2）
   cookie: "./cookies.json"            # Cookie JSON 文件路径（自动加载）
@@ -1686,9 +1687,22 @@ tasks:
 
 ### Computer 平台（桌面应用）
 
+Computer 平台用于自动化桌面应用（非浏览器），支持键盘、鼠标和窗口操作。
+
+**配置选项**：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `displayId` | number/string | 目标显示器 ID（多屏幕环境） |
+| `launch` | string | 启动的应用路径 |
+| `output` | string | JSON 输出文件路径 |
+
+**完整示例**：
+
 ```yaml
 computer:
-  # Computer 平台当前无额外配置项
+  displayId: 0               # 主显示器
+  output: "./results.json"   # 输出路径
 
 tasks:
   - name: 桌面应用测试
@@ -1697,7 +1711,12 @@ tasks:
       - aiWaitFor: "记事本应用窗口打开"
       - aiInput: "文本编辑区域"
         value: "Hello from Midscene!"
+      - aiKeyboardPress: "Control+S"
+      - aiWaitFor: "另存为对话框出现"
+      - aiAssert: "文件已保存"
 ```
+
+**支持的操作**：所有 `ai*` 系列操作（aiTap、aiInput、aiKeyboardPress 等）均适用于 Computer 平台。AI 引擎通过截图识别屏幕元素。注意：`xpath` 选项仅适用于 Web 平台，Computer 平台应使用自然语言描述定位元素。
 
 ### `launch` — 启动应用
 
@@ -1884,7 +1903,52 @@ Extended 模式下，YAML 先由转译器（Transpiler）转换为 TypeScript �
 
 ---
 
-## 附录 C: 常见问题 (FAQ)
+## 附录 C: CI/CD 集成
+
+### GitHub Actions 示例
+
+```yaml
+name: Midscene E2E Tests
+on: [push, pull_request]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm ci
+
+      - name: Run Midscene tests
+        env:
+          MIDSCENE_MODEL_API_KEY: ${{ secrets.MIDSCENE_MODEL_API_KEY }}
+          MIDSCENE_MODEL_BASE_URL: ${{ secrets.MIDSCENE_MODEL_BASE_URL }}
+          MIDSCENE_MODEL_NAME: ${{ secrets.MIDSCENE_MODEL_NAME }}
+        run: |
+          node scripts/midscene-run.js "tests/**/*.yaml" --timeout 120000
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: midscene-reports
+          path: midscene-report/
+```
+
+### 关键配置
+
+- **Headless 模式**：CI 环境必须设置 `headless: true`（无显示器）
+- **API Key**：通过 GitHub Secrets 传入 `MIDSCENE_MODEL_API_KEY`，不要硬编码
+- **超时**：CI 网络可能较慢，建议 `--timeout 120000` 以上
+- **报告产物**：用 `upload-artifact` 上传报告，方便失败时查看截图
+- **Chrome**：Ubuntu runner 自带 Chrome；若需指定版本可用 `npx puppeteer browsers install chrome`
+
+---
+
+## 附录 D: 常见问题 (FAQ)
 
 ### Q1: 自然语言描述写多详细才够？
 
@@ -1992,9 +2056,53 @@ agent:
   testId: "my-test"
 ```
 
+### Q11: 如何在 CI/CD 中集成 Midscene？
+
+**A**: 见 [附录 C: CI/CD 集成](#附录-c-cicd-集成)。关键点：设置 `headless: true`、通过 Secrets 传入 API Key、上传报告产物。
+
+### Q12: 如何处理文件上传场景？
+
+**A**: 使用 `fileChooserAccept` 选项：
+
+```yaml
+- ai: "点击上传按钮"
+  fileChooserAccept: "/path/to/file.pdf"
+```
+
+也可参考模板 `templates/native/web-file-upload.yaml`。
+
+### Q13: 如何测试多浏览器兼容性？
+
+**A**: 使用 `--template playwright` 选项运行 Extended 模式，Playwright 支持 Chromium、Firefox、WebKit。Native 模式目前仅支持 Chromium/Chrome。
+
+### Q14: AI 识别元素不准确怎么办？
+
+**A**: 按优先级尝试：
+1. 改进自然语言描述（更具体：位置、文字、颜色）
+2. 启用 `deepThink: true`（AI 进行更深层分析）
+3. 添加参考图片（`locate.images`）
+4. 使用 `xpath` 精确定位（仅 Web 平台）
+
+### Q15: 如何跨 task 传递数据？
+
+**A**: `name` 变量仅在当前 task 内有效。跨 task 需通过文件：
+
+```yaml
+tasks:
+  - name: "采集数据"
+    flow:
+      - aiQuery: { query: "提取列表", name: "data" }
+    output:
+      filePath: "./midscene-output/data.json"
+      dataName: "data"
+  - name: "使用数据"
+    flow:
+      - javascript: "const data = require('./midscene-output/data.json')"
+```
+
 ---
 
-## 附录 D: 从 TypeScript 迁移到 YAML
+## 附录 E: 从 TypeScript 迁移到 YAML
 
 如果你已经在使用 Midscene 的 TypeScript API，以下对照表帮助你快速迁移到 YAML 格式。
 
@@ -2101,7 +2209,7 @@ tasks:
 
 ---
 
-## 附录 E: 安全检测与验证
+## 附录 F: 安全检测与验证
 
 验证器（`yaml-validator.js`）在验证 YAML 文件时会自动执行多项安全检查，以 warning 或 error 形式报告潜在风险。
 

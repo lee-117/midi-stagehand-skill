@@ -31,7 +31,6 @@ function buildOptionEntries(step, extra) {
       opts.push('fileChooserAccept: ' + toCodeString(resolveTemplate(step.fileChooserAccept)));
     }
   }
-  if (step.deepLocate !== undefined) opts.push('deepLocate: ' + step.deepLocate);
   if (step.convertHttpImage2Base64 !== undefined) opts.push('convertHttpImage2Base64: ' + step.convertHttpImage2Base64);
   if (step.autoDismissKeyboard !== undefined) opts.push('autoDismissKeyboard: ' + step.autoDismissKeyboard);
   if (step.mode) opts.push('mode: ' + toCodeString(step.mode));
@@ -157,7 +156,7 @@ function generate(step, ctx) {
   // --- aiQuery ---
   if (step.aiQuery !== undefined) {
     let prompt;
-    let varName = 'queryResult';
+    let varName;
 
     if (typeof step.aiQuery === 'object' && step.aiQuery !== null) {
       // Object syntax: aiQuery: { query: "...", name: "..." }
@@ -487,6 +486,14 @@ function generate(step, ctx) {
       return pad + 'await agent.runWdaRequest(' + JSON.stringify(step.runWdaRequest) + ');';
     }
     return pad + 'await agent.runWdaRequest(' + toCodeString(resolveTemplate(step.runWdaRequest)) + ');';
+  }
+
+  // freezePageContext / unfreezePageContext (dynamic page data consistency)
+  if (step.freezePageContext !== undefined) {
+    return pad + 'await agent.freezePageContext();';
+  }
+  if (step.unfreezePageContext !== undefined) {
+    return pad + 'await agent.unfreezePageContext();';
   }
 
   // launch (Android/iOS app launch)

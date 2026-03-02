@@ -94,7 +94,18 @@
             { "type": "string" }
           ]
         },
-        "closeNewTabsAfterDisconnect": { "type": "boolean" }
+        "closeNewTabsAfterDisconnect": { "type": "boolean" },
+        "unstableLogContent": {
+          "oneOf": [
+            { "type": "boolean" },
+            { "type": "string" }
+          ]
+        },
+        "outputFormat": {
+          "type": "string",
+          "enum": ["single-html", "html-and-external-assets"],
+          "description": "Report output format"
+        }
       },
       "additionalProperties": false
     },
@@ -102,6 +113,11 @@
       "type": "object",
       "properties": {
         "deviceId": { "type": "string", "description": "ADB device ID (e.g. emulator-5554)" },
+        "androidAdbPath": { "type": "string", "description": "Custom path to ADB binary" },
+        "remoteAdbHost": { "type": "string", "description": "Remote ADB host for network-connected devices" },
+        "remoteAdbPort": { "type": "integer", "description": "Remote ADB port" },
+        "screenshotResizeScale": { "type": "number", "minimum": 0, "maximum": 1, "description": "Screenshot resize scale factor" },
+        "alwaysRefreshScreenInfo": { "type": "boolean", "description": "Always refresh screen info before actions" },
         "launch": {
           "oneOf": [
             { "type": "boolean" },
@@ -234,6 +250,8 @@
         { "$ref": "#/definitions/runAdbShellAction" },
         { "$ref": "#/definitions/runWdaRequestAction" },
         { "$ref": "#/definitions/launchAction" },
+        { "$ref": "#/definitions/freezePageContextAction" },
+        { "$ref": "#/definitions/unfreezePageContextAction" },
         { "$ref": "#/definitions/variablesStep" },
         { "$ref": "#/definitions/logicStep" },
         { "$ref": "#/definitions/loopStep" },
@@ -760,6 +778,22 @@
       "required": ["launch"],
       "properties": {
         "launch": { "type": "string", "description": "Application to launch" }
+      },
+      "additionalProperties": false
+    },
+    "freezePageContextAction": {
+      "type": "object",
+      "required": ["freezePageContext"],
+      "properties": {
+        "freezePageContext": { "type": "boolean", "const": true, "description": "Freeze page context for consistent data extraction" }
+      },
+      "additionalProperties": false
+    },
+    "unfreezePageContextAction": {
+      "type": "object",
+      "required": ["unfreezePageContext"],
+      "properties": {
+        "unfreezePageContext": { "type": "boolean", "const": true, "description": "Unfreeze page context after data extraction" }
       },
       "additionalProperties": false
     },
