@@ -85,7 +85,7 @@ function run(tsCode, options = {}) {
         if (fs.existsSync(tsPath)) {
           fs.unlinkSync(tsPath);
         }
-      } catch (_cleanupErr) {
+      } catch {
         // Silently ignore cleanup failures
       }
     }

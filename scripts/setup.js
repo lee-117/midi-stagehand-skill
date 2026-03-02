@@ -15,7 +15,7 @@
  *   node scripts/setup.js --postinstall  # Lightweight mode (npx cache only)
  */
 
-const { execSync, spawnSync } = require('child_process');
+const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');

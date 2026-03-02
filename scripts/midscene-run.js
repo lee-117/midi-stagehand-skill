@@ -300,14 +300,14 @@ function cleanStaleTempFiles(cwd) {
         fs.unlinkSync(filePath);
         cleaned++;
       }
-    } catch (_e) { /* skip unreadable files */ }
+    } catch { /* skip unreadable files */ }
   }
 
   // Remove empty directory
   try {
     const remaining = fs.readdirSync(tmpDir);
     if (remaining.length === 0) fs.rmdirSync(tmpDir);
-  } catch (_e) { /* ignore */ }
+  } catch { /* ignore */ }
 
   return cleaned;
 }
@@ -339,7 +339,7 @@ function main() {
   }
 
   // Clean stale temp files at startup (non-disruptive)
-  try { cleanStaleTempFiles(); } catch (_e) { /* non-critical */ }
+  try { cleanStaleTempFiles(); } catch { /* non-critical */ }
 
   // Resolve to one or more YAML files.
   const yamlFiles = resolveYamlFiles(args.yamlPath);
@@ -450,7 +450,7 @@ function processFile(yamlPath, args) {
         return sum + flow.length;
       }, 0);
       console.log(`[midscene-run] Tasks: ${tasks.length}, Steps: ${totalSteps}`);
-    } catch (_e) { /* non-critical */ }
+    } catch { /* non-critical */ }
     console.log('-'.repeat(40));
     console.log(`[midscene-run] Timeout: ${args.timeout}ms`);
     console.log(`[midscene-run] Report dir: ${args.reportDir}`);
@@ -575,7 +575,7 @@ function executeFile(yamlPath, detection, args) {
           console.log(`      ${i + 1}. ${t.name || '(unnamed)'} — ${flowLen} steps`);
         });
         console.log('');
-      } catch (_e) {
+      } catch {
         console.warn('[midscene-run] Warning: YAML validation passed but js-yaml could not parse the file. Check for non-standard constructs.');
         const content = fs.readFileSync(yamlPath, 'utf-8');
         console.log('\n--- Native YAML content ---');

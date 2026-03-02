@@ -134,14 +134,14 @@ function detect(yamlInput) {
   let content;
   try {
     content = resolveContent(yamlInput);
-  } catch (err) {
+  } catch {
     return { mode: 'native', features: [], needs_transpilation: false };
   }
 
   let doc;
   try {
     doc = yaml.load(content);
-  } catch (err) {
+  } catch {
     return { mode: 'native', features: [], needs_transpilation: false };
   }
 

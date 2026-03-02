@@ -6,7 +6,7 @@ const path = require('path');
 const Handlebars = require('handlebars');
 
 const { looksLikeFilePath } = require('../utils/yaml-helpers');
-const { getPad, escapeStringLiteral, resolveEnvRefs, sanitizeIdentifier } = require('./generators/utils');
+const { getPad, escapeStringLiteral, resolveEnvRefs } = require('./generators/utils');
 const { MAX_WALK_DEPTH } = require('../utils/yaml-helpers');
 
 // ---------------------------------------------------------------------------
@@ -22,7 +22,7 @@ const nativeGen = require('./generators/native-gen');
 function loadGenerator(name) {
   try {
     return require('./generators/' + name);
-  } catch (_err) {
+  } catch {
     return {
       generate(step, ctx) {
         const pad = getPad(ctx && ctx.indent);

@@ -10,7 +10,6 @@ const {
   getNestedFlow,
   getParallelBranches,
   getLoopItemVar,
-  walkFlow,
   walkAllFlows,
   MAX_WALK_DEPTH,
 } = require('../utils/yaml-helpers');
@@ -1053,14 +1052,14 @@ function validateImportChain(filePath, warnings, errors, visitedPaths) {
   let content;
   try {
     content = fs.readFileSync(filePath, 'utf8');
-  } catch (_e) {
+  } catch {
     return; // File unreadable — already reported by validateImportPaths
   }
 
   let doc;
   try {
     doc = yaml.load(content);
-  } catch (_e) {
+  } catch {
     return; // Parse error — not our concern here
   }
 

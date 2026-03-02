@@ -114,7 +114,7 @@ function generate(step, ctx, processStep) {
   }
 
   // Build each async IIFE for Promise.all
-  const taskBlocks = tasks.map((task, index) => {
+  const taskBlocks = tasks.map((task, _index) => {
     const flow = getNestedFlow(task) || (Array.isArray(task) ? task : [task]);
     const taskLines = [];
 

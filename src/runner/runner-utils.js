@@ -89,7 +89,7 @@ function findSystemChrome() {
     try {
       const found = execFileSync('which', ['google-chrome'], { stdio: ['pipe', 'pipe', 'pipe'], timeout: 3000 }).toString().trim();
       if (found) candidates.push(found);
-    } catch (_e) { /* which not available or chrome not in PATH */ }
+    } catch { /* which not available or chrome not in PATH */ }
   }
 
   for (const p of candidates) {
