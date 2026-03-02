@@ -36,6 +36,7 @@ npx skills add https://github.com/lee-117/midi-stagehand-skill -a qoder -y -g
 |-------|---------|
 | **Claude Code** | `-a claude-code` |
 | **Trae** | `-a trae` |
+| **Trae CN** | `-a trae-cn` |
 | **Qoder** | `-a qoder` |
 | **Cursor** | `-a cursor` |
 | **Cline** | `-a cline` |

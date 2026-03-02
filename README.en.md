@@ -36,6 +36,7 @@ Supported AI Agents:
 |-------|-------------|
 | **Claude Code** | `-a claude-code` |
 | **Trae** | `-a trae` |
+| **Trae CN** | `-a trae-cn` |
 | **Qoder** | `-a qoder` |
 | **Cursor** | `-a cursor` |
 | **Cline** | `-a cline` |
