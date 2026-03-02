@@ -144,6 +144,17 @@ Extended mode is auto-detected when YAML contains: `variables`, `logic`, `loop`,
 
 - Full official API alignment, SKILL.md multi-persona refactor, 6 new templates, code optimization (single YAML parse, Chrome caching), 698 tests
 
+### V6.0 Highlights
+
+- **10-role deep review**: Prompt Engineer, Domain Expert, QA, Tech Writer, Security, DevOps/SRE, Schema Analyst, Systems Architect and more
+- **Factual error fixes**: `aiWaitFor` timeout default, `screenshotShrinkFactor` range, `runWdaRequest` key correction
+- **API feature completion**: `fileChooserAccept`, Swipe gestures, `deepLocate`, `data:`/`file:` import support
+- **Security hardening**: JavaScript injection detection, dangerous ADB command detection, SSRF internal URL detection, `acceptInsecureCerts` warning, output path traversal check
+- **Documentation restructure**: responsibility scope definition, help request template, workflow overview diagram, error decision tree
+- **QA robustness**: AI action variable collection (`aiBoolean`/`aiNumber`/`aiString`/`aiAsk`/`aiLocate`), `javascript` step variable recognition
+- **Error classification expansion**: 5 new categories — `rate_limit`, `browser_crash`, `browser_not_found`, `network_failure`, `disk_full`
+- **Variables schema**: supports `null` type initial values
+
 ## Model Configuration
 
 Midscene requires a vision-language model for AI operations. Set these environment variables before execution:

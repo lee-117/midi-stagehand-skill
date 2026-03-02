@@ -1,9 +1,9 @@
 ---
 name: midscene-yaml-generator
-version: 5.0.0
+version: 6.0.0
 description: >
   Generate Midscene YAML browser automation files from natural language.
-  Supports Web, Android, iOS with Native and Extended modes.
+  Supports Web, Android, iOS, Computer with Native and Extended modes.
 argument-hint: <describe your automation task / 描述你要自动化的操作>
 allowed-tools:
   - Read
@@ -53,6 +53,12 @@ node scripts/health-check.js
          → 执行失败？→ [Runner] 分析 + 修复 YAML → 重新执行
          → 成功 → 展示报告摘要
 ```
+
+## 职责范围
+
+**Generator 负责**：需求分析 → YAML 生成 → dry-run 验证 → 自动修复（最多 3 次） → 接收 Runner ESCALATE 进行针对性修改
+
+**不负责**（用户/Runner 负责）：`.env` 创建和 API Key 配置、Chrome 安装、`npm install`、YAML 执行和报告解读
 
 ## 触发条件
 
@@ -119,7 +125,7 @@ English trigger phrases:
 - `headless: true/false` — 是否无头模式运行（默认 false）
 - `viewportWidth` / `viewportHeight` — 视口大小（默认 1280×960）
 - `userAgent` — 自定义 User-Agent
-- `deviceScaleFactor` — 设备像素比（如 Retina 屏设 2）
+- `deviceScaleFactor` — 设备像素比（如 Retina 屏设 2；设 0 可自动匹配系统 DPI，修复 Puppeteer 闪烁）
 - `waitForNetworkIdle` — 网络空闲等待配置，支持 `true` 或对象格式 `{ timeout: 2000, continueOnNetworkIdleError: true }`
 - `waitForNavigationTimeout` — 导航完成等待时间（ms，默认 5000，设 0 禁用）
 - `waitForNetworkIdleTimeout` — 网络空闲等待时间（ms，默认 2000，设 0 禁用）
@@ -127,7 +133,7 @@ English trigger phrases:
 - `bridgeMode` — Bridge 模式：`false`（默认）| `'newTabWithUrl'` | `'currentTab'`，复用已登录的桌面浏览器
 - `chromeArgs` — 自定义 Chrome 启动参数数组（如 `['--disable-gpu', '--proxy-server=...']`）
 - `serve` — 本地静态文件目录，启动内置服务器（本地开发测试用）
-- `acceptInsecureCerts` — 忽略 HTTPS 证书错误（默认 false）
+- `acceptInsecureCerts` — 忽略 HTTPS 证书错误（默认 false，用于本地 HTTPS 或自签名证书的测试环境）
 - `closeNewTabsAfterDisconnect` — 断开时关闭新打开的标签页（默认 false）
 - `outputFormat` — 报告输出格式：`'single-html'` | `'html-and-external-assets'`
 - `forceSameTabNavigation` — 限制导航在当前标签页（默认 true）
@@ -224,13 +230,13 @@ Native 模式的动作参数支持两种格式：
 | 自然语言模式 | YAML 映射 | 说明 |
 |-------------|-----------|------|
 | "打开/访问/进入 XXX 网站" | `web: { url: "XXX" }` | 平台配置 |
-| "自动规划并执行 XXX" | `ai: "XXX"` | AI 自动拆解为多步骤执行；`aiAct`/`aiAction` 为等价别名；可选 `fileChooserAccept: "path"` 处理文件上传对话框 |
-| "点击/按/选择 XXX" | `aiTap: "XXX"` | 简写形式；通用选项 `deepThink`、`xpath`、`cacheable`；支持 `locate` 对象 |
+| "自动规划并执行 XXX" | `ai: "XXX"` | AI 自动拆解为多步骤执行；`aiAct` 为推荐别名（`aiAction` 已弃用）；可选 `fileChooserAccept: "path"` 处理文件上传对话框; 可选 `deepLocate: true`（v1.4+，执行期间深度定位） |
+| "点击/按/选择 XXX" | `aiTap: "XXX"` | 简写形式；通用选项 `deepThink`、`xpath`、`cacheable`（默认 true，缓存 AI 结果避免重复调用）；支持 `locate` 对象; 支持 `fileChooserAccept: "path"` 处理文件上传 |
 | "悬停/移到 XXX 上" | `aiHover: "XXX"` | 触发下拉菜单或 tooltip；支持 `locate` 对象 |
 | "在 XXX 输入 YYY" | `aiInput: "XXX"` + `value: "YYY"` | 扁平兄弟格式；`mode: "replace"(默认)\|"clear"\|"typeOnly"`；支持 `locate` 对象 |
 | "按键盘 XXX 键" | `aiKeyboardPress: "XXX"` | 支持组合键如 "Control+A"；`keyName` 可作为替代参数 |
 | "向下/上/左/右滚动" | `aiScroll: "目标区域"` + `direction: "down"` | 扁平兄弟格式；可选 `distance`、`scrollType: "singleAction"\|"scrollToBottom"\|"scrollToTop"\|"scrollToRight"\|"scrollToLeft"` |
-| "等待 XXX 出现" | `aiWaitFor: "XXX"` | 可选 `timeout`（默认 15000ms）、`checkIntervalMs`（轮询间隔）；可选 `domIncluded`/`screenshotIncluded` 控制 AI 分析范围 |
+| "等待 XXX 出现" | `aiWaitFor: "XXX"` | 可选 `timeout`（默认 30000ms）、`checkIntervalMs`（轮询间隔，默认 3000ms）；可选 `domIncluded`/`screenshotIncluded` 控制 AI 分析范围 |
 | "检查/验证/确认 XXX" | `aiAssert: "XXX"` | 可选 errorMessage |
 | "获取/提取/读取 XXX" | `aiQuery: { query: "XXX", name: "result" }` | name 用于存储结果 |
 | "暂停/等待 N 秒" | `sleep: N*1000` | 参数为毫秒 |
@@ -244,6 +250,7 @@ Native 模式的动作参数支持两种格式：
 | "获取 XXX 文本" | `aiString: "XXX"` + `name: "text"` | 返回字符串；同上 `domIncluded`/`screenshotIncluded` 选项；嵌套对象格式支持 `prompt:` 字段 |
 | "询问 AI XXX" | `aiAsk: "XXX"` + `name: "answer"` | 自由提问，返回文本答案；嵌套对象格式支持 `prompt:` 字段 |
 | "拖拽 A 到 B" | `aiDragAndDrop: { from: "A", to: "B" }` | 推荐嵌套格式；也支持扁平简写 `aiDragAndDrop: "A"` + `to: "B"`；支持 `locate` 对象 |
+| "滑动/划动 XXX" | `ai: "向右滑动 XXX"` | 触摸滑动手势；需先启用 `enableTouchEventsInActionSpace: true`；与 aiDragAndDrop（鼠标拖放）语义不同 |
 | "清空 XXX 输入框" | `aiClearInput: "XXX"` | 清除输入框内容 |
 | "执行 ADB 命令" | `runAdbShell: "命令"` | Android 平台特有 |
 | "执行 WDA 请求" | `runWdaRequest: { ... }` | iOS 平台特有 |
@@ -269,7 +276,7 @@ Native 模式的动作参数支持两种格式：
 | "同时做 A 和 B" | `parallel: { branches: [{flow: [A]}, {flow: [B]}], waitAll: true, merge_results: true }` |
 | "调用 XXX 接口" | `external_call: { type: http, method: POST, url: "XXX", response_as: "varName" }` |
 | "执行 Shell 命令" | `external_call: { type: shell, command: "XXX" }` |
-| "导入/复用 XXX 流程" | `import: [{ flow: "XXX.yaml", as: name }]` |
+| "导入/复用 XXX 流程" | `import: [{ flow: "XXX.yaml", as: name }]` | 也支持 `data:` 导入数据文件、`file:` 导入通用文件 |
 | "过滤/排序/映射数据" | `data_transform: { source, operation, ... }` |
 | "冻结页面上下文" | `freezePageContext: true` |
 | "解冻页面上下文" | `unfreezePageContext: true` |
@@ -392,6 +399,10 @@ tasks:
 - `templates/native/web-local-serve.yaml` — 本地静态文件服务测试
 - `templates/native/web-long-press.yaml` — 长按操作（aiLongPress + duration）
 - `templates/native/android-system-buttons.yaml` — Android 系统按钮（Back/Home/Recent）
+- `templates/native/ios-system-buttons.yaml` — iOS 系统按钮（Home/AppSwitcher）+ WDA 请求
+- `templates/native/android-advanced-config.yaml` — Android 高级配置（scrcpy/IME/键盘策略）
+- `templates/native/web-file-download.yaml` — 文件下载测试
+- `templates/native/computer-headless.yaml` — Linux 无头桌面自动化（CI/Xvfb）
 
 **Extended 模板**：
 - `templates/extended/web-conditional-flow.yaml` — 条件分支
@@ -404,6 +415,8 @@ tasks:
 - `templates/extended/responsive-test.yaml` — 多视口响应式测试
 - `templates/extended/web-auth-flow.yaml` — OAuth/登录认证流程（使用变量和环境引用）
 - `templates/extended/data-driven-test.yaml` — 数据驱动测试（循环遍历测试用例）
+- `templates/extended/api-crud-test.yaml` — API CRUD 增删改查测试
+- `templates/extended/web-i18n-test.yaml` — 国际化/多语言测试
 
 **模板选择决策**：
 
@@ -432,6 +445,12 @@ tasks:
 | 长按操作 / 触摸操作 | `native/web-long-press.yaml` |
 | Android 系统按钮操作 | `native/android-system-buttons.yaml` |
 | 数据驱动 / 参数化测试 | `extended/data-driven-test.yaml` |
+| iOS 系统按钮操作 | `native/ios-system-buttons.yaml` |
+| Android 高级配置（scrcpy/IME） | `native/android-advanced-config.yaml` |
+| 文件下载测试 | `native/web-file-download.yaml` |
+| CI/Linux 无头桌面自动化 | `native/computer-headless.yaml` |
+| API CRUD 增删改查 | `extended/api-crud-test.yaml` |
+| 国际化/多语言测试 | `extended/web-i18n-test.yaml` |
 
 ### 第 5 步：生成 YAML
 
@@ -449,7 +468,7 @@ tasks:
    - `generateReport: true` / `autoPrintReportMsg: true` / `reportFileName` — 报告生成控制
    - `replanningCycleLimit` — AI 重新规划上限（默认 20，UI-TARS 模型为 40）
    - `aiActContext` — 为 AI 提供背景知识（如多语言网站标注语言、特殊领域术语）
-   - `screenshotShrinkFactor` — 截图缩放因子（0-1，节省 token）
+   - `screenshotShrinkFactor` — 截图缩放除数（默认 1 不缩放；设 2 则宽高减半，节省 token；移动端推荐 2）
    - `waitAfterAction` — 每次操作后等待时间（ms，默认 300）
    - `modelConfig` — 自定义模型配置（覆盖环境变量中的模型设置）
    - `outputFormat` — 报告输出格式：`'single-html'` | `'html-and-external-assets'`
@@ -472,7 +491,7 @@ features: [...]  # 仅 extended 模式
 #   testId: "test-001"
 #   groupName: "自动化测试组"
 #   cache: true
-#   screenshotShrinkFactor: 0.5
+#   screenshotShrinkFactor: 2
 #   waitAfterAction: 500
 
 [platform_config]
@@ -608,7 +627,7 @@ tasks:
 - **`domIncluded: 'visible-only'`** — aiQuery/aiAssert 等数据操作支持三值：`false`（默认仅截图）| `true`（全部 DOM）| `'visible-only'`（仅可见 DOM，性能最优）
 - **调试日志** — 设置 `DEBUG=midscene:*` 获取完整日志；`DEBUG=midscene:ai:profile:stats` 查看性能指标
 - **环境变量 `MIDSCENE_RUN_DIR`** — 配置运行时产物（报告、缓存）存储目录（默认 `./midscene_run`）
-- **分离模型配置** — 可通过 `MIDSCENE_INSIGHT_MODEL_*` 和 `MIDSCENE_PLANNING_MODEL_*` 前缀为不同阶段指定不同模型
+- **分离模型配置** — 可通过 `MIDSCENE_INSIGHT_MODEL_*` 和 `MIDSCENE_PLANNING_MODEL_*` 前缀为不同阶段指定不同模型（如用快速模型做 Planning 降低成本，用精确 VL 模型做 Insight 保证定位准确率）
 
 ## 数据转换操作参考
 
@@ -639,16 +658,17 @@ Extended 模式下 `data_transform` 支持的操作：
 - 需要配置 `deviceId`（ADB 设备 ID，如 `emulator-5554`）
 - 使用 `launch: "com.example.app"` 启动应用（在 flow 中作为 action 步骤）
 - 可使用 `runAdbShell` 执行 ADB 命令
-- 额外配置：`keyboardDismissStrategy`（`esc-first` | `back-first`）、`imeStrategy`（`always-yadb` | `yadb-for-non-ascii`，默认 `yadb-for-non-ascii`）、`scrcpyConfig`
+- 额外配置：`keyboardDismissStrategy`（`esc-first` | `back-first`）、`imeStrategy`（`always-yadb` | `yadb-for-non-ascii`，默认 `yadb-for-non-ascii`）、`scrcpyConfig`、`androidAdbPath`（自定义 ADB 路径）、`remoteAdbHost`/`remoteAdbPort`（远程 ADB）、`screenshotResizeScale`、`alwaysRefreshScreenInfo`、`displayId`
 
 ### iOS 平台
 - 需要配置 `wdaPort`（WebDriverAgent 端口，默认 8100）和 `wdaHost`（默认 localhost）
 - 使用 `launch: "com.example.app"` 启动应用（在 flow 中作为 action 步骤）
 - 可使用 `runWdaRequest` 发送 WebDriverAgent 请求
+- 额外配置：`autoDismissKeyboard`（自动关闭键盘，默认 false）、`unstableLogContent`（日志持久化，实验性）
 
 ### Computer 平台
 - 用于通用桌面自动化场景
-- 额外配置：`xvfbResolution`（如 `'1920x1080x24'`，Linux 虚拟显示器分辨率）、`headless`（`true`/`false`，Linux Xvfb 无头模式）
+- 额外配置：`xvfbResolution`（如 `'1920x1080x24'`，Linux 虚拟显示器分辨率）、`headless`（`true`/`false`，Linux Xvfb 无头模式）、`displayId`（多显示器选择）
 
 ## 常见错误模式（Anti-patterns）
 
@@ -724,6 +744,20 @@ features: [logic, variables, loop]
 tasks: [...]
 ```
 
+**6. 数值类型模板变量未加引号**
+
+```yaml
+# WRONG — YAML 解析为非字符串，模板引擎无法处理
+- loop:
+    type: repeat
+    count: ${maxPages}
+
+# RIGHT — 引号确保 YAML 解析为字符串
+- loop:
+    type: repeat
+    count: "${maxPages}"
+```
+
 ## 输出前自检清单
 
 生成 YAML 后，在输出前核验以下事项：
@@ -735,12 +769,23 @@ tasks: [...]
 - [ ] 敏感信息（密码、Token）使用 `${ENV:XXX}` 引用环境变量？
 - [ ] AI 指令描述足够精确（包含位置、文字、颜色等特征）？
 
+## 安全注意事项
+
+生成 YAML 时应注意以下安全风险：
+
+- **`javascript:` 步骤** — 代码在浏览器上下文执行，可访问 DOM/Cookie/localStorage。避免在其中放入不可信内容，不要通过 `fetch()` 将页面数据发送到第三方
+- **`external_call: shell`** — 命令直接在系统 shell 中执行，存在命令注入风险。变量引用 `${varName}` 会被模板解析后嵌入命令字符串，确保变量值来源可信
+- **`runAdbShell` / `runWdaRequest`** — 在移动设备上执行命令/请求，避免使用破坏性命令（`rm`、`reboot`、`pm uninstall`）
+- **`external_call: http`** — URL 由 YAML 控制，避免请求内网地址（127.0.0.1、10.x、172.16-31.x、192.168.x）或云 metadata 端点（169.254.169.254）
+- **环境变量 `${ENV:XXX}`** — 引用的值可能在报告截图、`--output-ts` 文件或日志中暴露。避免引用 `SECRET`/`PASSWORD`/`TOKEN` 类变量到 UI 可见位置
+- **报告截图** — 执行过程中每步截图可能包含敏感数据（密码输入、Token 显示）。CI/CD 中应将报告标记为私有 artifact
+
 ## 注意事项
 
 - AI 指令（aiTap、aiAssert 等）的参数使用自然语言描述，不需要 CSS 选择器
 - 中文和英文描述均可，Midscene 的 AI 引擎支持多语言
 - `aiQuery` 的结果通过 `name` 字段存储，在后续步骤中用 `${name}` 引用（仅 Extended 模式）
-- `aiWaitFor` 建议设置合理的 `timeout`（毫秒），官方默认 15000ms（15 秒）；`checkIntervalMs` 控制轮询间隔
+- `aiWaitFor` 建议设置合理的 `timeout`（毫秒），官方默认 30000ms（30 秒）；`checkIntervalMs` 控制轮询间隔（默认 3000ms）
 - 循环中务必设置 `maxIterations` 作为安全上限，防止无限循环
 - `${ENV:XXX}` 或 `${ENV.XXX}` 可引用环境变量，避免在 YAML 中硬编码敏感信息
 - 始终显式声明 `engine` 字段，避免自动检测带来的意外行为
@@ -749,7 +794,7 @@ tasks: [...]
 - 数值参数范围：`sleep`: 100-30000ms，`timeout`: 5000-60000ms，`maxIterations`: 1-1000
 - 避免循环导入：A.yaml 导入 B.yaml、B.yaml 又导入 A.yaml 会导致运行时错误
 - 复杂需求拆分：>10 步建议拆分为多个 task，跨域操作拆分为多文件 + import/use
-- 生成后务必通过 `--dry-run` 验证语法和结构（注意：`--dry-run` 不检测模型配置，AI 操作需要配置 `MIDSCENE_MODEL_API_KEY` 才能实际执行）
+- 生成后务必通过 `--dry-run` 验证语法和结构。**CRITICAL**: `--dry-run` 仅验证语法/结构，不检测模型配置（API Key）、网络连通性或 Chrome 可用性。dry-run 通过 ≠ 执行一定成功
 - 提示用户可以用 **Midscene Runner** skill 来执行生成的文件
 
 ## 迭代修复流程
@@ -759,7 +804,18 @@ tasks: [...]
 1. **Runner 可自行修复**：缩进、缺少 engine 声明、缺少 timeout 等简单错误，Runner Skill 会直接修改并重试
 2. **接收 Runner 错误上下文**：当 Runner 发送 `[ESCALATE]` 格式的错误时，解析错误类型、失败步骤和建议，针对性地重新生成或修改 YAML
 3. **推荐流程**：生成 → dry-run 验证 → 执行 → 如失败，描述错误让 Generator 修复 → 重新执行
+   > **语义保护规则**: 自动修复 MUST NOT 修改 `ai:`、`aiTap:`、`aiInput:`、`aiAssert:`、`aiQuery:`、`aiWaitFor:` 等步骤的字符串描述值 — 这些是语义内容，修改可能改变用户意图。
 4. **自动修复上限**：自动修复最多尝试 3 次。3 次 dry-run 均失败后，将错误展示给用户并请求指导
+5. **求助输出格式**：3 次修复均失败后，输出以下格式供用户排查：
+   ```
+   [HELP_NEEDED] ./midscene-output/<file>.yaml
+   [ATTEMPTS] 3
+   [ERROR_SUMMARY]
+     1. <第 1 次错误摘要>
+     2. <第 2 次错误摘要>
+     3. <第 3 次错误摘要>
+   [SUGGESTED_CHECK] <建议用户检查的方向>
+   ```
 
 ## 协作协议
 

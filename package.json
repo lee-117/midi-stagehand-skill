@@ -1,6 +1,6 @@
 {
   "name": "midi-stagehand-skill",
-  "version": "5.0.0",
+  "version": "6.0.0",
   "description": "Midscene YAML Superset Ecosystem — AI-powered low-code browser automation via natural language (Claude Code Skills)",
   "main": "scripts/midscene-run.js",
   "bin": {

@@ -93,6 +93,18 @@ const VALID_IME_STRATEGIES = new Set(['always-yadb', 'yadb-for-non-ascii']);
 // Valid scrcpyConfig sub-fields.
 const VALID_SCRCPY_CONFIG_FIELDS = new Set(['enabled', 'maxSize', 'videoBitRate', 'idleTimeoutMs']);
 
+// Suspicious JS patterns for javascript step validation (security).
+const SUSPICIOUS_JS = /\b(require|import|eval|Function|execSync|exec|spawn)\s*\(/;
+
+// Dangerous ADB shell command patterns (security).
+const DANGEROUS_ADB_PATTERN = /\b(rm\s+-rf|dd\s+if=|reboot|pm\s+uninstall|pm\s+clear)\b/i;
+
+// Internal/private network URL pattern for external_call SSRF detection.
+const INTERNAL_URL_PATTERN = /^https?:\/\/(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|169\.254\.169\.254)(:\d+)?(\/|$)/i;
+
+// AI actions that produce named variable results (used in collectDefinedVariables).
+const AI_VAR_ACTIONS = ['aiBoolean', 'aiNumber', 'aiString', 'aiAsk', 'aiLocate'];
+
 // Required fields per loop type.
 const LOOP_REQUIRED_FIELDS = {
   for: ['items'],
@@ -274,6 +286,14 @@ function validateStructure(doc, errors, warnings) {
     }
   }
 
+  // Warn on acceptInsecureCerts: true (security risk).
+  if (doc.web && typeof doc.web === 'object' && doc.web.acceptInsecureCerts === true) {
+    warnings.push(makeWarning(
+      '"acceptInsecureCerts: true" disables SSL certificate validation. This is a security risk in production and may expose traffic to MITM attacks.',
+      '/web/acceptInsecureCerts'
+    ));
+  }
+
   // Validate bridgeMode in web config if present.
   if (doc.web && typeof doc.web === 'object' && doc.web.bridgeMode !== undefined) {
     const bm = doc.web.bridgeMode;
@@ -418,6 +438,16 @@ function validateStructure(doc, errors, warnings) {
         `Task must have a "flow" (or "steps") property of type array.`,
         `${taskPath}/flow`
       ));
+    }
+
+    // Security: warn on output.filePath path traversal.
+    if (task.output && typeof task.output === 'object' && typeof task.output.filePath === 'string') {
+      if (/\.\.[\\/]/.test(task.output.filePath) || task.output.filePath.includes('..\\') || task.output.filePath.includes('../')) {
+        warnings.push(makeWarning(
+          `Task output filePath "${task.output.filePath}" contains path traversal (".."). This may write files outside the intended directory.`,
+          `${taskPath}/output/filePath`
+        ));
+      }
     }
   });
 
@@ -747,6 +777,14 @@ function validateExternalCallStep(step, stepPath, errors, warnings) {
     errors.push(makeError('"external_call" of type "shell" must have a "command" field.', `${callPath}/command`));
   }
 
+  // Security: warn on internal/private network URLs (SSRF risk).
+  if (call.type === 'http' && typeof call.url === 'string' && INTERNAL_URL_PATTERN.test(call.url)) {
+    warnings.push(makeWarning(
+      `external_call URL "${call.url}" points to an internal/private network address. This may indicate a SSRF risk or unintentional targeting of local services.`,
+      `${callPath}/url`
+    ));
+  }
+
   // Validate HTTP method if present.
   if (call.type === 'http' && call.method) {
     const method = String(call.method).toUpperCase();
@@ -930,6 +968,22 @@ function validateNativeActionFormats(doc, warnings) {
       ));
     }
 
+    // Security: warn on suspicious JS patterns in javascript steps.
+    if (step.javascript !== undefined && typeof step.javascript === 'string' && SUSPICIOUS_JS.test(step.javascript)) {
+      warnings.push(makeWarning(
+        '"javascript" step contains potentially dangerous code pattern (require/eval/exec). Avoid using require/eval/exec in browser-evaluated JavaScript.',
+        `${stepPath}/javascript`
+      ));
+    }
+
+    // Security: warn on dangerous ADB shell commands.
+    if (step.runAdbShell !== undefined && typeof step.runAdbShell === 'string' && DANGEROUS_ADB_PATTERN.test(step.runAdbShell)) {
+      warnings.push(makeWarning(
+        `"runAdbShell" contains a potentially dangerous command pattern. Destructive commands (rm -rf, dd, reboot, pm uninstall, pm clear) can cause data loss or device issues.`,
+        `${stepPath}/runAdbShell`
+      ));
+    }
+
     // Common step-level value checks (sleep, timeout).
     validateCommonStepValues(step, stepPath, warnings);
   });
@@ -1020,6 +1074,22 @@ function collectDefinedVariables(doc) {
     // Also support shorthand where aiQuery is a string but a sibling "name" key holds the variable.
     if (step.aiQuery !== undefined && typeof step.name === 'string') {
       defined.add(step.name);
+    }
+
+    // AI extraction steps with name: aiBoolean, aiNumber, aiString, aiAsk, aiLocate.
+    // These steps produce a result that can be stored in a variable via "name" sibling key.
+    for (const action of AI_VAR_ACTIONS) {
+      if (step[action] !== undefined && typeof step.name === 'string') {
+        defined.add(step.name);
+      }
+    }
+
+    // javascript step with name/output: the variable becomes defined.
+    if (step.javascript !== undefined) {
+      const jsVar = step.name || step.output;
+      if (typeof jsVar === 'string') {
+        defined.add(jsVar);
+      }
     }
 
     // import with as: the alias becomes a defined variable.

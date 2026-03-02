@@ -144,6 +144,17 @@ npx skills list
 
 - 官方 API 全面对齐、SKILL.md 多角色重构、6 个新模板、代码优化（YAML 单次解析、Chrome 缓存）、698 个测试
 
+### V6.0 新特性
+
+- **10 角色深度审查**: Prompt Engineer、Domain Expert、QA、Tech Writer、Security、DevOps/SRE、Schema Analyst、Systems Architect 等 10 个角色联合分析
+- **事实性错误修正**: `aiWaitFor` timeout 默认值、`screenshotShrinkFactor` 值域、`runWdaRequest` key 修正
+- **API 功能补全**: `fileChooserAccept`、Swipe 手势、`deepLocate`、`data:`/`file:` 导入支持
+- **安全加固**: JavaScript 注入检测、危险 ADB 命令检测、SSRF 内网地址检测、`acceptInsecureCerts` 警告、输出路径遍历检查
+- **文档结构优化**: 职责范围定义、帮助请求模板、工作流总览图、错误决策树
+- **QA 鲁棒性增强**: AI 动作变量收集（`aiBoolean`/`aiNumber`/`aiString`/`aiAsk`/`aiLocate`）、`javascript` 步骤变量识别
+- **错误分类扩展**: 新增 `rate_limit`、`browser_crash`、`browser_not_found`、`network_failure`、`disk_full` 5 个分类
+- **变量 schema**: 支持 `null` 类型初始值
+
 ## 模型配置
 
 Midscene 的 AI 操作需要视觉语言模型支持。执行前请设置以下环境变量：

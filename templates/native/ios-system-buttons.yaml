@@ -17,7 +17,7 @@ tasks:
       - sleep: 2000
       - ai: "在 Safari 地址栏输入 https://midscenejs.com 并访问"
       - aiWaitFor: "页面加载完成"
-        timeout: 15000
+        timeout: 30000
 
       # iOS 主页按钮 — 返回主屏幕
       - IOSHomeButton: true
@@ -32,7 +32,7 @@ tasks:
       # WDA 请求示例 — 获取设备信息
       - runWdaRequest:
           method: "GET"
-          endpoint: "/status"
+          url: "/status"
       - sleep: 500
 
       - aiAssert: "Safari 页面正常显示"

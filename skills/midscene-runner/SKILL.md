@@ -1,6 +1,6 @@
 ---
 name: midscene-runner
-version: 5.0.0
+version: 6.0.0
 description: >
   Execute, validate, and debug Midscene YAML automation files.
   Handles dry-run, execution, report analysis, and iterative debugging.
@@ -21,7 +21,19 @@ allowed-tools:
 
 ## 首次使用
 
+如果是第一次使用，先确认环境就绪：
+```bash
+npm install && node scripts/health-check.js
+```
+确认 `.env` 文件中已配置 `MIDSCENE_MODEL_API_KEY`。
+
 快速体验："运行 templates/native/web-basic.yaml"
+
+## 职责范围
+
+**Runner 负责**：环境检查 → YAML 预验证 → 执行 → 结果分析 → 报告解读 → 琐碎修复（缩进/engine 声明/features）→ ESCALATE 给 Generator
+
+**不负责**（用户/Generator 负责）：YAML 生成、AI 指令设计、`.env` 创建、Chrome 安装
 
 ## 触发条件
 
@@ -46,7 +58,15 @@ English trigger phrases:
 
 ## 工作流程
 
-### 第 0 步：环境检查
+```
+YAML 文件 → [Runner] 环境检查（首次）
+          → 预验证 (--dry-run)
+          → 执行
+          → 失败？→ 分析 + 自动修复 → 重试
+          → 成功 → 报告解读
+```
+
+### 前置条件（首次或环境变更时执行）
 
 首次执行前，使用一键健康检查确认运行环境就绪：
 
@@ -75,12 +95,24 @@ MIDSCENE_MODEL_NAME=qwen-vl-max-latest
 
 详细配置说明见 [Midscene 模型配置文档](https://midscenejs.com/zh/model-common-config.html)。
 
+**支持的模型家族**（通过 `MIDSCENE_MODEL_FAMILY` 指定）：
+`doubao-seed-1.6`、`doubao-seed-2.0`、`qwen3.5`、`qwen3-vl`、`qwen2.5-vl`、`glm-v`、`gemini`、`vlm-ui-tars`
+
 **高级环境变量**：
 - `MIDSCENE_RUN_DIR` — 运行时产物目录（报告、缓存），默认 `./midscene_run`
 - `DEBUG=midscene:*` — 启用完整调试日志
 - `DEBUG=midscene:ai:call` — 仅显示 AI API 调用详情
 - `DEBUG=midscene:ai:profile:stats` — 显示性能统计
-- `MIDSCENE_INSIGHT_MODEL_*` / `MIDSCENE_PLANNING_MODEL_*` — 为 Insight 和 Planning 阶段分别配置模型
+- `MIDSCENE_INSIGHT_MODEL_*` / `MIDSCENE_PLANNING_MODEL_*` — 为 Insight（元素定位）和 Planning（操作规划）阶段分别配置模型（如用快速模型做 Planning，精确 VL 模型做 Insight）
+- `MIDSCENE_MODEL_REASONING_ENABLED` — 启用/禁用推理（`"true"`/`"false"`）
+- `MIDSCENE_MODEL_REASONING_EFFORT` — 推理强度（`"low"`/`"medium"`/`"high"`）
+- `MIDSCENE_MODEL_REASONING_BUDGET` — thinking token 预算（数字）
+- `MIDSCENE_MODEL_HTTP_PROXY` / `MIDSCENE_MODEL_SOCKS_PROXY` — AI API 代理配置
+- `MIDSCENE_MODEL_INIT_CONFIG_JSON` — 覆盖 OpenAI SDK 初始化配置（JSON 字符串）
+- `MIDSCENE_PREFERRED_LANGUAGE` — AI 响应语言（GMT+8 默认中文，其他默认英文）
+- `DEBUG=midscene:ai:profile:detail` — 详细 token 日志
+- `DEBUG=midscene:android:adb` — Android ADB 调试
+- `DEBUG=midscene:cache:*` — 缓存调试
 
 **首次使用？运行一键环境初始化**：
 
@@ -140,8 +172,7 @@ npm install && npm run setup
 
 ### 第 2 步：预验证
 
-> ⚠️ 重要：--dry-run 仅验证 YAML 语法和结构，不验证模型配置（API Key）、网络连通性或 Chrome 可用性。
-> dry-run 通过不代表执行一定成功。
+> **CRITICAL**: `--dry-run` 仅验证 YAML 语法和结构。不检测：模型配置（API Key）、网络连通性、Chrome 可用性。dry-run 通过 ≠ 执行一定成功。
 
 在执行前，调用验证器检查 YAML 文件：
 
@@ -243,6 +274,14 @@ node scripts/midscene-run.js test.yaml --output-ts ./debug-output.ts
 - 如果有 `aiQuery` 结果，展示提取的数据
 - 如果有 `output` 导出，确认文件生成位置
 - 显示执行耗时和执行摘要（如 "3 个任务全部通过，耗时 45.2s"）
+- 使用以下格式汇报结果：
+  ```
+  [RESULT] PASSED
+  [TASKS] 3/3 passed
+  [DURATION] 45.2s
+  [REPORT] ./midscene-report/<report-filename>.html
+  [TIP] 在浏览器中打开报告查看每步截图和详情
+  ```
 
 #### 失败
 按以下决策树分析错误并修复：
@@ -275,8 +314,20 @@ node scripts/midscene-run.js test.yaml --output-ts ./debug-output.ts
 ├─ "Permission denied"
 │   → 页面需要登录或特殊权限，添加登录步骤或 cookie 配置
 │
-└─ "javascript" 步骤报错
-    → 检查 JS 代码语法，注意浏览器环境 vs Node 环境的 API 差异
+├─ "javascript" 步骤报错
+│   → 检查 JS 代码语法，注意浏览器环境 vs Node 环境的 API 差异
+│
+├─ "Chrome" / "browser" / "launch failed"
+│   → Chrome 未找到或启动失败。运行 node scripts/health-check.js 检查；安装 Chrome 或设置 PUPPETEER_EXECUTABLE_PATH
+│
+├─ "ERR_INTERNET_DISCONNECTED" / "ECONNRESET"
+│   → 网络断开。检查网络连接和代理配置（MIDSCENE_MODEL_HTTP_PROXY）
+│
+├─ "429" / "rate limit"
+│   → AI API 限流。增加操作间 sleep 间隔，或使用 --retry 配合等待
+│
+└─ "ENOSPC" / "disk full"
+    → 磁盘空间不足。清理报告目录和临时文件（--clean），或扩大磁盘空间
 ```
 
 **迭代修复流程**：
@@ -299,7 +350,9 @@ node scripts/midscene-run.js test.yaml --output-ts ./debug-output.ts
    ```
    [ESCALATE] ./midscene-output/<file>.yaml
    [ERROR_TYPE] element_not_found | assertion | navigation | timeout
+   [ERROR_MSG] <实际错误消息片段>
    [FAILED_STEP] task "<任务名>" → step <N>
+   [REPORT_PATH] ./midscene-report/<report>.html
    [SUGGESTION] 重新设计定位策略 / 调整操作顺序 / 添加中间等待步骤
    ```
    升级场景：定位策略根本性失败、操作顺序设计错误、缺少关键步骤、选错执行模式
@@ -392,6 +445,21 @@ ios:
 # 在 flow 中使用 launch: "com.example.app" 启动应用
 ```
 
+## Native 动作快速参考
+
+调试时可查阅以下合法动作列表：
+
+| 类别 | 动作 |
+|------|------|
+| AI 规划 | `ai`, `aiAct` |
+| 即时动作 | `aiTap`, `aiHover`, `aiInput`, `aiKeyboardPress`, `aiScroll`, `aiDoubleClick`, `aiRightClick`, `aiDragAndDrop`, `aiClearInput`, `aiLongPress` |
+| 数据提取 | `aiQuery`, `aiBoolean`, `aiNumber`, `aiString`, `aiLocate`, `aiAsk` |
+| 断言/等待 | `aiAssert`, `aiWaitFor` |
+| 工具 | `sleep`, `javascript`, `recordToReport`, `freezePageContext`, `unfreezePageContext` |
+| 平台特定 | `runAdbShell`, `runWdaRequest`, `launch`, `AndroidBackButton`, `AndroidHomeButton`, `AndroidRecentAppsButton`, `IOSHomeButton`, `IOSAppSwitcher` |
+
+> 完整参数说明见 Generator Skill 或 `guide/MIDSCENE_YAML_GUIDE.md`
+
 ## 调试技巧
 
 1. **查看报告截图**: 执行后查看 HTML 报告，每一步都有截图
@@ -411,6 +479,13 @@ ios:
 - **timeout 包含浏览器启动时间**：浏览器冷启动可能消耗 10-20 秒，建议 timeout 最少设置 60000ms，避免因启动超时导致误报失败
 - **headless 模式渲染可能与 headed 不同**：部分页面在无头模式下布局或字体渲染不同，可能导致 AI 定位偏差。调试时建议先用 `headless: false` 确认
 - **反爬机制可能阻止 headless Chrome**：某些网站检测到无头浏览器后会返回验证码或空白页面。可尝试设置自定义 `userAgent` 或使用 `headless: false`
+
+## 执行安全
+
+- **报告截图安全**: 执行过程的截图可能包含敏感数据（密码、Token、个人信息）。CI/CD 中应将报告标记为私有 artifact，避免上传到公开存储
+- **API Key 保护**: `MIDSCENE_MODEL_API_KEY` 等密钥应通过 CI secrets 管理，不要硬编码在 YAML 或 `.env` 提交到版本库
+- **日志安全**: `--verbose` 和 `DEBUG=midscene:*` 输出可能包含请求详情，不要在公共日志渠道中输出
+- **临时文件**: `.midscene-tmp/` 中的临时 TypeScript 文件可能包含环境变量引用，执行后建议使用 `--clean` 清理
 
 ## 注意事项
 

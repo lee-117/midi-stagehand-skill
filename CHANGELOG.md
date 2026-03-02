@@ -1,5 +1,67 @@
 # Changelog
 
+## [6.0.0] — 2026-03-02
+
+### Multi-Role Analysis
+- 10-role deep review: Prompt Engineer, Domain Expert, QA Engineer, Integration Tester, Tech Writer, UX Designer, Security Engineer, DevOps/SRE, Schema Analyst, Systems Architect
+- 175 findings deduplicated to 49 actionable items across 7 phases
+
+### Phase 1: Factual Error Fixes (P0)
+- Fixed `aiWaitFor` timeout default: `15000ms` → `30000ms` (2 places in Generator SKILL.md)
+- Fixed `screenshotShrinkFactor` description: `0-1 fraction` → `divisor (1-3, default 1)`
+- Added 6 V5.0 templates to Generator SKILL.md list and decision table
+- Fixed `runWdaRequest` key in `ios-system-buttons.yaml`: `endpoint:` → `url:`
+- Added `null` type to `variables` definition in JSON Schema
+- Marked `aiAction` as deprecated alias in Generator SKILL.md
+
+### Phase 2: API Alignment & Feature Completion (P1)
+- Added `fileChooserAccept` to `aiTap` documentation
+- Added Swipe gesture mapping row to Generator SKILL.md
+- Added `deepLocate` option documentation
+- Expanded platform config descriptions (Android, iOS, Computer)
+- Added `data:`/`file:` import support documentation
+- Added per-intent model separation explanation
+
+### Phase 3: Security Hardening (P1)
+- **Validator**: `javascript:` step suspicious pattern detection (eval, Function, execSync)
+- **Validator**: Dangerous ADB command detection for `runAdbShell` (rm -rf, dd if=, reboot, pm uninstall/clear)
+- **Validator**: Path traversal check on `output.filePath`
+- **Validator**: SSRF internal URL detection for `external_call` (localhost, 127.x, 10.x, 192.168.x, 169.254.169.254)
+- **Validator**: `acceptInsecureCerts: true` security warning
+- **Validator**: Extended variable collection for `aiBoolean`/`aiNumber`/`aiString`/`aiAsk`/`aiLocate` name fields
+- **Validator**: `javascript` step `name`/`output` variable recognition
+- Added "安全注意事项" section to Generator SKILL.md
+- Added "执行安全" section to Runner SKILL.md
+
+### Phase 4: Documentation Structure (P2)
+- Added "职责范围" (responsibility scope) section to both Skills
+- Added `[HELP_NEEDED]` format help request template to Generator SKILL.md
+- Added workflow overview ASCII diagram to Runner SKILL.md
+- Renamed "第0步" to "前置条件" in Runner SKILL.md
+- Enhanced ESCALATE format with `ERROR_MSG` and `REPORT_PATH` fields
+- Added 4 error decision tree branches (Chrome, network, rate limit, disk)
+
+### Phase 5: QA & Robustness (P2)
+- Added anti-pattern #6: unquoted template variables
+- Added semantic protection rule for auto-fix operations
+
+### Phase 6: Best Practices & UX (P3)
+- Added `cacheable` explanation to `aiTap` documentation
+- Upgraded `--dry-run` warning to CRITICAL format in both Skills
+- Added "Native 动作快速参考" table to Runner SKILL.md
+- Added `[RESULT]` format success output template to Runner SKILL.md
+
+### Phase 7: Code & Architecture (P3)
+- **Report parser**: 5 new error classification categories:
+  - `rate_limit` (429, rate limit, too many requests) — recoverable
+  - `browser_crash` (target closed, browser crash, session closed, protocol error) — fatal
+  - `browser_not_found` (chrome not found, browser not found, ENOENT chrome) — fatal
+  - `network_failure` (ERR_INTERNET_DISCONNECTED, ECONNRESET, ECONNREFUSED, ERR_NETWORK_CHANGED) — fatal
+  - `disk_full` (ENOSPC, no space left, disk full) — fatal
+
+### Tests
+- 698 tests (maintained from V5.0.0, all passing with new validator checks backward-compatible)
+
 ## [5.0.0] — 2026-03-02
 
 ### Schema & API Alignment
@@ -50,7 +112,7 @@
 - Fixed `aiAct` → `ai` in `web-file-upload.yaml`
 
 ### Tests
-- 686+ tests (up from 678)
+- 698 tests (up from 678)
 - New tests: pre-parsed object detection, ENV exclusion, aiInput value warning, agent config fields, Chrome memoization
 
 ## [4.0.0] - 2026-03-02
