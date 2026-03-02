@@ -1,6 +1,6 @@
 ---
 name: midscene-yaml-generator
-version: 6.0.0
+version: 0.0.1
 description: >
   Generate Midscene YAML browser automation files from natural language.
   Supports Web, Android, iOS, Computer with Native and Extended modes.

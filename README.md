@@ -113,47 +113,18 @@ npx skills list
 
 当 YAML 包含以下关键字时自动识别为 Extended 模式：`variables`、`logic`、`loop`、`import`、`use`、`data_transform`、`try/catch`、`external_call`、`parallel`。
 
-## V3.0 新特性
+## 功能特性
 
-- **长按操作**: `aiLongPress` 支持 `duration` 参数（毫秒）
-- **系统按钮**: Android (`AndroidBackButton`, `AndroidHomeButton`, `AndroidRecentAppsButton`) 和 iOS (`IOSHomeButton`, `IOSAppSwitcher`)
-- **Android 高级配置**: `keyboardDismissStrategy` (`esc-first`|`back-first`)、`imeStrategy` (`always-yadb`|`yadb-for-non-ascii`)、`scrcpyConfig` 对象
-- **Computer 配置**: `xvfbResolution`（格式 `WIDTHxHEIGHTxDEPTH`）
-- **Agent 配置**: `modelConfig` 对象、`outputFormat` (`single-html`|`html-and-external-assets`)
-- **CLI 改进**: 失败任务详情和错误分类默认显示（不再需要 `--verbose`）
-- **安全性增强**: 全面使用 `execFileSync` 替代 `execSync`，防止命令注入
-
-### V4.0 新特性
-
-- `aiAction` 别名支持（与 `ai`/`aiAct` 等价）
-- `imeStrategy` 新增 `yadb-for-non-ascii` 枚举值（官方 API 默认值）
-- `computer.headless` 无头模式支持
-- `domIncluded: 'visible-only'` 三值选项
-- 官方 CLI 完整选项文档（`--share-browser-context`、`--concurrent` 等）
-- `MIDSCENE_RUN_DIR`、`DEBUG=midscene:*` 等环境变量文档
-- `importDirective` JSON Schema 修复
-- `sleep` 支持模板变量
-- `--output-ts` 路径验证（需 `.ts` 扩展名）
-- `setup.js` 消除代码重复，统一使用 `execFileSync`
-- 报告解析器支持递归子目录
-- `MAX_WALK_DEPTH` 常量集中管理
-- Guide 全文 `steps:` → `flow:` 统一
-- 678 个单元测试（+15）
-
-### V5.0 新特性
-
-- 官方 API 全面对齐、SKILL.md 多角色重构、6 个新模板、代码优化（YAML 单次解析、Chrome 缓存）、698 个测试
-
-### V6.0 新特性
-
-- **10 角色深度审查**: Prompt Engineer、Domain Expert、QA、Tech Writer、Security、DevOps/SRE、Schema Analyst、Systems Architect 等 10 个角色联合分析
-- **事实性错误修正**: `aiWaitFor` timeout 默认值、`screenshotShrinkFactor` 值域、`runWdaRequest` key 修正
-- **API 功能补全**: `fileChooserAccept`、Swipe 手势、`deepLocate`、`data:`/`file:` 导入支持
-- **安全加固**: JavaScript 注入检测、危险 ADB 命令检测、SSRF 内网地址检测、`acceptInsecureCerts` 警告、输出路径遍历检查
-- **文档结构优化**: 职责范围定义、帮助请求模板、工作流总览图、错误决策树
-- **QA 鲁棒性增强**: AI 动作变量收集（`aiBoolean`/`aiNumber`/`aiString`/`aiAsk`/`aiLocate`）、`javascript` 步骤变量识别
-- **错误分类扩展**: 新增 `rate_limit`、`browser_crash`、`browser_not_found`、`network_failure`、`disk_full` 5 个分类
-- **变量 schema**: 支持 `null` 类型初始值
+- **双模式引擎**: Native（YAML 直接执行）和 Extended（转译为 TypeScript 执行），自动检测模式
+- **四大平台**: Web、Android、iOS、Computer，完整平台配置验证
+- **4 层 YAML 验证**: 语法 → 结构 → 模式 → 语义，含安全检测（JS 注入 / SSRF / 路径遍历）
+- **31 个内置模板**: 19 Native + 12 Extended，覆盖常见自动化场景
+- **完整 AI 动作**: `aiTap`、`aiInput`、`aiScroll`、`aiLongPress`、`aiDragAndDrop`、`aiAssert`、`aiWaitFor` 等
+- **系统按钮**: Android（Back / Home / RecentApps）和 iOS（Home / AppSwitcher）
+- **Agent 配置**: `modelConfig`、`outputFormat`、`cache` 策略等 15 个字段
+- **CLI 工具**: `--dry-run`、`--retry`、`--clean`、`--output-ts`、glob 批量执行、13 类错误分类
+- **安全设计**: `execFileSync` 防命令注入、`crypto.randomUUID()` 临时文件、输入验证
+- **698 个单元测试**: 覆盖 detector / validator / transpiler / CLI / runner / report-parser 等全链路
 
 ## 模型配置
 

@@ -113,47 +113,18 @@ Report: midscene-report/ (HTML + JSON)
 
 Extended mode is auto-detected when YAML contains: `variables`, `logic`, `loop`, `import`, `use`, `data_transform`, `try/catch`, `external_call`, or `parallel`.
 
-## V3.0 Highlights
+## Features
 
-- **Long press**: `aiLongPress` with optional `duration` parameter (milliseconds)
-- **System buttons**: Android (`AndroidBackButton`, `AndroidHomeButton`, `AndroidRecentAppsButton`) and iOS (`IOSHomeButton`, `IOSAppSwitcher`)
-- **Android advanced config**: `keyboardDismissStrategy` (`esc-first`|`back-first`), `imeStrategy` (`always-yadb`|`yadb-for-non-ascii`), `scrcpyConfig` object
-- **Computer config**: `xvfbResolution` (format `WIDTHxHEIGHTxDEPTH`)
-- **Agent config**: `modelConfig` object, `outputFormat` (`single-html`|`html-and-external-assets`)
-- **CLI improvements**: Failed task details and error classification displayed by default (no longer requires `--verbose`)
-- **Security hardening**: Replaced all `execSync` with `execFileSync` to prevent command injection
-
-### V4.0 Highlights
-
-- `aiAction` alias support (equivalent to `ai`/`aiAct`)
-- `imeStrategy` adds `yadb-for-non-ascii` enum value (official API default)
-- `computer.headless` headless mode support
-- `domIncluded: 'visible-only'` three-value option
-- Full official CLI options documented (`--share-browser-context`, `--concurrent`, etc.)
-- Environment variable docs (`MIDSCENE_RUN_DIR`, `DEBUG=midscene:*`, etc.)
-- `importDirective` JSON Schema fix
-- `sleep` accepts template variable strings
-- `--output-ts` path validation (`.ts` extension required)
-- `setup.js` deduplication using `execFileSync` uniformly
-- Report parser reads subdirectories recursively
-- `MAX_WALK_DEPTH` constant centralized in constants.js
-- Guide unified `steps:` → `flow:` throughout
-- 678 unit tests (+15)
-
-### V5.0 Highlights
-
-- Full official API alignment, SKILL.md multi-persona refactor, 6 new templates, code optimization (single YAML parse, Chrome caching), 698 tests
-
-### V6.0 Highlights
-
-- **10-role deep review**: Prompt Engineer, Domain Expert, QA, Tech Writer, Security, DevOps/SRE, Schema Analyst, Systems Architect and more
-- **Factual error fixes**: `aiWaitFor` timeout default, `screenshotShrinkFactor` range, `runWdaRequest` key correction
-- **API feature completion**: `fileChooserAccept`, Swipe gestures, `deepLocate`, `data:`/`file:` import support
-- **Security hardening**: JavaScript injection detection, dangerous ADB command detection, SSRF internal URL detection, `acceptInsecureCerts` warning, output path traversal check
-- **Documentation restructure**: responsibility scope definition, help request template, workflow overview diagram, error decision tree
-- **QA robustness**: AI action variable collection (`aiBoolean`/`aiNumber`/`aiString`/`aiAsk`/`aiLocate`), `javascript` step variable recognition
-- **Error classification expansion**: 5 new categories — `rate_limit`, `browser_crash`, `browser_not_found`, `network_failure`, `disk_full`
-- **Variables schema**: supports `null` type initial values
+- **Dual-mode engine**: Native (YAML direct execution) and Extended (transpile to TypeScript), auto-detected
+- **Four platforms**: Web, Android, iOS, Computer with full platform config validation
+- **4-layer YAML validation**: syntax → structure → schema → semantic, with security checks (JS injection / SSRF / path traversal)
+- **31 built-in templates**: 19 Native + 12 Extended, covering common automation scenarios
+- **Full AI actions**: `aiTap`, `aiInput`, `aiScroll`, `aiLongPress`, `aiDragAndDrop`, `aiAssert`, `aiWaitFor`, etc.
+- **System buttons**: Android (Back / Home / RecentApps) and iOS (Home / AppSwitcher)
+- **Agent config**: `modelConfig`, `outputFormat`, `cache` strategy, and 15 fields total
+- **CLI tooling**: `--dry-run`, `--retry`, `--clean`, `--output-ts`, glob batch execution, 13-category error classification
+- **Security by design**: `execFileSync` prevents command injection, `crypto.randomUUID()` for temp files, input validation
+- **698 unit tests**: covering detector / validator / transpiler / CLI / runner / report-parser and more
 
 ## Model Configuration
 

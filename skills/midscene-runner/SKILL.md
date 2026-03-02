@@ -1,6 +1,6 @@
 ---
 name: midscene-runner
-version: 6.0.0
+version: 0.0.1
 description: >
   Execute, validate, and debug Midscene YAML automation files.
   Handles dry-run, execution, report analysis, and iterative debugging.
