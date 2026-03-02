@@ -194,8 +194,9 @@ function parse(reportDir) {
     return { found: false, message: `Report directory not found: ${resolvedDir}` };
   }
 
-  // Find report files (Midscene generates JSON reports)
-  const files = fs.readdirSync(resolvedDir)
+  // Find report files (Midscene generates JSON reports).
+  // { recursive: true } (Node 18.17+) returns relative paths including subdirectories.
+  const files = fs.readdirSync(resolvedDir, { recursive: true })
     .filter(f => f.endsWith('.json') || f.endsWith('.html'))
     .map(f => path.join(resolvedDir, f));
 
@@ -216,7 +217,7 @@ function parse(reportDir) {
         const content = JSON.parse(fs.readFileSync(file, 'utf-8'));
         const details = extractSummary(content);
         reports.push({
-          file: path.basename(file),
+          file: path.relative(resolvedDir, file),
           type: 'json',
           details,
         });
@@ -227,10 +228,10 @@ function parse(reportDir) {
         Object.assign(allAiQueryResults, details.aiQueryResults);
         totalDuration += details.totalDuration;
       } catch (parseErr) {
-        reports.push({ file: path.basename(file), type: 'json', error: 'Parse error: ' + (parseErr.message || 'unknown') });
+        reports.push({ file: path.relative(resolvedDir, file), type: 'json', error: 'Parse error: ' + (parseErr.message || 'unknown') });
       }
     } else {
-      reports.push({ file: path.basename(file), type: 'html' });
+      reports.push({ file: path.relative(resolvedDir, file), type: 'html' });
       htmlReports.push(file);
     }
   }

@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node >= 22](https://img.shields.io/badge/Node-%3E%3D22-green.svg)](https://nodejs.org/)
-[![Tests: 663](https://img.shields.io/badge/Tests-663-brightgreen.svg)](#开发)
+[![Tests: 678](https://img.shields.io/badge/Tests-678-brightgreen.svg)](#开发)
 [![Skills: 2](https://img.shields.io/badge/Claude%20Code%20Skills-2-purple.svg)](#安装-skills)
 
 > 基于自然语言的 AI 低代码浏览器自动化框架。
@@ -123,6 +123,23 @@ npx skills list
 - **CLI 改进**: 失败任务详情和错误分类默认显示（不再需要 `--verbose`）
 - **安全性增强**: 全面使用 `execFileSync` 替代 `execSync`，防止命令注入
 
+### V4.0 新特性
+
+- `aiAction` 别名支持（与 `ai`/`aiAct` 等价）
+- `imeStrategy` 新增 `yadb-for-non-ascii` 枚举值（官方 API 默认值）
+- `computer.headless` 无头模式支持
+- `domIncluded: 'visible-only'` 三值选项
+- 官方 CLI 完整选项文档（`--share-browser-context`、`--concurrent` 等）
+- `MIDSCENE_RUN_DIR`、`DEBUG=midscene:*` 等环境变量文档
+- `importDirective` JSON Schema 修复
+- `sleep` 支持模板变量
+- `--output-ts` 路径验证（需 `.ts` 扩展名）
+- `setup.js` 消除代码重复，统一使用 `execFileSync`
+- 报告解析器支持递归子目录
+- `MAX_WALK_DEPTH` 常量集中管理
+- Guide 全文 `steps:` → `flow:` 统一
+- 678 个单元测试（+15）
+
 ## 模型配置
 
 Midscene 的 AI 操作需要视觉语言模型支持。执行前请设置以下环境变量：
@@ -186,7 +203,7 @@ node scripts/midscene-run.js "tests/**/*.yaml"
 
 ```bash
 npm install          # 安装依赖
-npm test             # 运行 663 个测试
+npm test             # 运行 678 个测试
 npm run test:coverage # 测试 + 覆盖率报告
 npm run lint         # ESLint 检查
 ```

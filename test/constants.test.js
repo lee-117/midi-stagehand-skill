@@ -42,6 +42,11 @@ describe('Shared Constants', () => {
     assert.equal(constants.MAX_ERROR_MESSAGE_LENGTH, 500);
   });
 
+  it('exports MAX_WALK_DEPTH', () => {
+    assert.strictEqual(typeof constants.MAX_WALK_DEPTH, 'number');
+    assert.strictEqual(constants.MAX_WALK_DEPTH, 50);
+  });
+
   it('all constants are non-null values', () => {
     for (const [key, value] of Object.entries(constants)) {
       assert.ok(value !== null && value !== undefined, `${key} should be defined`);

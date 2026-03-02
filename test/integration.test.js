@@ -104,14 +104,15 @@ describe('Integration: Extended Pipeline', () => {
 describe('Integration: Template Files', () => {
   const fs = require('fs');
   const templatesDir = path.join(__dirname, '..', 'templates');
+  const nativeTemplateDir = path.join(templatesDir, 'native');
+  const extendedTemplateDir = path.join(templatesDir, 'extended');
 
   it('all native templates pass validation', () => {
-    const nativeDir = path.join(templatesDir, 'native');
-    const files = fs.readdirSync(nativeDir).filter(f => f.endsWith('.yaml'));
+    const files = fs.readdirSync(nativeTemplateDir).filter(f => f.endsWith('.yaml'));
     assert.ok(files.length >= 10, 'Should have at least 10 native templates');
 
     for (const file of files) {
-      const filePath = path.join(nativeDir, file);
+      const filePath = path.join(nativeTemplateDir, file);
       const detection = detect(filePath);
       assert.equal(detection.mode, 'native', `${file} should be native`);
 
@@ -122,12 +123,11 @@ describe('Integration: Template Files', () => {
   });
 
   it('all extended templates pass validation and transpile', () => {
-    const extDir = path.join(templatesDir, 'extended');
-    const files = fs.readdirSync(extDir).filter(f => f.endsWith('.yaml'));
+    const files = fs.readdirSync(extendedTemplateDir).filter(f => f.endsWith('.yaml'));
     assert.ok(files.length >= 10, 'Should have at least 10 extended templates');
 
     for (const file of files) {
-      const filePath = path.join(extDir, file);
+      const filePath = path.join(extendedTemplateDir, file);
       const detection = detect(filePath);
       assert.equal(detection.mode, 'extended', `${file} should be extended`);
 
@@ -139,5 +139,15 @@ describe('Integration: Template Files', () => {
       assert.ok(transpileResult.code,
         `Template ${file} should transpile: ${transpileResult.error || 'no code'}`);
     }
+  });
+
+  it('has exactly 15 native templates', () => {
+    const files = fs.readdirSync(nativeTemplateDir).filter(f => f.endsWith('.yaml'));
+    assert.strictEqual(files.length, 15);
+  });
+
+  it('has exactly 10 extended templates', () => {
+    const files = fs.readdirSync(extendedTemplateDir).filter(f => f.endsWith('.yaml'));
+    assert.strictEqual(files.length, 10);
   });
 });

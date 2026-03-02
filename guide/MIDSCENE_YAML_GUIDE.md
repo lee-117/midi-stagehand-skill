@@ -1,6 +1,6 @@
 # Midscene YAML 超集 — 渐进式指导手册
 
-> **版本**: 3.0.0
+> **版本**: 4.0.0
 > **适用范围**: Midscene YAML Native 模式 & Extended 超集模式
 > **阅读建议**: 按 L1 → L5 依次阅读，每一级都建立在前一级的基础上。
 
@@ -446,7 +446,7 @@ iOS 平台专用的系统级按钮操作。
 - aiClearInput: "搜索框"
 ```
 
-#### 11. `aiAsk` — AI 自由问答
+#### 14. `aiAsk` — AI 自由问答
 
 向 AI 提出关于当前页面的问题，返回文本答案。
 
@@ -572,7 +572,7 @@ iOS 平台专用的系统级按钮操作。
 | `replace` | 先清除再输入（默认） |
 | `clear` | 仅清除输入框内容 |
 | `typeOnly` | 直接输入，不清除已有内容 |
-| `append` | 在已有内容后追加输入 |
+| `append` | 在已有内容后追加输入（非官方扩展，慎用） |
 
 ### `images` 选项 — 图片辅助定位
 
@@ -650,6 +650,25 @@ tasks:
 ```
 
 `name` 的作用是将提取的结果保存为一个命名变量，在报告中可以看到该变量的值，在 Extended 模式下还可以在后续步骤中引用。
+
+#### `domIncluded` — 控制上下文来源
+
+`domIncluded` 选项控制 AI 提取数据时所参考的页面上下文：
+
+| 值 | 行为 |
+|---|---|
+| `true` | 截图 + DOM 结构（默认，提取最完整） |
+| `false` | 仅截图，不提取 DOM |
+| `'visible-only'` | 截图 + 仅可见 DOM 元素（过滤隐藏元素，适合复杂页面） |
+
+```yaml
+- aiQuery:
+    query: "提取所有可见商品的名称和价格"
+    name: "visibleProducts"
+    domIncluded: "visible-only"   # 只参考可见 DOM，忽略隐藏元素
+```
+
+> **使用场景**: 当页面有大量隐藏或懒加载的 DOM 节点时，`'visible-only'` 可减少 AI 处理的噪声，提升提取准确率和速度。
 
 ### 类型化数据提取
 
@@ -1107,7 +1126,7 @@ flow:
     type: repeat
     count: 5
     indexVar: "pageIdx"    # 可选，自定义索引变量名（默认 "i"）
-    steps:
+    flow:
       - aiTap: "下一页"
       - aiWaitFor: "新的内容加载完成"
       - aiQuery:
@@ -1134,7 +1153,7 @@ tasks:
           type: for
           items: "${cities}"
           itemVar: "city"
-          steps:
+          flow:
             - aiInput: "城市搜索框"
               value: "${city}"
             - aiTap: "搜索"
@@ -1151,7 +1170,7 @@ tasks:
     type: while
     condition: "页面底部显示了'加载更多'按钮"
     maxIterations: 20
-    steps:
+    flow:
       - aiTap: "加载更多"
       - aiWaitFor: "新内容加载完成"
 ```
@@ -1201,7 +1220,7 @@ tasks:
           type: while
           condition: "页面上有数据表格且显示了数据行"
           maxIterations: 10
-          steps:
+          flow:
             - aiQuery:
                 query: >
                   提取当前页面数据表格中的所有行，
@@ -1302,7 +1321,7 @@ tasks:
           type: for
           items: "${products}"
           itemVar: "product"
-          steps:
+          flow:
             - aiInput: "搜索框"
               value: "${product.name}"
             - aiTap: "搜索"
@@ -1420,20 +1439,20 @@ tasks:
   - name: 带异常处理的数据采集
     flow:
       - try:
-          steps:
+          flow:
             - aiTap: "导出数据 按钮"
             - aiWaitFor:
                 condition: "下载提示出现或导出成功消息"
                 timeout: 30000
 
         catch:
-          steps:
+          flow:
             - aiKeyboardPress: "Escape"
             - aiTap: "手动导出 备选按钮"
             - aiWaitFor: "导出完成"
 
         finally:
-          steps:
+          flow:
             - aiQuery:
                 query: "页面是否显示了任何错误信息？"
                 name: "errorCheck"
@@ -1457,7 +1476,7 @@ tasks:
 # 自定义 catch 错误变量名
 catch:
   error: err   # 或 as: err ；默认为 e
-  steps:
+  flow:
     - aiTap: "关闭对话框"
 ```
 
@@ -1517,13 +1536,13 @@ tasks:
   - name: 登录系统
     flow:
       - try:
-          steps:
+          flow:
             - use: "${loginFlow}"
               with:
                 username: "${ENV:SITE_USER}"
                 password: "${ENV:SITE_PASS}"
         catch:
-          steps:
+          flow:
             - aiAssert: "登录失败，流程终止"
 
   # ========== 阶段 2: 按分类并行采集 ==========
@@ -1532,13 +1551,13 @@ tasks:
       - parallel:
           branches:
             - name: "科技分类"
-              steps:
+              flow:
                 - aiTap: "科技 分类标签"
                 - aiWaitFor: "科技分类文章列表加载完成"
                 - loop:
                     type: repeat
                     count: "${maxPages}"
-                    steps:
+                    flow:
                       - aiQuery:
                           query: >
                             提取当前页面所有文章的标题(title)、
@@ -1552,13 +1571,13 @@ tasks:
                             - aiWaitFor: "新页面加载完成"
 
             - name: "财经分类"
-              steps:
+              flow:
                 - aiTap: "财经 分类标签"
                 - aiWaitFor: "财经分类文章列表加载完成"
                 - loop:
                     type: repeat
                     count: "${maxPages}"
-                    steps:
+                    flow:
                       - aiQuery:
                           query: >
                             提取当前页面所有文章的标题(title)、
@@ -1601,7 +1620,7 @@ tasks:
   - name: 上报数据到后端
     flow:
       - try:
-          steps:
+          flow:
             - external_call:
                 type: http
                 method: POST
@@ -1631,13 +1650,13 @@ tasks:
                         error: "${uploadResult}"
 
         catch:
-          steps:
+          flow:
             - external_call:
                 type: shell
                 command: "echo '数据上报异常，请检查 API 服务' >> ./logs/error.log"
 
         finally:
-          steps:
+          flow:
             - external_call:
                 type: shell
                 command: "echo '流程执行完毕' >> ./logs/pipeline.log"
@@ -1812,6 +1831,7 @@ Computer 平台用于自动化桌面应用（非浏览器），支持键盘、�
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `displayId` | number/string | 目标显示器 ID（多屏幕环境） |
+| `headless` | boolean | 无头模式，不显示 GUI（CI 环境推荐） |
 | `launch` | string | 启动的应用路径 |
 | `output` | string | JSON 输出文件路径 |
 
@@ -2142,23 +2162,23 @@ variables:
 
 ### Q9: `steps` 和 `flow` 有什么区别？
 
-**A**: 在 `loop`、`try`、`catch`、`finally` 内部，`steps` 和 `flow` 是完全等价的别名，可以互换使用。本手册中统一使用 `steps`，但写成 `flow` 也能正常验证和执行。
+**A**: 在 `loop`、`try`、`catch`、`finally` 内部，`steps` 和 `flow` 是完全等价的别名，可以互换使用。本手册中统一使用 `flow`，但写成 `steps` 也能正常验证和执行。
 
 ```yaml
 # 以下两种写法等价：
 
-# 写法 1: 使用 steps
-- loop:
-    type: repeat
-    count: 3
-    steps:
-      - aiTap: "下一页"
-
-# 写法 2: 使用 flow
+# 写法 1: 使用 flow（推荐，本手册统一写法）
 - loop:
     type: repeat
     count: 3
     flow:
+      - aiTap: "下一页"
+
+# 写法 2: 使用 steps（也支持）
+- loop:
+    type: repeat
+    count: 3
+    steps:
       - aiTap: "下一页"
 ```
 
@@ -2316,7 +2336,7 @@ tasks:
           type: for
           items: "${items}"
           itemVar: "item"
-          steps:
+          flow:
             - aiInput: "搜索框"
               value: "${item}"
             - aiTap: "搜索"
@@ -2470,7 +2490,7 @@ tasks:
     type: while
     condition: "页面底部显示了'加载更多'或还有新内容正在加载"
     maxIterations: 50
-    steps:
+    flow:
       - aiQuery:
           query: "当前可见的所有商品名称和价格"
           name: "pageItems"
@@ -2585,7 +2605,7 @@ tasks:
           type: for
           items: "${testCases}"
           itemVar: "tc"
-          steps:
+          flow:
             - aiInput: "搜索框"
               value: "${tc.keyword}"
             - aiTap: "搜索按钮"
@@ -2606,15 +2626,15 @@ tasks:
       - loop:
           type: repeat
           count: 3
-          steps:
+          flow:
             - try:
-                steps:
+                flow:
                   - aiTap: "提交订单按钮"
                   - aiWaitFor:
                       condition: "订单提交成功提示出现"
                       timeout: 10000
               catch:
-                steps:
+                flow:
                   - sleep: 2000
                   - aiTap: "关闭错误弹窗"
 ```
@@ -2646,6 +2666,40 @@ tasks:
         with:
           keyword: "Midscene 自动化"
 ```
+
+### Recipe 11: CI 环境配置
+
+```yaml
+engine: native
+
+web:
+  url: "${ENV:TEST_URL}"
+  headless: true
+  viewportWidth: 1280
+  viewportHeight: 960
+  deviceScaleFactor: 0
+
+agent:
+  generateReport: true
+  outputFormat: "html-and-external-assets"
+  cache:
+    strategy: "read-write"
+    id: "ci-cache"
+
+tasks:
+  - name: "CI 冒烟测试"
+    flow:
+      - aiWaitFor: "页面加载完成"
+        timeout: 30000
+      - aiAssert: "核心功能正常"
+      - aiQuery:
+          query: "提取页面标题和版本号"
+          name: "pageInfo"
+      - recordToReport: "CI 冒烟测试结果"
+        content: "测试通过"
+```
+
+**要点**: `headless: true` 适合无头 CI 环境；`deviceScaleFactor: 0` 防闪烁；`MIDSCENE_RUN_DIR` 环境变量可指定产物目录。
 
 ---
 

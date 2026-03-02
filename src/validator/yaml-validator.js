@@ -63,7 +63,7 @@ const VALID_IOS_CONFIG_FIELDS = new Set([
 
 // Valid computer platform config sub-fields.
 const VALID_COMPUTER_CONFIG_FIELDS = new Set([
-  'displayId', 'launch', 'output', 'xvfbResolution',
+  'displayId', 'launch', 'output', 'xvfbResolution', 'headless',
 ]);
 
 // Valid agent config sub-fields.
@@ -88,7 +88,7 @@ const VALID_OUTPUT_FORMATS = new Set(['single-html', 'html-and-external-assets']
 const VALID_KEYBOARD_DISMISS_STRATEGIES = new Set(['esc-first', 'back-first']);
 
 // Valid Android imeStrategy values.
-const VALID_IME_STRATEGIES = new Set(['adbBroadcast', 'adbInput']);
+const VALID_IME_STRATEGIES = new Set(['adbBroadcast', 'adbInput', 'yadb-for-non-ascii']);
 
 // Valid scrcpyConfig sub-fields.
 const VALID_SCRCPY_CONFIG_FIELDS = new Set(['enabled', 'maxSize', 'videoBitRate', 'idleTimeoutMs']);

@@ -9,6 +9,7 @@
  */
 
 const path = require('path');
+const { MAX_WALK_DEPTH } = require('../constants');
 
 // ---------------------------------------------------------------------------
 // File-path detection
@@ -72,13 +73,6 @@ function getLoopItemVar(loop) {
 // ---------------------------------------------------------------------------
 // Generic recursive flow walker
 // ---------------------------------------------------------------------------
-
-/**
- * Maximum recursion depth for walkFlow to prevent stack overflow on
- * pathologically nested structures (e.g. circular references or
- * extremely deep nesting).
- */
-const MAX_WALK_DEPTH = 50;
 
 /**
  * Recursively walk a flow array, calling `visitor(step, path)` on every

@@ -19,6 +19,7 @@ const { execSync, execFileSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const { findSystemChrome: findSystemChromeCore } = require('../src/runner/runner-utils');
 
 // ─── Configuration ──────────────────────────────────────────────────────────
 
@@ -105,11 +106,14 @@ function detectBestRegistry() {
 function pingRegistry(url) {
   try {
     const start = Date.now();
-    // Use npm ping or a lightweight HTTP check
-    execSync(
-      'node -e "const h=require(\'https\');const r=h.get(\'' + url + '/-/ping\',{timeout:' + PING_TIMEOUT_MS + '},res=>{process.exit(res.statusCode<400?0:1)});r.on(\'error\',()=>process.exit(1));r.on(\'timeout\',()=>{r.destroy();process.exit(1)})"',
-      { stdio: 'pipe', timeout: PING_TIMEOUT_MS + 2000 }
-    );
+    // Use a lightweight inline Node.js HTTP check — execFileSync avoids shell quoting issues
+    const script =
+      "const h=require('https');" +
+      "const r=h.get('" + url + "/-/ping',{timeout:" + PING_TIMEOUT_MS + "}," +
+      "res=>{process.exit(res.statusCode<400?0:1)});" +
+      "r.on('error',()=>process.exit(1));" +
+      "r.on('timeout',()=>{r.destroy();process.exit(1)})";
+    execFileSync('node', ['-e', script], { stdio: 'pipe', timeout: PING_TIMEOUT_MS + 2000 });
     return Date.now() - start;
   } catch {
     return null;
@@ -188,43 +192,18 @@ function warmNpxCache(registry) {
 
 // ─── Step 4: Detect / download Chrome ───────────────────────────────────────
 
+/**
+ * Find system Chrome/Chromium.
+ * Delegates to the shared runner-utils implementation first, then falls back
+ * to command-name probing via commandExists for non-standard Linux installs
+ * (e.g. chromium / chromium-browser on PATH without a known fixed path).
+ */
 function findSystemChrome() {
-  const candidates = [];
+  // Primary detection: path-based + `which google-chrome` (via runner-utils)
+  const found = findSystemChromeCore();
+  if (found) return found;
 
-  if (isWindows) {
-    const programFiles = [
-      process.env['PROGRAMFILES'],
-      process.env['PROGRAMFILES(X86)'],
-      process.env['LOCALAPPDATA']
-    ].filter(Boolean);
-
-    for (const base of programFiles) {
-      candidates.push(path.join(base, 'Google', 'Chrome', 'Application', 'chrome.exe'));
-      candidates.push(path.join(base, 'Chromium', 'Application', 'chrome.exe'));
-    }
-    // Edge as fallback (Chromium-based)
-    for (const base of programFiles) {
-      candidates.push(path.join(base, 'Microsoft', 'Edge', 'Application', 'msedge.exe'));
-    }
-  } else if (os.platform() === 'darwin') {
-    candidates.push('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome');
-    candidates.push('/Applications/Chromium.app/Contents/MacOS/Chromium');
-  } else {
-    // Linux
-    candidates.push('/usr/bin/google-chrome');
-    candidates.push('/usr/bin/google-chrome-stable');
-    candidates.push('/usr/bin/chromium');
-    candidates.push('/usr/bin/chromium-browser');
-    candidates.push('/snap/bin/chromium');
-  }
-
-  for (const p of candidates) {
-    if (fs.existsSync(p)) {
-      return p;
-    }
-  }
-
-  // Try command-based detection
+  // Extra fallback: command-name probing for non-standard PATH installs
   if (commandExists('google-chrome')) return 'google-chrome';
   if (commandExists('chromium')) return 'chromium';
   if (commandExists('chromium-browser')) return 'chromium-browser';

@@ -1,5 +1,55 @@
 # Changelog
 
+## [4.0.0] - 2026-03-02
+
+### Schema & API Alignment
+- Added `aiAction` alias to native-keywords.json (official API parity)
+- Added `yadb-for-non-ascii` to `imeStrategy` enum (official API default)
+- Fixed `importDirective` JSON Schema structure (flow/data/file keys)
+- Fixed duplicate `unstableLogContent` in webPlatform schema
+- Extended `sleep` schema to accept template variable strings
+- Added `computer.headless` to schema and validator
+- Added `aiActionAction` flow step type to JSON Schema
+
+### Generator SKILL.md
+- Fixed CRITICAL `then:` format in Extended golden path (bare array, not flow wrapper)
+- Added 3 missing V3.0.0 templates to template list and decision table
+- Unified `steps:` → `flow:` in all examples
+- Added `aiAction` alias, `prompt:` field docs, best practices section
+- Removed non-official `append` mode from aiInput
+- Added `domIncluded: 'visible-only'`, `MIDSCENE_RUN_DIR`, model prefixes
+
+### Runner SKILL.md
+- Fixed `--verbose` description (error classification shown by default)
+- Added `--version`/`-V` to options list
+- Added official Midscene CLI complete flags reference
+- Added advanced env vars (MIDSCENE_RUN_DIR, DEBUG, model prefixes)
+- Added Node >= 22 batch execution note
+
+### Code Quality
+- Deduplicated `findSystemChrome()` in setup.js (imports from runner-utils)
+- Replaced `execSync` with `execFileSync` in setup.js pingRegistry
+- Centralized `MAX_WALK_DEPTH` in constants.js
+- Report parser now reads subdirectories recursively
+- Added `--output-ts` path validation (.ts extension required)
+
+### Guide
+- Fixed L2 action numbering (sequential 1-14)
+- Added `domIncluded: 'visible-only'` documentation
+- Added `computer.headless` to platform config
+- Marked `append` mode as non-official
+- Added Recipe 11: CI environment configuration
+- Unified `steps:` → `flow:` throughout (13 locations)
+
+### Tests
+- 678 tests (was 663, +15 new)
+- Template exact count assertions (15 native, 10 extended)
+- flow/steps alias matrix tests (7 tests)
+- imeStrategy yadb-for-non-ascii validation tests
+- aiAction keyword detection tests
+- --output-ts extension validation test
+- MAX_WALK_DEPTH constant export test
+
 ## [3.0.0] - 2026-03-02
 
 ### Added

@@ -95,12 +95,6 @@
           ]
         },
         "closeNewTabsAfterDisconnect": { "type": "boolean" },
-        "unstableLogContent": {
-          "oneOf": [
-            { "type": "boolean" },
-            { "type": "string" }
-          ]
-        },
         "outputFormat": {
           "type": "string",
           "enum": ["single-html", "html-and-external-assets"],
@@ -125,8 +119,8 @@
         },
         "imeStrategy": {
           "type": "string",
-          "enum": ["adbBroadcast", "adbInput"],
-          "description": "Input method strategy for text input"
+          "enum": ["adbBroadcast", "adbInput", "yadb-for-non-ascii"],
+          "description": "Input method strategy for text input (default: yadb-for-non-ascii)"
         },
         "scrcpyConfig": {
           "type": "object",
@@ -188,6 +182,7 @@
             { "type": "string" }
           ]
         },
+        "headless": { "type": "boolean", "description": "Enable headless mode via Xvfb on Linux" },
         "output": { "type": "string", "description": "JSON output file path" },
         "xvfbResolution": { "type": "string", "pattern": "^\\d+x\\d+x\\d+$", "description": "Xvfb virtual display resolution (e.g. '1920x1080x24')" }
       },
@@ -266,6 +261,7 @@
       "oneOf": [
         { "$ref": "#/definitions/aiAction" },
         { "$ref": "#/definitions/aiActAction" },
+        { "$ref": "#/definitions/aiActionAction" },
         { "$ref": "#/definitions/aiTapAction" },
         { "$ref": "#/definitions/aiHoverAction" },
         { "$ref": "#/definitions/aiDoubleClickAction" },
@@ -325,6 +321,18 @@
       "required": ["aiAct"],
       "properties": {
         "aiAct": { "type": "string", "description": "Natural language action instruction" },
+        "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
+        "cacheable": { "type": "boolean" },
+        "fileChooserAccept": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }], "description": "File path(s) for file chooser dialog" },
+        "timeout": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "aiActionAction": {
+      "type": "object",
+      "required": ["aiAction"],
+      "properties": {
+        "aiAction": { "type": "string", "description": "Natural language action instruction (alias for aiAct)" },
         "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
         "cacheable": { "type": "boolean" },
         "fileChooserAccept": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }], "description": "File path(s) for file chooser dialog" },
@@ -770,7 +778,13 @@
       "type": "object",
       "required": ["sleep"],
       "properties": {
-        "sleep": { "type": "integer", "minimum": 0, "description": "Duration to sleep in milliseconds" }
+        "sleep": {
+          "oneOf": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "string", "pattern": "^\\$\\{.+\\}$" }
+          ],
+          "description": "Duration to sleep in milliseconds (integer or template variable)"
+        }
       },
       "additionalProperties": false
     },
@@ -999,16 +1013,22 @@
     },
     "importDirective": {
       "type": "object",
-      "required": ["import"],
       "properties": {
-        "import": { "type": "string", "description": "Path to the YAML file to import" },
+        "flow": { "type": "string", "description": "Path to the YAML sub-flow file to import" },
+        "data": { "type": "string", "description": "Path to the JSON data file to import" },
+        "file": { "type": "string", "description": "Path to the file to import (generic)" },
+        "as": { "type": "string", "description": "Alias for the imported module" },
         "with": {
           "type": "object",
           "description": "Parameters to pass to the imported file",
           "additionalProperties": true
-        },
-        "as": { "type": "string", "description": "Alias for the imported module" }
+        }
       },
+      "oneOf": [
+        { "required": ["flow", "as"] },
+        { "required": ["data", "as"] },
+        { "required": ["file", "as"] }
+      ],
       "additionalProperties": false
     },
     "importStep": {

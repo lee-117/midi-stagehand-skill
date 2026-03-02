@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node >= 22](https://img.shields.io/badge/Node-%3E%3D22-green.svg)](https://nodejs.org/)
-[![Tests: 663](https://img.shields.io/badge/Tests-663-brightgreen.svg)](#development)
+[![Tests: 678](https://img.shields.io/badge/Tests-678-brightgreen.svg)](#development)
 [![Skills: 2](https://img.shields.io/badge/Claude%20Code%20Skills-2-purple.svg)](#install-as-skills)
 
 > AI-powered low-code browser automation via natural language.
@@ -123,6 +123,23 @@ Extended mode is auto-detected when YAML contains: `variables`, `logic`, `loop`,
 - **CLI improvements**: Failed task details and error classification displayed by default (no longer requires `--verbose`)
 - **Security hardening**: Replaced all `execSync` with `execFileSync` to prevent command injection
 
+### V4.0 Highlights
+
+- `aiAction` alias support (equivalent to `ai`/`aiAct`)
+- `imeStrategy` adds `yadb-for-non-ascii` enum value (official API default)
+- `computer.headless` headless mode support
+- `domIncluded: 'visible-only'` three-value option
+- Full official CLI options documented (`--share-browser-context`, `--concurrent`, etc.)
+- Environment variable docs (`MIDSCENE_RUN_DIR`, `DEBUG=midscene:*`, etc.)
+- `importDirective` JSON Schema fix
+- `sleep` accepts template variable strings
+- `--output-ts` path validation (`.ts` extension required)
+- `setup.js` deduplication using `execFileSync` uniformly
+- Report parser reads subdirectories recursively
+- `MAX_WALK_DEPTH` constant centralized in constants.js
+- Guide unified `steps:` → `flow:` throughout
+- 678 unit tests (+15)
+
 ## Model Configuration
 
 Midscene requires a vision-language model for AI operations. Set these environment variables before execution:
@@ -186,7 +203,7 @@ Browse all templates in [`templates/`](templates/).
 
 ```bash
 npm install          # Install dependencies
-npm test             # Run 663 tests
+npm test             # Run 678 tests
 npm run test:coverage # Tests with coverage report
 npm run lint         # ESLint check
 ```

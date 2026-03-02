@@ -33,4 +33,7 @@ module.exports = {
 
   /** Maximum error message length in CLI output before truncation. */
   MAX_ERROR_MESSAGE_LENGTH: 500,
+
+  /** Maximum recursion depth for walkFlow to prevent stack overflow. */
+  MAX_WALK_DEPTH: 50,
 };

@@ -233,6 +233,21 @@ describe('parseArgs', () => {
         console.error = origError;
       }
     });
+
+    it('rejects --output-ts value without .ts extension', () => {
+      const exitCalls = [];
+      const origExit = process.exit;
+      const origError = console.error;
+      process.exit = (code) => { exitCalls.push(code); };
+      console.error = () => {};
+      try {
+        parseArgs(argv('test.yaml', '--output-ts', 'output.txt'));
+        assert.ok(exitCalls.includes(1), 'Should call process.exit(1) when --output-ts value does not end with .ts');
+      } finally {
+        process.exit = origExit;
+        console.error = origError;
+      }
+    });
   });
 
   // -----------------------------------------------------------------------

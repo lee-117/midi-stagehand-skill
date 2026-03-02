@@ -1,6 +1,6 @@
 ---
 name: midscene-runner
-version: 2.1.0
+version: 4.0.0
 description: >
   Execute, validate, and debug Midscene YAML automation files.
   Handles dry-run, execution, report analysis, and iterative debugging.
@@ -74,6 +74,13 @@ MIDSCENE_MODEL_NAME=qwen-vl-max-latest
 ```
 
 详细配置说明见 [Midscene 模型配置文档](https://midscenejs.com/zh/model-common-config.html)。
+
+**高级环境变量**：
+- `MIDSCENE_RUN_DIR` — 运行时产物目录（报告、缓存），默认 `./midscene_run`
+- `DEBUG=midscene:*` — 启用完整调试日志
+- `DEBUG=midscene:ai:call` — 仅显示 AI API 调用详情
+- `DEBUG=midscene:ai:profile:stats` — 显示性能统计
+- `MIDSCENE_INSIGHT_MODEL_*` / `MIDSCENE_PLANNING_MODEL_*` — 为 Insight 和 Planning 阶段分别配置模型
 
 **首次使用？运行一键环境初始化**：
 
@@ -171,6 +178,7 @@ node scripts/midscene-run.js <yaml-file> [options]
 # 批量执行（glob 模式）
 node scripts/midscene-run.js "tests/**/*.yaml"
 ```
+> 注意：批量执行使用 `fs.globSync()`，需要 Node.js >= 22。
 
 **方式 2: 直接使用 Midscene CLI**
 
@@ -186,6 +194,21 @@ npx @midscene/web <yaml-file> --headed
 npx @midscene/web "tests/**/*.yaml" --concurrent --continue-on-error
 ```
 
+**官方 Midscene CLI 完整选项**（方式 2）：
+- `--headed` — 显示浏览器窗口（调试用）
+- `--keep-window` — 执行后保持浏览器窗口打开
+- `--concurrent <n>` — 并行执行文件数（默认 1）
+- `--continue-on-error` — 失败后继续执行后续文件
+- `--share-browser-context` — 跨文件共享 Cookie/localStorage（多文件共享登录态）
+- `--summary <path>` — JSON 汇总报告路径
+- `--config <file>` — 参数配置文件
+- `--dotenv-debug` — 调试 dotenv 加载
+- `--dotenv-override` — 允许 .env 覆盖系统环境变量
+- `--web.userAgent <ua>` — 覆盖 User-Agent
+- `--web.viewportWidth <n>` / `--web.viewportHeight <n>` — 覆盖视口尺寸
+- `--android.deviceId <id>` — 覆盖 Android 设备 ID
+- `--ios.wdaPort <port>` / `--ios.wdaHost <host>` — 覆盖 iOS WDA 配置
+
 > **注意**: 包名是 `@midscene/web`（不是 `@midscene/cli`）。官方 CLI 语法是 `npx @midscene/web <yaml-file>`，支持 `run` 子命令（`npx @midscene/web run <yaml-file>`），两种形式均可。
 
 **可用选项**（方式 1）：
@@ -196,8 +219,9 @@ npx @midscene/web "tests/**/*.yaml" --concurrent --continue-on-error
 - `--report-dir <path>` — 报告输出目录（默认 `./midscene-report`）
 - `--template puppeteer|playwright` — 选择 TS 模板（默认 puppeteer；playwright 适合需要多浏览器兼容的场景）
 - `--clean` — 清理 `.midscene-tmp/` 中超过 24 小时的过期临时文件
-- `--verbose` / `-v` — 显示详细输出（验证详情、检测信息、环境信息、错误分类）
+- `--verbose` / `-v` — 显示详细输出（验证详情、检测信息、步骤计数、错误修复建议）。注意：错误分类和失败任务详情默认已显示，无需 `--verbose`
 - `--help` / `-h` — 显示帮助信息
+- `--version` / `-V` — 显示版本号
 
 **Extended 模式的执行流程**：
 1. YAML → Transpiler → TypeScript

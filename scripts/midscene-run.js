@@ -81,13 +81,20 @@ function parseArgs(argv) {
         args.verbose = true;
         break;
 
-      case '--output-ts':
-        if (!rawArgs[i + 1] || rawArgs[i + 1].startsWith('-')) {
+      case '--output-ts': {
+        const tsVal = rawArgs[i + 1];
+        if (!tsVal || tsVal.startsWith('-')) {
           console.error('[midscene-run] --output-ts requires a file path.');
+          process.exit(1);
+          break;
+        }
+        if (!tsVal.endsWith('.ts')) {
+          console.error('[midscene-run] --output-ts path must have a .ts extension.');
           process.exit(1);
         }
         args.outputTs = rawArgs[++i];
         break;
+      }
 
       case '--report-dir':
         if (!rawArgs[i + 1] || rawArgs[i + 1].startsWith('-')) {

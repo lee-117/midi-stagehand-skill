@@ -2292,6 +2292,207 @@ tasks:
     });
   });
 
+  describe('flow/steps alias matrix', () => {
+    it('accepts flow: in loop body', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - loop:
+          type: repeat
+          count: 3
+          flow:
+            - aiTap: "next"
+`;
+      const result = validate(yaml);
+      assert.equal(result.valid, true, `Should accept flow in loop. Errors: ${JSON.stringify(result.errors)}`);
+    });
+
+    it('accepts steps: in loop body', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - loop:
+          type: repeat
+          count: 3
+          steps:
+            - aiTap: "next"
+`;
+      const result = validate(yaml);
+      assert.equal(result.valid, true, `Should accept steps in loop. Errors: ${JSON.stringify(result.errors)}`);
+    });
+
+    it('accepts flow: in try block', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - try:
+          flow:
+            - aiTap: "risky"
+        catch:
+          flow:
+            - aiAssert: "caught"
+`;
+      const result = validate(yaml);
+      assert.equal(result.valid, true, `Should accept flow in try block. Errors: ${JSON.stringify(result.errors)}`);
+    });
+
+    it('accepts steps: in try block', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - try:
+          steps:
+            - aiTap: "risky"
+        catch:
+          steps:
+            - aiAssert: "caught"
+`;
+      const result = validate(yaml);
+      assert.equal(result.valid, true, `Should accept steps in try block. Errors: ${JSON.stringify(result.errors)}`);
+    });
+
+    it('accepts flow: in catch block', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - try:
+          flow:
+            - aiTap: "risky"
+        catch:
+          flow:
+            - aiAssert: "recovered"
+`;
+      const result = validate(yaml);
+      assert.equal(result.valid, true, `Should accept flow in catch block. Errors: ${JSON.stringify(result.errors)}`);
+    });
+
+    it('accepts steps: in finally block', () => {
+      const yaml = `
+engine: extended
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - try:
+          steps:
+            - aiTap: "action"
+        catch:
+          steps:
+            - aiAssert: "error"
+        finally:
+          steps:
+            - recordToReport
+`;
+      const result = validate(yaml);
+      assert.equal(result.valid, true, `Should accept steps in finally block. Errors: ${JSON.stringify(result.errors)}`);
+    });
+
+    it('accepts steps: at task level as alias for flow:', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    steps:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      const flowErrors = result.errors.filter(e => e.message.includes('"flow"'));
+      assert.equal(flowErrors.length, 0, `steps should be accepted as alias for flow at task level`);
+    });
+  });
+
+  describe('imeStrategy yadb-for-non-ascii', () => {
+    it('accepts yadb-for-non-ascii as valid imeStrategy', () => {
+      const yaml = `
+android:
+  deviceId: "test"
+  imeStrategy: "yadb-for-non-ascii"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      assert.equal(result.valid, true, `yadb-for-non-ascii should be a valid imeStrategy. Errors: ${JSON.stringify(result.errors)}`);
+      const imeWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('imeStrategy');
+      });
+      assert.equal(imeWarnings.length, 0, 'Should not warn about valid yadb-for-non-ascii imeStrategy');
+    });
+
+    it('accepts all three valid imeStrategy values', () => {
+      for (const strategy of ['adbBroadcast', 'adbInput', 'yadb-for-non-ascii']) {
+        const yaml = `
+android:
+  deviceId: "test"
+  imeStrategy: "${strategy}"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+        const result = validate(yaml);
+        const imeWarnings = result.warnings.filter(w => {
+          const msg = typeof w === 'object' ? w.message : w;
+          return msg.includes('Invalid imeStrategy');
+        });
+        assert.equal(imeWarnings.length, 0, `Should not warn about valid imeStrategy "${strategy}"`);
+      }
+    });
+  });
+
+  describe('aiAction keyword detection', () => {
+    it('accepts aiAction: as a valid native action', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiAction: "click the submit button"
+`;
+      const result = validate(yaml);
+      assert.equal(result.valid, true, `aiAction should be a valid native action. Errors: ${JSON.stringify(result.errors)}`);
+    });
+
+    it('aiAction in a native flow does not trigger extended-mode detection', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiAction: "perform complex interaction"
+`;
+      const result = validate(yaml);
+      // Should be valid in native mode
+      assert.equal(result.valid, true, `aiAction should validate in native mode. Errors: ${JSON.stringify(result.errors)}`);
+    });
+  });
+
   describe('new platform actions do not trigger unknown warnings', () => {
     it('aiLongPress is recognized as a valid action', () => {
       const yaml = `

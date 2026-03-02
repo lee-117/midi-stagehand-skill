@@ -1,6 +1,6 @@
 ---
 name: midscene-yaml-generator
-version: 2.1.0
+version: 4.0.0
 description: >
   Generate Midscene YAML browser automation files from natural language.
   Supports Web, Android, iOS with Native and Extended modes.
@@ -174,10 +174,9 @@ tasks:
       - logic:
           if: "${isLoggedIn} === false"
           then:
-            flow:
-              - aiTap: "登录按钮"
-              - aiInput: "用户名输入框"
-                value: "testuser"
+            - aiTap: "登录按钮"
+            - aiInput: "用户名输入框"
+              value: "testuser"
 ```
 
 #### Native 模式 YAML 格式规范（重要）
@@ -215,10 +214,10 @@ Native 模式的动作参数支持两种格式：
 | 自然语言模式 | YAML 映射 | 说明 |
 |-------------|-----------|------|
 | "打开/访问/进入 XXX 网站" | `web: { url: "XXX" }` | 平台配置 |
-| "自动规划并执行 XXX" | `ai: "XXX"` | AI 自动拆解为多步骤执行；`aiAct` 为等价别名；可选 `fileChooserAccept: "path"` 处理文件上传对话框 |
+| "自动规划并执行 XXX" | `ai: "XXX"` | AI 自动拆解为多步骤执行；`aiAct`/`aiAction` 为等价别名；可选 `fileChooserAccept: "path"` 处理文件上传对话框 |
 | "点击/按/选择 XXX" | `aiTap: "XXX"` | 简写形式；通用选项 `deepThink`、`xpath`、`cacheable`；支持 `locate` 对象 |
 | "悬停/移到 XXX 上" | `aiHover: "XXX"` | 触发下拉菜单或 tooltip；支持 `locate` 对象 |
-| "在 XXX 输入 YYY" | `aiInput: "XXX"` + `value: "YYY"` | 扁平兄弟格式；`mode: "replace"(默认)\|"clear"\|"typeOnly"`（官方 API）；`"append"` 为超集扩展（非官方，慎用）；支持 `locate` 对象 |
+| "在 XXX 输入 YYY" | `aiInput: "XXX"` + `value: "YYY"` | 扁平兄弟格式；`mode: "replace"(默认)\|"clear"\|"typeOnly"`；支持 `locate` 对象 |
 | "按键盘 XXX 键" | `aiKeyboardPress: "XXX"` | 支持组合键如 "Control+A"；`keyName` 可作为替代参数 |
 | "向下/上/左/右滚动" | `aiScroll: "目标区域"` + `direction: "down"` | 扁平兄弟格式；可选 `distance`、`scrollType: "singleAction"\|"scrollToBottom"\|"scrollToTop"\|"scrollToRight"\|"scrollToLeft"` |
 | "等待 XXX 出现" | `aiWaitFor: "XXX"` | 可选 `timeout`（默认 15000ms）、`checkIntervalMs`（轮询间隔）；可选 `domIncluded`/`screenshotIncluded` 控制 AI 分析范围 |
@@ -230,10 +229,10 @@ Native 模式的动作参数支持两种格式：
 | "双击 XXX" | `aiDoubleClick: "XXX"` | 双击操作；可选 `deepThink: true`；支持 `locate` 对象 |
 | "右键点击 XXX" | `aiRightClick: "XXX"` | 右键操作；可选 `deepThink: true`；支持 `locate` 对象 |
 | "定位 XXX 元素" | `aiLocate: "XXX"` + `name: "elem"` | 定位元素，结果存入变量（Extended 模式可引用） |
-| "XXX 是否为真？" | `aiBoolean: "XXX"` + `name: "flag"` | 返回布尔值；`domIncluded`(true/false/"visible-only") 控制是否使用 DOM 文本，`screenshotIncluded`(true/false) 控制是否使用截图 |
-| "获取 XXX 数量" | `aiNumber: "XXX"` + `name: "count"` | 返回数字；同上 `domIncluded`/`screenshotIncluded` 选项 |
-| "获取 XXX 文本" | `aiString: "XXX"` + `name: "text"` | 返回字符串；同上 `domIncluded`/`screenshotIncluded` 选项 |
-| "询问 AI XXX" | `aiAsk: "XXX"` + `name: "answer"` | 自由提问，返回文本答案 |
+| "XXX 是否为真？" | `aiBoolean: "XXX"` + `name: "flag"` | 返回布尔值；`domIncluded`(true/false/"visible-only") 控制是否使用 DOM 文本，`screenshotIncluded`(true/false) 控制是否使用截图；嵌套对象格式支持 `prompt:` 字段 |
+| "获取 XXX 数量" | `aiNumber: "XXX"` + `name: "count"` | 返回数字；同上 `domIncluded`/`screenshotIncluded` 选项；嵌套对象格式支持 `prompt:` 字段 |
+| "获取 XXX 文本" | `aiString: "XXX"` + `name: "text"` | 返回字符串；同上 `domIncluded`/`screenshotIncluded` 选项；嵌套对象格式支持 `prompt:` 字段 |
+| "询问 AI XXX" | `aiAsk: "XXX"` + `name: "answer"` | 自由提问，返回文本答案；嵌套对象格式支持 `prompt:` 字段 |
 | "拖拽 A 到 B" | `aiDragAndDrop: { from: "A", to: "B" }` | 推荐嵌套格式；也支持扁平简写 `aiDragAndDrop: "A"` + `to: "B"`；支持 `locate` 对象 |
 | "清空 XXX 输入框" | `aiClearInput: "XXX"` | 清除输入框内容 |
 | "执行 ADB 命令" | `runAdbShell: "命令"` | Android 平台特有 |
@@ -253,11 +252,11 @@ Native 模式的动作参数支持两种格式：
 | "定义变量 XXX 为 YYY" | `variables: { XXX: "YYY" }` |
 | "使用环境变量 XXX" | `${ENV:XXX}` 或 `${ENV.XXX}` |
 | "如果 XXX 则 YYY 否则 ZZZ" | `logic: { if: "XXX", then: [YYY], else: [ZZZ] }` |
-| "重复 N 次" | `loop: { type: repeat, count: N, steps: [...] }` |
-| "对每个 XXX 执行" | `loop: { type: for, items: "XXX", itemVar: "item", steps: [...] }` （`itemVar`/`as`/`item` 均可）。循环支持 `indexVar: "i"` 自定义索引变量名（零基索引） |
-| "当 XXX 时持续做 YYY" | `loop: { type: while, condition: "XXX", maxIterations: N, steps: [...] }` |
+| "重复 N 次" | `loop: { type: repeat, count: N, flow: [...] }` |
+| "对每个 XXX 执行" | `loop: { type: for, items: "XXX", itemVar: "item", flow: [...] }` （`itemVar`/`as`/`item` 均可）。循环支持 `indexVar: "i"` 自定义索引变量名（零基索引） |
+| "当 XXX 时持续做 YYY" | `loop: { type: while, condition: "XXX", maxIterations: N, flow: [...] }` |
 | "先做 A，失败了就做 B" | `try:` / `flow: [A]` / `catch:` / `flow: [B]`（try 和 catch 是步骤级别的兄弟键） |
-| "同时做 A 和 B" | `parallel: { branches: [{steps: [A]}, {steps: [B]}], waitAll: true, merge_results: true }` |
+| "同时做 A 和 B" | `parallel: { branches: [{flow: [A]}, {flow: [B]}], waitAll: true, merge_results: true }` |
 | "调用 XXX 接口" | `external_call: { type: http, method: POST, url: "XXX", response_as: "varName" }` |
 | "执行 Shell 命令" | `external_call: { type: shell, command: "XXX" }` |
 | "导入/复用 XXX 流程" | `import: [{ flow: "XXX.yaml", as: name }]` |
@@ -290,7 +289,7 @@ tasks:
           type: repeat
           count: "${maxPages}"
           maxIterations: 10
-          steps:
+          flow:
             - aiQuery:
                 query: "提取当前页所有商品名称，返回字符串数组"
                 name: "products"
@@ -324,6 +323,8 @@ tasks:
 - `templates/native/web-bridge-mode.yaml` — Bridge 模式连接已运行浏览器
 - `templates/native/web-cookie-session.yaml` — Cookie 会话恢复
 - `templates/native/web-local-serve.yaml` — 本地静态文件服务测试
+- `templates/native/web-long-press.yaml` — 长按操作（aiLongPress + duration）
+- `templates/native/android-system-buttons.yaml` — Android 系统按钮（Back/Home/Recent）
 
 **Extended 模板**：
 - `templates/extended/web-conditional-flow.yaml` — 条件分支
@@ -335,6 +336,7 @@ tasks:
 - `templates/extended/reusable-sub-flows.yaml` — 子流程复用（import/use）
 - `templates/extended/responsive-test.yaml` — 多视口响应式测试
 - `templates/extended/web-auth-flow.yaml` — OAuth/登录认证流程（使用变量和环境引用）
+- `templates/extended/data-driven-test.yaml` — 数据驱动测试（循环遍历测试用例）
 
 **模板选择决策**：
 
@@ -360,6 +362,9 @@ tasks:
 | 连接已运行的浏览器（Bridge 模式） | `native/web-bridge-mode.yaml` |
 | 免登录会话恢复（Cookie） | `native/web-cookie-session.yaml` |
 | 本地开发/构建产物测试 | `native/web-local-serve.yaml` |
+| 长按操作 / 触摸操作 | `native/web-long-press.yaml` |
+| Android 系统按钮操作 | `native/android-system-buttons.yaml` |
+| 数据驱动 / 参数化测试 | `extended/data-driven-test.yaml` |
 
 ### 第 5 步：生成 YAML
 
@@ -531,6 +536,18 @@ tasks:
   timeout: 10000
 ```
 
+### 官方推荐最佳实践
+
+- **优先使用即时动作** — `aiTap`、`aiInput` 等比 `ai` 更快更可靠，适合已知操作
+- **精确描述**: 位置 + 颜色 + 文字内容组合描述，如"右上角蓝色的登录按钮"
+- **复杂 UI 启用 `deepThink: true`** — 多个相似元素时使用两阶段定位
+- **`deviceScaleFactor: 0`** — 修复 Puppeteer 与系统 DPI 不匹配导致的浏览器闪烁
+- **`aiActContext`** — 为 AI 提供领域知识（如多语言网站标注语言、特殊术语）
+- **`domIncluded: 'visible-only'`** — aiQuery/aiAssert 等数据操作支持三值：`false`（默认仅截图）| `true`（全部 DOM）| `'visible-only'`（仅可见 DOM，性能最优）
+- **调试日志** — 设置 `DEBUG=midscene:*` 获取完整日志；`DEBUG=midscene:ai:profile:stats` 查看性能指标
+- **环境变量 `MIDSCENE_RUN_DIR`** — 配置运行时产物（报告、缓存）存储目录（默认 `./midscene_run`）
+- **分离模型配置** — 可通过 `MIDSCENE_INSIGHT_MODEL_*` 和 `MIDSCENE_PLANNING_MODEL_*` 前缀为不同阶段指定不同模型
+
 ## 数据转换操作参考
 
 Extended 模式下 `data_transform` 支持的操作：
@@ -559,7 +576,7 @@ Extended 模式下 `data_transform` 支持的操作：
 - 需要配置 `deviceId`（ADB 设备 ID，如 `emulator-5554`）
 - 使用 `launch: "com.example.app"` 启动应用（在 flow 中作为 action 步骤）
 - 可使用 `runAdbShell` 执行 ADB 命令
-- 额外配置：`keyboardDismissStrategy`（`esc-first` | `back-first`）、`imeStrategy`（`adbBroadcast` | `adbInput`）、`scrcpyConfig`
+- 额外配置：`keyboardDismissStrategy`（`esc-first` | `back-first`）、`imeStrategy`（`adbBroadcast` | `adbInput` | `yadb-for-non-ascii`，默认 `yadb-for-non-ascii`）、`scrcpyConfig`
 
 ### iOS 平台
 - 需要配置 `wdaPort`（WebDriverAgent 端口，默认 8100）和 `wdaHost`（默认 localhost）
@@ -568,7 +585,7 @@ Extended 模式下 `data_transform` 支持的操作：
 
 ### Computer 平台
 - 用于通用桌面自动化场景
-- 额外配置：`xvfbResolution`（如 `'1920x1080x24'`，Linux 虚拟显示器分辨率）
+- 额外配置：`xvfbResolution`（如 `'1920x1080x24'`，Linux 虚拟显示器分辨率）、`headless`（`true`/`false`，Linux Xvfb 无头模式）
 
 ## 常见错误模式（Anti-patterns）
 
