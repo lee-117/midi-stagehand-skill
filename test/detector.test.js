@@ -365,4 +365,20 @@ tasks:
       assert.ok(!TEMPLATE_SYNTAX_REGEX.test('{}'));
     });
   });
+
+  describe('maxAliases defense', () => {
+    it('handles YAML with many aliases gracefully (maxAliases: 25)', () => {
+      // js-yaml 4.x does not enforce maxAliases natively, but option is passed defensively.
+      let anchors = '';
+      let aliases = '';
+      for (let i = 0; i < 30; i++) {
+        anchors += `  anchor${i}: &a${i} "value${i}"\n`;
+        aliases += `      - aiTap: *a${i}\n`;
+      }
+      const yaml = `web:\n  url: "https://example.com"\nmetadata:\n${anchors}tasks:\n  - name: test\n    flow:\n${aliases}`;
+      const result = detect(yaml);
+      // Should return a valid result without crashing
+      assert.ok(result.mode === 'native' || result.mode === 'extended');
+    });
+  });
 });

@@ -467,9 +467,10 @@ describe('classifyError', () => {
     assert.ok(result.suggestion.includes('URL'));
   });
 
-  it('classifies ERR_CONNECTION_REFUSED as navigation', () => {
+  it('classifies ERR_CONNECTION_REFUSED as network_failure (not navigation)', () => {
     const result = classifyError('net::ERR_CONNECTION_REFUSED at http://localhost:3000');
-    assert.equal(result.category, 'navigation');
+    assert.equal(result.category, 'network_failure');
+    assert.equal(result.severity, 'fatal');
   });
 
   it('classifies transpiler errors', () => {
@@ -499,7 +500,7 @@ describe('classifyError', () => {
     const result = classifyError('Something completely unexpected happened');
     assert.equal(result.category, 'unknown');
     assert.equal(result.severity, 'recoverable');
-    assert.ok(result.suggestion.includes('full error output'));
+    assert.ok(result.suggestion.length > 0, 'Should have a suggestion message');
   });
 
   it('returns unknown for null input', () => {

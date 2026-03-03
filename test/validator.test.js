@@ -3157,4 +3157,69 @@ tasks:
       }));
     });
   });
+
+  describe('SSRF 0.0.0.0 detection', () => {
+    it('warns on external_call to 0.0.0.0', () => {
+      const yaml = `
+engine: extended
+features: [external_call]
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - external_call:
+          type: http
+          method: GET
+          url: "http://0.0.0.0:8080/admin"
+          response_as: "data"
+`;
+      const result = validate(yaml);
+      const msgs = result.warnings.map(w => typeof w === 'object' ? w.message : w).join(' ');
+      assert.ok(msgs.includes('internal') || msgs.includes('SSRF') || msgs.includes('0.0.0.0'),
+        'Should warn about SSRF risk for 0.0.0.0. Warnings: ' + msgs);
+    });
+  });
+
+  describe('output filePath absolute path detection', () => {
+    it('warns on absolute filePath in task output', () => {
+      const yaml = `
+engine: extended
+features: [variables]
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+    output:
+      filePath: "/etc/passwd"
+      dataName: "data"
+`;
+      const result = validate(yaml);
+      const msgs = result.warnings.map(w => typeof w === 'object' ? w.message : w).join(' ');
+      assert.ok(msgs.includes('absolute'),
+        'Should warn about absolute output path. Warnings: ' + msgs);
+    });
+
+    it('warns on Windows absolute filePath in task output', () => {
+      const yaml = `
+engine: extended
+features: [variables]
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+    output:
+      filePath: 'C:/Windows/System32/config'
+      dataName: "data"
+`;
+      const result = validate(yaml);
+      const msgs = result.warnings.map(w => typeof w === 'object' ? w.message : w).join(' ');
+      assert.ok(msgs.includes('absolute'),
+        'Should warn about absolute output path. Warnings: ' + msgs);
+    });
+  });
 });

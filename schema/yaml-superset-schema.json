@@ -487,7 +487,9 @@
               "type": "object",
               "properties": {
                 "locator": { "type": "string" },
+                "locate": { "$ref": "#/definitions/locateObject" },
                 "keyName": { "type": "string" },
+                "xpath": { "type": "string" },
                 "deepThink": { "type": "boolean" }
               },
               "additionalProperties": false
@@ -496,6 +498,7 @@
         },
         "keyName": { "type": "string", "description": "Key name (alternative to aiKeyboardPress value)" },
         "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
+        "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
         "cacheable": { "type": "boolean" }
       },
@@ -514,8 +517,8 @@
                 "locator": { "type": "string" },
                 "locate": { "$ref": "#/definitions/locateObject" },
                 "direction": { "type": "string", "enum": ["up", "down", "left", "right"] },
-                "distance": { "type": "integer" },
-
+                "distance": { "oneOf": [{ "type": "integer" }, { "type": "null" }] },
+                "xpath": { "type": "string" },
                 "scrollType": { "type": "string", "enum": ["singleAction", "scrollToBottom", "scrollToTop", "scrollToRight", "scrollToLeft"] }
               },
               "additionalProperties": false
@@ -527,13 +530,14 @@
           "enum": ["up", "down", "left", "right"],
           "description": "Scroll direction (flat format sibling key)"
         },
-        "distance": { "type": "integer", "description": "Scroll distance in pixels (flat format sibling key)" },
+        "distance": { "oneOf": [{ "type": "integer" }, { "type": "null" }], "description": "Scroll distance in pixels (flat format sibling key)" },
         "scrollType": {
           "type": "string",
           "enum": ["singleAction", "scrollToBottom", "scrollToTop", "scrollToRight", "scrollToLeft"],
           "description": "Scroll behavior type (flat format sibling key)"
         },
         "deepThink": { "type": "boolean" },
+        "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
         "cacheable": { "type": "boolean", "default": true }
       },
@@ -570,7 +574,21 @@
       "type": "object",
       "required": ["aiClearInput"],
       "properties": {
-        "aiClearInput": { "type": "string", "description": "Input field to clear" },
+        "aiClearInput": {
+          "oneOf": [
+            { "type": "string", "description": "Input field to clear" },
+            {
+              "type": "object",
+              "properties": {
+                "locator": { "type": "string" },
+                "locate": { "$ref": "#/definitions/locateObject" },
+                "xpath": { "type": "string" },
+                "deepThink": { "type": "boolean" }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
         "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
@@ -883,7 +901,6 @@
                 "xpath": { "type": "string" },
                 "deepThink": { "type": "boolean" }
               },
-              "required": ["locator"],
               "additionalProperties": false
             }
           ]

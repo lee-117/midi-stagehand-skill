@@ -490,7 +490,9 @@ function transpile(yamlInput, options) {
 
   for (let ti = 0; ti < tasks.length; ti++) {
     const task = tasks[ti];
-    const taskName = task.name || 'Task ' + (ti + 1);
+    const rawTaskName = task.name || 'Task ' + (ti + 1);
+    // Sanitize: strip newlines/carriage returns to prevent injection into TS comments
+    const taskName = String(rawTaskName).replace(/[\n\r]/g, ' ');
     const flow = task.flow || task.steps || [];
 
     if (!Array.isArray(flow)) {

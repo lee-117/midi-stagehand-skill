@@ -5,8 +5,6 @@
 - **Native** (25 个): 基础操作模板，YAML 直接执行
 - **Extended** (16 个): 复杂逻辑模板（条件、循环、API 调用），先转译为 TypeScript 再执行
 
-> 标记 `[NEW]` 的模板为待创建模板，尚未包含在项目中。
-
 ---
 
 ## 1. 认证场景 / Authentication Scenarios
@@ -36,7 +34,7 @@
 | `extended/web-data-pipeline.yaml` | Extended | Web | data_transform 数据过滤、排序、映射处理 |
 | `extended/data-driven-test.yaml` | Extended | Web | 变量数组驱动的参数化批量测试 |
 | `extended/e2e-workflow.yaml` | Extended | Web | 端到端工作流：登录 -> 采集 -> 数据处理 -> API 上报 |
-| `extended/data-accumulation-loop.yaml` | Extended | Web | `[NEW]` 循环累积采集数据，跨页合并结果集 |
+| `extended/data-accumulation-loop.yaml` | Extended | Web | 循环累积采集数据，跨页合并结果集 |
 
 ---
 
@@ -52,8 +50,8 @@
 | `extended/api-crud-test.yaml` | Extended | Web | API CRUD 完整流程：POST/GET/PUT/DELETE |
 | `extended/api-integration-test.yaml` | Extended | Web | API 集成测试：HTTP 调用、并行请求、数据验证 |
 | `extended/multi-step-with-retry.yaml` | Extended | Web | try/catch 错误处理，失败重试，finally 清理 |
-| `extended/web-visual-regression.yaml` | Extended | Web | `[NEW]` 视觉回归测试，截图对比检测 UI 变化 |
-| `extended/error-recovery-pattern.yaml` | Extended | Web | `[NEW]` 错误恢复模式，多层 try/catch 降级策略 |
+| `extended/web-visual-regression.yaml` | Extended | Web | 视觉回归测试，截图对比检测 UI 变化 |
+| `extended/error-recovery-pattern.yaml` | Extended | Web | 错误恢复模式，多层 try/catch 降级策略 |
 
 ---
 
@@ -69,8 +67,8 @@ Android 和 iOS 设备的应用测试、系统按钮操作、高级配置等。
 | `native/ios-app.yaml` | Native | iOS | iOS 应用启动、交互、数据提取 |
 | `native/ios-system-buttons.yaml` | Native | iOS | iOS 系统按钮（Home/AppSwitcher）+ WDA 请求 |
 | `native/web-long-press.yaml` | Native | Web | 长按操作：自定义时长、上下文菜单触发 |
-| `native/mobile-gesture.yaml` | Native | Mobile | `[NEW]` 移动端手势操作：滑动、缩放、拖拽 |
-| `extended/cross-platform-workflow.yaml` | Extended | Multi | `[NEW]` 跨平台工作流：Web + Android + iOS 联合测试 |
+| `native/mobile-gesture.yaml` | Native | Mobile | 移动端手势操作：滑动、缩放、拖拽 |
+| `extended/cross-platform-workflow.yaml` | Extended | Multi | 跨平台工作流：Web + Android + iOS 联合测试 |
 
 ---
 
@@ -86,7 +84,7 @@ Android 和 iOS 设备的应用测试、系统按钮操作、高级配置等。
 | `native/web-file-download.yaml` | Native | Web | 文件下载触发、等待完成、验证下载结果 |
 | `native/web-file-upload.yaml` | Native | Web | fileChooserAccept 处理文件选择对话框上传 |
 | `native/web-multi-tab.yaml` | Native | Web | 多标签页操作：打开、切换、关闭 |
-| `native/web-file-chooser.yaml` | Native | Web | `[NEW]` 高级文件选择器：多文件、拖拽上传 |
+| `native/web-file-chooser.yaml` | Native | Web | 高级文件选择器：多文件、拖拽上传 |
 
 ---
 
@@ -97,10 +95,10 @@ Android 和 iOS 设备的应用测试、系统按钮操作、高级配置等。
 | Template | Engine | Platform | 说明 |
 |----------|--------|----------|------|
 | `native/web-deep-think-locator.yaml` | Native | Web | deepThink 复杂元素定位 + xpath 辅助 + aiLocate |
-| `native/web-iframe-shadow-dom.yaml` | Native | Web | `[NEW]` iframe 嵌套页面和 Shadow DOM 元素操作 |
-| `native/web-image-prompt.yaml` | Native | Web | `[NEW]` 图片提示辅助定位，视觉参考定位元素 |
-| `native/web-freeze-context.yaml` | Native | Web | `[NEW]` freezePageContext/unfreezePageContext 冻结恢复页面上下文 |
-| `native/web-cache-strategy.yaml` | Native | Web | `[NEW]` Agent 缓存策略配置，优化重复执行性能 |
+| `native/web-iframe-shadow-dom.yaml` | Native | Web | iframe 嵌套页面和 Shadow DOM 元素操作 |
+| `native/web-image-prompt.yaml` | Native | Web | 图片提示辅助定位，视觉参考定位元素 |
+| `native/web-freeze-context.yaml` | Native | Web | freezePageContext/unfreezePageContext 冻结恢复页面上下文 |
+| `native/web-cache-strategy.yaml` | Native | Web | Agent 缓存策略配置，优化重复执行性能 |
 
 ---
 

@@ -7,12 +7,12 @@
 | 自然语言模式 | YAML 映射 | 说明 |
 |-------------|-----------|------|
 | "打开/访问/进入 XXX 网站" | `web: { url: "XXX" }` | 平台配置 |
-| "自动规划并执行 XXX" | `ai: "XXX"` | AI 自动拆解为多步骤执行；`aiAct` 为推荐名称（`ai` 和 `aiAction` 亦为有效别名）；可选 `fileChooserAccept: "path"` 处理文件上传对话框; 可选 `deepLocate: true`（v1.4+，执行期间深度定位）。⚠️ `deepLocate` 尚未纳入 YAML Schema — 官方 v1.4 changelog 提及但尚未在 YAML 文档中正式支持。如需使用，请确认最新版本兼容性。 |
+| "自动规划并执行 XXX" | `ai: "XXX"` | AI 自动拆解为多步骤执行；`aiAct` 为推荐名称（`ai`/`aiAction` 亦有效）；可选 `fileChooserAccept: "path"` 处理文件上传。⚠️ `deepLocate` 为实验性功能，Schema 未正式支持 |
 | "点击/按/选择 XXX" | `aiTap: "XXX"` | 通用选项 `deepThink: true\|false`；`xpath`、`cacheable`（默认 true）；支持 `locate` 对象; 支持 `fileChooserAccept: "path"` |
 | "悬停/移到 XXX 上" | `aiHover: "XXX"` | 触发下拉菜单或 tooltip；支持 `locate` 对象 |
 | "在 XXX 输入 YYY" | `aiInput: "XXX"` + `value: "YYY"` | 扁平兄弟格式；`mode: "replace"(默认)\|"clear"\|"typeOnly"`；支持 `locate` 对象；支持 `images` 图片辅助定位 |
-| "按键盘 XXX 键" | `aiKeyboardPress: "XXX"` | 支持组合键如 "Control+A"；`keyName` 可作为替代参数 |
-| "向下/上/左/右滚动" | `aiScroll: "目标区域"` + `direction: "down"` | 可选 `distance`、`scrollType: "singleAction"\|"scrollToBottom"\|"scrollToTop"\|"scrollToRight"\|"scrollToLeft"` |
+| "按键盘 XXX 键" | `aiKeyboardPress: "XXX"` | 支持组合键如 "Control+A"；`keyName` 可作为替代参数；支持 `xpath`、`locate` 对象 |
+| "向下/上/左/右滚动" | `aiScroll: "目标区域"` + `direction: "down"` | 可选 `distance`（整数或 null）、`scrollType`；支持 `xpath`、`locate` 对象 |
 | "等待 XXX 出现" | `aiWaitFor: "XXX"` | 可选 `timeout`（默认 30000ms）、`checkIntervalMs`（轮询间隔，默认 3000ms）；可选 `domIncluded`/`screenshotIncluded` |
 | "检查/验证/确认 XXX" | `aiAssert: "XXX"` | 可选 `errorMessage`、`name`（存储结果变量）；可选 `domIncluded`/`screenshotIncluded` |
 | "获取/提取/读取 XXX" | `aiQuery: { query: "XXX", name: "result" }` | name 用于存储结果；可选 `domIncluded`/`screenshotIncluded` 控制 AI 分析范围 |
@@ -28,7 +28,7 @@
 | "询问 AI XXX" | `aiAsk: "XXX"` + `name: "answer"` | 自由提问，返回文本答案；嵌套对象格式支持 `prompt:` 字段 |
 | "拖拽 A 到 B" | `aiDragAndDrop: { from: "A", to: "B" }` | 也支持扁平简写 `aiDragAndDrop: "A"` + `to: "B"`；支持 `locate` 对象 |
 | "滑动/划动 XXX" | `ai: "向右滑动 XXX"` | 触摸滑动手势；需先启用 `enableTouchEventsInActionSpace: true` |
-| "清空 XXX 输入框" | `aiClearInput: "XXX"` | 清除输入框内容 |
+| "清空 XXX 输入框" | `aiClearInput: "XXX"` | 清除输入框内容；支持对象格式含 `locate`、`xpath`、`deepThink` |
 | "执行 ADB 命令" | `runAdbShell: "命令"` | Android 平台特有 |
 | "执行 WDA 请求" | `runWdaRequest: { method: "GET", url: "/session/:id/...", body: {} }` | iOS 平台特有；`method` HTTP 方法、`url` WDA 端点路径、`body` 请求体（可选） |
 | "启动应用" | `launch: "包名"` | 移动端启动应用 |
@@ -45,9 +45,9 @@
 
 - `deepThink` (boolean): aiTap, aiHover, aiDoubleClick, aiRightClick, aiScroll, aiDragAndDrop, aiClearInput, aiLongPress, aiLocate
 - `deepThink` (boolean | `"unset"`): ai, aiAct, aiAction, aiInput, aiKeyboardPress — `"unset"` 使用默认策略
-- `xpath`: aiTap, aiHover, aiDoubleClick, aiRightClick, aiInput, aiDragAndDrop, aiClearInput, aiLongPress, aiLocate（仅 Web 平台）
+- `xpath`: aiTap, aiHover, aiDoubleClick, aiRightClick, aiInput, aiKeyboardPress, aiScroll, aiDragAndDrop, aiClearInput, aiLongPress, aiLocate（仅 Web 平台）
 - `cacheable`: ai, aiAct, aiAction, aiTap, aiHover, aiDoubleClick, aiRightClick, aiInput, aiScroll, aiDragAndDrop, aiClearInput, aiLongPress, aiLocate, aiAssert, aiWaitFor, aiQuery, aiKeyboardPress
-- `locate` 对象: aiTap, aiHover, aiDoubleClick, aiRightClick, aiDragAndDrop, aiLongPress, aiInput, aiScroll, aiLocate
+- `locate` 对象: aiTap, aiHover, aiDoubleClick, aiRightClick, aiDragAndDrop, aiLongPress, aiInput, aiKeyboardPress, aiScroll, aiLocate
 - `fileChooserAccept`: ai, aiAct, aiAction, aiTap
 
 ### aiInput mode 参数
@@ -73,51 +73,31 @@
 | "导入/复用 XXX 流程" | `import: [{ flow: "XXX.yaml", as: name }]` |
 | "过滤/排序/映射数据" | `data_transform: { source, operation, ... }` |
 
-## 模板完整决策表
+## 模板决策表（常用）
 
-> Native 25 个 + Extended 16 个 = 41 个模板
+> 共 41 个模板（Native 25 + Extended 16）。以下为最常用模板，完整列表见 `templates/INDEX.md`。
 
 | 需求特征 | 推荐模板 | 难度 |
 |---------|---------|------|
-| 简单页面操作（打开、点击、输入） | `native/web-basic.yaml` | Beginner |
+| 简单页面操作 | `native/web-basic.yaml` | Beginner |
 | 登录 / 表单填写 | `native/web-login.yaml` | Beginner |
 | 数据采集 / 信息提取 | `native/web-data-extract.yaml` | Beginner |
 | 搜索 + 结果验证 | `native/web-search.yaml` | Beginner |
-| 文件上传 / 附件提交 | `native/web-file-upload.yaml` | Intermediate |
-| OAuth/第三方认证登录 | `extended/web-auth-flow.yaml` | Intermediate |
-| 桌面应用自动化（非浏览器） | `native/computer-desktop.yaml` | Intermediate |
-| 需要条件判断（如果登录了就...） | `extended/web-conditional-flow.yaml` | Intermediate |
-| 需要翻页 / 列表遍历 | `extended/web-pagination-loop.yaml` | Intermediate |
-| 数据过滤 / 排序 / 聚合 | `extended/web-data-pipeline.yaml` | Advanced |
-| 需要失败重试 | `extended/multi-step-with-retry.yaml` | Intermediate |
-| 需要调用外部 API | `extended/api-integration-test.yaml` | Intermediate |
-| 完整业务流程（多步骤 + 变量 + 导出） | `extended/e2e-workflow.yaml` | Advanced |
-| 子流程复用 / 模块化 | `extended/reusable-sub-flows.yaml` | Advanced |
-| 多屏幕尺寸响应式验证 | `extended/responsive-test.yaml` | Intermediate |
-| 复杂元素定位 / deepThink | `native/web-deep-think-locator.yaml` | Intermediate |
-| 多标签页操作 | `native/web-multi-tab.yaml` | Intermediate |
-| 连接已运行的浏览器（Bridge 模式） | `native/web-bridge-mode.yaml` | Intermediate |
-| 免登录会话恢复（Cookie） | `native/web-cookie-session.yaml` | Beginner |
-| 本地开发/构建产物测试 | `native/web-local-serve.yaml` | Beginner |
-| 长按操作 / 触摸操作 | `native/web-long-press.yaml` | Beginner |
-| Android 系统按钮操作 | `native/android-system-buttons.yaml` | Beginner |
-| 数据驱动 / 参数化测试 | `extended/data-driven-test.yaml` | Intermediate |
-| iOS 系统按钮操作 | `native/ios-system-buttons.yaml` | Beginner |
-| Android 高级配置（scrcpy/IME） | `native/android-advanced-config.yaml` | Advanced |
-| 文件下载测试 | `native/web-file-download.yaml` | Intermediate |
-| CI/Linux 无头桌面自动化 | `native/computer-headless.yaml` | Intermediate |
-| API CRUD 增删改查 | `extended/api-crud-test.yaml` | Intermediate |
-| 国际化/多语言测试 | `extended/web-i18n-test.yaml` | Intermediate |
-| iframe / Shadow DOM 元素交互 | `native/web-iframe-shadow-dom.yaml` | Intermediate |
-| 移动端手势操作（滑动/长按） | `native/mobile-gesture.yaml` | Intermediate |
-| 文件选择器对话框 | `native/web-file-chooser.yaml` | Beginner |
-| 批量数据提取优化（freezeContext） | `native/web-freeze-context.yaml` | Intermediate |
-| 图片辅助定位（locate.images） | `native/web-image-prompt.yaml` | Intermediate |
-| 缓存策略配置 | `native/web-cache-strategy.yaml` | Intermediate |
-| 视觉回归测试 / 截图对比 | `extended/web-visual-regression.yaml` | Advanced |
-| 跨平台工作流（Web+移动端） | `extended/cross-platform-workflow.yaml` | Advanced |
-| 错误恢复模式 / 容错重试 | `extended/error-recovery-pattern.yaml` | Advanced |
-| 数据累积循环 / 分页聚合 | `extended/data-accumulation-loop.yaml` | Advanced |
+| 文件上传 | `native/web-file-upload.yaml` | Intermediate |
+| 条件判断 | `extended/web-conditional-flow.yaml` | Intermediate |
+| 翻页 / 列表遍历 | `extended/web-pagination-loop.yaml` | Intermediate |
+| 失败重试 | `extended/multi-step-with-retry.yaml` | Intermediate |
+| 外部 API 调用 | `extended/api-integration-test.yaml` | Intermediate |
+| 完整业务流程 | `extended/e2e-workflow.yaml` | Advanced |
+| 子流程复用 | `extended/reusable-sub-flows.yaml` | Advanced |
+| 复杂元素定位 | `native/web-deep-think-locator.yaml` | Intermediate |
+| 免登录 Cookie | `native/web-cookie-session.yaml` | Beginner |
+| 数据驱动测试 | `extended/data-driven-test.yaml` | Intermediate |
+| 桌面应用自动化 | `native/computer-desktop.yaml` | Intermediate |
+| Android 操作 | `native/android-system-buttons.yaml` | Beginner |
+| iOS 操作 | `native/ios-system-buttons.yaml` | Beginner |
+| 错误恢复模式 | `extended/error-recovery-pattern.yaml` | Advanced |
+| 数据累积循环 | `extended/data-accumulation-loop.yaml` | Advanced |
 
 > **不确定时从 `native/web-basic.yaml` 开始**。
 
@@ -145,30 +125,30 @@
 - `forceChromeSelectRendering` — 强制 Chrome 渲染 `<select>` 元素
 - `unstableLogContent` — 日志持久化（实验性）
 
-### Android 平台配置
+### Android 平台配置（仅 Android 需求时参考）
 
 - `deviceId` — ADB 设备 ID（如 `emulator-5554`）
 - `androidAdbPath` — 自定义 ADB 路径
 - `remoteAdbHost` / `remoteAdbPort` — 远程 ADB
 - `screenshotResizeScale` — 截图缩放比例
 - `alwaysRefreshScreenInfo` — 每次操作前刷新屏幕信息
-- `keyboardDismissStrategy` — `esc-first` | `back-first`
+- `keyboardDismissStrategy` — `esc-first`（默认） | `back-first`
 - `imeStrategy` — `always-yadb` | `yadb-for-non-ascii`（默认）
 - `scrcpyConfig` — `{ enabled, maxSize, videoBitRate, idleTimeoutMs }`
 - `displayId` — 多显示器选择
 - `launch` — `true` | `"com.example.app"`（boolean|string）
 - `output` — JSON 输出文件路径
 
-### iOS 平台配置
+### iOS 平台配置（仅 iOS 需求时参考）
 
 - `wdaPort` — WebDriverAgent 端口（默认 8100）
 - `wdaHost` — WebDriverAgent 主机（默认 localhost）
-- `autoDismissKeyboard` — 自动关闭键盘（默认 false）
+- `autoDismissKeyboard` — 自动关闭键盘（默认 true）
 - `launch` — `true` | `"com.example.app"`（boolean|string）
 - `output` — JSON 输出文件路径
 - `unstableLogContent` — 日志持久化（实验性）
 
-### Computer 平台配置
+### Computer 平台配置（仅桌面自动化需求时参考）
 
 - `launch` — 启动命令（仅 string 类型，与 Android/iOS 的 boolean|string 不同）
 - `output` — JSON 输出文件路径

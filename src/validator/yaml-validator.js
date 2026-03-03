@@ -103,7 +103,7 @@ const HIGH_RISK_CHROME_ARGS = ['--disable-web-security', '--allow-file-access-fr
 const DANGEROUS_ADB_PATTERN = /\b(rm\s+-rf|dd\s+if=|reboot|pm\s+uninstall|pm\s+clear|am\s+force-stop|settings\s+put|svc\s+(data|wifi)\s+disable|pm\s+disable)\b/i;
 
 // Internal/private network URL pattern for external_call SSRF detection.
-const INTERNAL_URL_PATTERN = /^https?:\/\/(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|169\.254\.169\.254|\[::1\]|\[::ffff:127\.0\.0\.1\]|metadata\.google\.internal)(:\d+)?(\/|$)/i;
+const INTERNAL_URL_PATTERN = /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|169\.254\.169\.254|\[::1\]|\[::ffff:127\.0\.0\.1\]|metadata\.google\.internal)(:\d+)?(\/|$)/i;
 
 // AI actions that produce named variable results (used in collectDefinedVariables).
 const AI_VAR_ACTIONS = ['aiBoolean', 'aiNumber', 'aiString', 'aiAsk', 'aiLocate'];
@@ -484,11 +484,18 @@ function validateStructure(doc, errors, warnings) {
       ));
     }
 
-    // Security: warn on output.filePath path traversal.
+    // Security: warn on output.filePath path traversal and absolute paths.
     if (task.output && typeof task.output === 'object' && typeof task.output.filePath === 'string') {
       if (/\.\.[\\/]/.test(task.output.filePath) || task.output.filePath.includes('..\\') || task.output.filePath.includes('../')) {
         warnings.push(makeWarning(
           `Task output filePath "${task.output.filePath}" contains path traversal (".."). This may write files outside the intended directory.`,
+          `${taskPath}/output/filePath`
+        ));
+      }
+      // Warn on absolute paths that may write to system directories
+      if (path.isAbsolute(task.output.filePath)) {
+        warnings.push(makeWarning(
+          `Task output filePath "${task.output.filePath}" is an absolute path. Use relative paths to keep output within the project directory.`,
           `${taskPath}/output/filePath`
         ));
       }
@@ -1291,7 +1298,7 @@ function validateImportChain(filePath, warnings, errors, visitedPaths) {
 
   let doc;
   try {
-    doc = yaml.load(content);
+    doc = yaml.load(content, { maxAliases: 25 });
   } catch {
     return; // Parse error — not our concern here
   }

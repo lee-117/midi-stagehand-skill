@@ -2768,4 +2768,32 @@ tasks:
       assert.ok(result.code.includes('idx'));
     });
   });
+
+  describe('taskName newline sanitization', () => {
+    it('strips newlines from task names in generated comments', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+engine: extended
+features: [variables]
+variables:
+  x: 1
+tasks:
+  - name: "Task\\nwith\\nnewlines"
+    flow:
+      - aiTap: "button"
+  - name: "Another task"
+    flow:
+      - aiTap: "link"
+`;
+      const result = transpile(yaml);
+      assert.ok(!result.error, 'Transpile should succeed');
+      // The comment line should not contain actual newlines from task name
+      const lines = result.code.split('\n');
+      const commentLines = lines.filter(l => l.includes('// ---'));
+      for (const cl of commentLines) {
+        assert.ok(!cl.includes('\n\n'), 'Comment should not contain injected newlines');
+      }
+    });
+  });
 });

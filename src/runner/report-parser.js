@@ -17,19 +17,19 @@ const path = require('path');
  */
 const ERROR_PATTERNS = [
   [/MIDSCENE_MODEL_API_KEY|api[_-]?key|auth.*token|401/i, 'api_key',
-    'Set MIDSCENE_MODEL_API_KEY in .env or environment variables.',
+    '在 .env 或环境变量中设置 MIDSCENE_MODEL_API_KEY',
     'fatal'],
   [/429|rate.?limit|too many requests/i, 'rate_limit',
     'AI API 限流。增加操作间 sleep 间隔；使用 --retry 配合等待；或切换到更高配额的 API Key',
     'recoverable'],
   [/timeout|timed?\s*out|ETIMEDOUT/i, 'timeout',
-    'Increase timeout with --timeout flag or add explicit sleep/wait steps.',
+    '使用 --timeout 增加超时时间，或添加 sleep/aiWaitFor 等待步骤',
     'recoverable'],
   [/element.*not\s*found|cannot\s*find|no\s*matching|locate.*fail/i, 'element_not_found',
-    'Check selector/description accuracy. Use deepThink: true for complex layouts. Add aiWaitFor before interaction.',
+    '检查选择器/描述准确性。复杂布局使用 deepThink: true。交互前添加 aiWaitFor 等待元素就绪',
     'recoverable'],
   [/assert.*fail|assertion|expect.*but.*got/i, 'assertion',
-    'Verify the expected condition matches the actual page state. Consider adding screenshots for debugging.',
+    '检查断言条件是否匹配实际页面状态。查看 HTML 报告截图对比预期与实际',
     'recoverable'],
   [/target closed|browser.*crash|session.*closed|protocol error/i, 'browser_crash',
     'Chrome 进程崩溃。检查系统资源（内存/CPU）；尝试 headless: false 调试；运行 health-check.js 验证 Chrome',
@@ -37,14 +37,14 @@ const ERROR_PATTERNS = [
   [/chrome.*not found|browser.*not found|no usable.*browser|ENOENT.*chrome/i, 'browser_not_found',
     'Chrome 未找到。运行 node scripts/health-check.js 检查；安装 Chrome 或设置 PUPPETEER_EXECUTABLE_PATH',
     'fatal'],
-  [/ERR_INTERNET_DISCONNECTED|ECONNRESET|ECONNREFUSED|ERR_NETWORK_CHANGED/i, 'network_failure',
+  [/ERR_INTERNET_DISCONNECTED|ECONNRESET|ECONNREFUSED|ERR_CONNECTION_REFUSED|ERR_NETWORK_CHANGED/i, 'network_failure',
     '网络连接失败。检查网络状态和代理配置（MIDSCENE_MODEL_HTTP_PROXY）',
     'fatal'],
-  [/navigation|navigate|ERR_NAME_NOT_RESOLVED|ERR_CONNECTION_REFUSED|net::/i, 'navigation',
-    'Check the URL is correct and accessible. Ensure the site is running and network is available.',
+  [/navigation|navigate|ERR_NAME_NOT_RESOLVED|net::/i, 'navigation',
+    '检查 URL 是否正确且可访问。确认目标网站正在运行且网络可用',
     'recoverable'],
   [/transpil|compile|syntax\s*error|unexpected\s*token/i, 'transpiler',
-    'Check YAML syntax: use 2 spaces for indentation, proper quoting, and valid extended constructs.',
+    '检查 YAML 语法：使用 2 空格缩进、正确引号、有效的 Extended 语法结构',
     'fatal'],
   [/ENOSPC|no space left|disk full/i, 'disk_full',
     '磁盘空间不足。清理报告目录和临时文件（--clean）；释放磁盘空间',
@@ -53,10 +53,10 @@ const ERROR_PATTERNS = [
     'OOM: 减少并行任务数、增加系统内存、或使用 --clean 清理临时文件',
     'fatal'],
   [/EACCES|EPERM|permission|denied/i, 'permission',
-    'Check file permissions and ensure the process has access to the required directories.',
+    '检查文件权限，确保进程有权访问所需目录',
     'fatal'],
   [/javascript|script\s*error|ReferenceError|TypeError|EvalError/i, 'javascript',
-    'Review the JavaScript code in your YAML steps. Check variable names and data types.',
+    '检查 YAML 中 javascript 步骤的代码。确认变量名和数据类型正确',
     'recoverable'],
 ];
 
@@ -68,7 +68,7 @@ const ERROR_PATTERNS = [
  */
 function classifyError(errorMessage) {
   if (!errorMessage || typeof errorMessage !== 'string') {
-    return { category: 'unknown', suggestion: 'Check the full error output for details.', severity: 'recoverable' };
+    return { category: 'unknown', suggestion: '查看完整错误输出了解详情', severity: 'recoverable' };
   }
 
   for (const [pattern, category, suggestion, severity] of ERROR_PATTERNS) {
@@ -77,7 +77,7 @@ function classifyError(errorMessage) {
     }
   }
 
-  return { category: 'unknown', suggestion: 'Check the full error output for details.', severity: 'recoverable' };
+  return { category: 'unknown', suggestion: '查看完整错误输出了解详情', severity: 'recoverable' };
 }
 
 // ---------------------------------------------------------------------------

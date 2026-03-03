@@ -162,6 +162,12 @@ describe('escapeForTemplateLiteral', () => {
     assert.equal(escapeForTemplateLiteral('`${x}`'), '\\`\\${x}\\`');
   });
 
+  it('escapes newline, carriage return, and tab characters', () => {
+    assert.equal(escapeForTemplateLiteral('line1\nline2'), 'line1\\nline2');
+    assert.equal(escapeForTemplateLiteral('col1\tcol2'), 'col1\\tcol2');
+    assert.equal(escapeForTemplateLiteral('win\r\nline'), 'win\\r\\nline');
+  });
+
   it('returns non-string unchanged', () => {
     assert.equal(escapeForTemplateLiteral(null), null);
   });

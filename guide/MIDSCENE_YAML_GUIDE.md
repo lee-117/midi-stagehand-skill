@@ -848,7 +848,7 @@ agent:
   reportFileName: "my-report"       # 自定义报告文件名
   replanningCycleLimit: 20          # 重规划循环上限（默认 20，UI-TARS 为 40）
   aiActContext: "电商结算流程"         # AI 操作背景知识，提高理解准确度
-  screenshotShrinkFactor: 0.75      # 截图缩放因子（0~1，节省 token）
+  screenshotShrinkFactor: 2         # 截图缩小倍数（最小 1，值越大分辨率越低，节省 token）
   waitAfterAction: 500              # 每次操作后等待时间（毫秒，默认 300）
 ```
 
@@ -863,7 +863,7 @@ agent:
 | `reportFileName` | string | 自定义报告文件名（不含扩展名） |
 | `replanningCycleLimit` | number | 重规划循环上限，防止无限重试（默认 20） |
 | `aiActContext` | string | 提供 AI 操作的业务背景，提高理解准确度 |
-| `screenshotShrinkFactor` | number | 截图缩放因子（0~1），缩小截图可节省 token 消耗 |
+| `screenshotShrinkFactor` | number | 截图缩小倍数（最小 1），值越大分辨率越低，节省 token 消耗 |
 | `waitAfterAction` | number | 每次操作后等待时间（毫秒），默认 300 |
 
 在转译为 TypeScript 时，`agent` 配置会作为第二个参数传递给 Agent 构造函数：

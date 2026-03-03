@@ -92,7 +92,8 @@ MIDSCENE_MODEL_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 MIDSCENE_MODEL_API_KEY=sk-your-key
 MIDSCENE_MODEL_NAME=qwen-vl-max-latest
 
-# 其他可选：Gemini / GPT-4o / GLM-V — 详见 midscenejs.com/zh/model-common-config.html
+# 其他可选：Gemini / GLM-V / Doubao — 详见 midscenejs.com/zh/model-common-config.html
+# ⚠️ GPT-4o 规划能力已废弃。使用 UI-TARS 时 replanningCycleLimit 默认 40
 ```
 
 **常用环境变量**：
@@ -100,6 +101,8 @@ MIDSCENE_MODEL_NAME=qwen-vl-max-latest
 - `DEBUG=midscene:*` — 完整日志；`midscene:ai:call`(API)；`midscene:ai:profile:stats`(性能)
 - `MIDSCENE_INSIGHT_MODEL_*` / `MIDSCENE_PLANNING_MODEL_*` — 分阶段模型配置
 - `MIDSCENE_MODEL_HTTP_PROXY` — AI API 代理；`MIDSCENE_PREFERRED_LANGUAGE` — 响应语言
+- `MIDSCENE_MODEL_REASONING_EFFORT` — 推理强度（如 `medium`/`high`）；`MIDSCENE_MODEL_REASONING_ENABLED` — 启用推理；`MIDSCENE_MODEL_REASONING_BUDGET` — 推理 token 预算
+- `MIDSCENE_MODEL_FAMILY` — 模型族：`openai`、`anthropic`、`gemini`、`qwen`、`doubao`、`glm`、`custom`（⚠️ GPT-4o 规划能力已废弃，建议切换为 qwen-vl-max 或 Gemini 2.5）
 
 **首次使用？** 运行 `npm run setup`（自动安装依赖、预热缓存、检测 Chrome）。
 
@@ -185,7 +188,9 @@ npx @midscene/web "tests/**/*.yaml" --concurrent --continue-on-error
 - `--android.deviceId <id>` — 覆盖 Android 设备 ID
 - `--ios.wdaPort <port>` / `--ios.wdaHost <host>` — 覆盖 iOS WDA 配置
 
-> **注意**: 包名是 `@midscene/web`（不是 `@midscene/cli`）。官方 CLI 语法是 `npx @midscene/web <yaml-file>`，支持 `run` 子命令（`npx @midscene/web run <yaml-file>`），两种形式均可。
+> **注意**: 包名是 `@midscene/web`（不是 `@midscene/cli`）。
+
+**项目 CLI vs 官方 CLI 对比**：项目 CLI（方式 1）用于开发调试，含验证+转译+报告解析；官方 CLI（方式 2）用于 CI 并行执行，支持 `--concurrent`/`--continue-on-error`。
 
 **可用选项**（方式 1）：
 - `--dry-run` — 仅验证和转换，不实际执行（注意：不检测模型配置，AI 操作需配置 `MIDSCENE_MODEL_API_KEY`）
@@ -232,36 +237,22 @@ node scripts/midscene-run.js test.yaml --output-ts ./debug-output.ts
 
 #### 失败
 
-**错误分析优先级**：
+**错误分析优先级**（4 大类 14 子类）：
 
-| # | 错误关键字 | 分类 | 严重性 | 首选修复 |
-|---|-----------|------|--------|---------|
-| 1 | `API key` / `401` | api_key | fatal | 配置 MIDSCENE_MODEL_API_KEY |
-| 2 | `Timeout` / `exceeded` | timeout | recoverable | 增加 timeout 值 |
-| 3 | `Element not found` | element_not_found | recoverable | 调整 AI 描述 / deepThink |
-| 4 | `Assertion failed` | assertion | recoverable | 查看报告截图对比 |
-| 5 | `Navigation` / `net::ERR_` | navigation | recoverable | 检查 URL 和网络 |
-| 6 | `Transpiler error` | transpiler | fatal | --output-ts 排查 |
-| 7 | `Permission denied` | permission | fatal | 添加登录/权限步骤 |
-| 8 | `javascript` 步骤报错 | javascript | recoverable | 检查 JS 语法 |
-| 9 | `429` / `rate limit` | rate_limit | recoverable | 增加 sleep 间隔 |
-| 10 | `Chrome` / `browser` | browser_not_found | fatal | 安装 Chrome |
-| 11 | `ECONNRESET` / 网络断开 | network_failure | fatal | 检查网络 |
-| 12 | `ENOSPC` / 磁盘满 | disk_full | fatal | --clean 清理 |
-| 13 | `browser crash` | browser_crash | fatal | 减少并行 / 增加内存 |
-| 14 | `out of memory` / `ENOMEM` | memory_exhaustion | fatal | 减少并行任务 / 增加内存 / --clean |
+| 大类 | 子类 | 严重性 | 首选修复 |
+|------|------|--------|---------|
+| **配置问题** | api_key, transpiler, permission | fatal | 配置 API Key / 检查 YAML 语法 / 检查权限 |
+| **定位问题** | element_not_found, assertion, timeout | recoverable | 精确描述 → deepThink → xpath / 增加 timeout |
+| **网络问题** | navigation, network_failure, rate_limit | mixed | 检查 URL/DNS / 检查网络代理 / 增加 sleep 间隔 |
+| **资源问题** | browser_not_found, browser_crash, disk_full, memory_exhaustion | fatal | health-check / --clean / 减少并行 |
 
-**退出码**: 0=成功、1=执行失败、2=配置/验证错误
+> 子类详情：javascript(recoverable) 检查 JS 语法。退出码：0=成功、1=执行失败、2=配置错误
 
 **修复策略速查**：
-- `api_key`/`401` → 配置 `MIDSCENE_MODEL_API_KEY`
-- `timeout` → `--timeout 60000` 或增加 `aiWaitFor` timeout
-- `element_not_found` → 精确 AI 描述 → `deepThink: true` → `xpath`
-- `assertion` → 查看报告截图对比实际 vs 预期
-- `navigation`(URL/DNS 问题，recoverable) → 检查 URL 拼写和 DNS；`network_failure`(连接断开，fatal) → 检查网络/代理
-- `transpiler` → `--dry-run --output-ts ./debug.ts`
-- `rate_limit`/`429` → 增加 sleep 间隔，`--retry 3`（需增加间隔）
-- `browser_not_found` → `node scripts/health-check.js`
+- **配置类** → `api_key`: 配置 MIDSCENE_MODEL_API_KEY；`transpiler`: `--dry-run --output-ts debug.ts`
+- **定位类** → `element_not_found`: 精确 AI 描述 → `deepThink: true` → `xpath`；`assertion`: 查看报告截图
+- **网络类** → `navigation`: 检查 URL；`network_failure`: 检查网络/代理；`rate_limit`: 增加 sleep + `--retry 3`
+- **资源类** → `browser_not_found`: `node scripts/health-check.js`；`disk_full`/`memory`: `--clean` + 减少并行
 - `disk_full` → `--clean`
 
 > **重试策略**: recoverable 类可重试；fatal 类不重试需修正根因；rate_limit 需退避增加间隔
@@ -299,6 +290,8 @@ node scripts/midscene-run.js test.yaml --output-ts ./debug-output.ts
    [SUGGESTION] 重新设计定位策略 / 调整操作顺序 / 添加中间等待步骤
    ```
    升级场景：定位策略根本性失败、操作顺序设计错误、缺少关键步骤、选错执行模式
+
+   > **确认令牌**: Generator 响应 ESCALATE 时，必须在回复中包含 `[FIX_FOR] <file>.yaml` 确认已处理目标文件。Runner 验证此令牌后才继续执行。
 
    > **迭代上限**: Runner 最多进行 2 轮自修复+重试。2 轮均失败后，输出综合摘要而非单次错误，便于 Generator 一次性修复：
 
@@ -354,16 +347,7 @@ ios: { wdaPort: 8100 }                    # flow 中 launch: "bundleId"
 computer: { launch: "/path/to/app" }      # headless + xvfbResolution 用于 CI
 ```
 
-### Native 动作分类
-
-| 类别 | 动作 |
-|------|------|
-| AI 规划 | `ai`, `aiAct` |
-| 即时动作 | `aiTap`, `aiHover`, `aiInput`, `aiKeyboardPress`, `aiScroll`, `aiDoubleClick`, `aiRightClick`, `aiDragAndDrop`, `aiClearInput`, `aiLongPress` |
-| 数据提取 | `aiQuery`, `aiBoolean`, `aiNumber`, `aiString`, `aiLocate`, `aiAsk` |
-| 断言/等待 | `aiAssert`, `aiWaitFor` |
-| 工具 | `sleep`, `javascript`, `recordToReport`, `freezePageContext`, `unfreezePageContext` |
-| 平台特定 | `runAdbShell`, `runWdaRequest`, `launch`, Android/iOS 系统按钮 |
+动作详情参见 Generator `REFERENCE.md`「Native 动作完整映射」。
 
 ## 调试技巧
 
@@ -386,13 +370,9 @@ computer: { launch: "/path/to/app" }      # headless + xvfbResolution 用于 CI
 
 ## 执行安全
 
-- **报告截图**: 可能含敏感数据，CI/CD 中标记为私有 artifact
-- **API Key**: 通过 CI secrets 管理，不硬编码；`.env` 确保在 `.gitignore` 中
-- **日志**: `--verbose` / `DEBUG=midscene:*` 可能含请求详情，CI 中避免公开输出
-- **临时文件**: 执行后用 `--clean` 清理 `.midscene-tmp/`
-- **Docker/CI**: `chromeArgs: ['--no-sandbox']` 仅在受信容器中使用；建议网络隔离
+报告截图可能含敏感数据，CI/CD 中标记为私有 artifact。API Key 通过 CI secrets 管理，`.env` 确保在 `.gitignore` 中。
 
-## CI/CD 集成
+## CI/CD 集成（CI/CD 专用配置，交互式用户可跳过）
 
 - **批量执行**: 项目 CLI 串行 `node scripts/midscene-run.js "tests/**/*.yaml"`；官方 CLI 并行 `npx @midscene/web "tests/**/*.yaml" --concurrent 4 --continue-on-error`
 - **汇总报告**: `--summary report.json` 输出 JSON 格式执行汇总（每文件通过/失败状态），适合 CI 自动解析

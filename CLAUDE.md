@@ -27,7 +27,7 @@ templates/          → 41 个 YAML 模板（native 25 个 + extended 16 个）
                         error-recovery-pattern, data-accumulation-loop
 skills/             → Claude Code Skill 定义（见下方）
 guide/              → 渐进式指导手册（L1-L5）
-test/               → 758 个单元测试（13 个测试文件）
+test/               → 764+ 个单元测试（13 个测试文件）
 ```
 
 ### 架构流程图
@@ -163,11 +163,12 @@ node scripts/health-check.js
 - 安全检测：JS 注入 / ADB 危险命令 / SSRF 内部 URL / 路径遍历 / `acceptInsecureCerts` 警告 / `runWdaRequest` 破坏性 URL 检测
 - JS 注入扩展检测：`fetch(`、`XMLHttpRequest`、`sendBeacon`、`document.cookie`、`WebSocket`、`postMessage`
 - ADB 扩展检测：`am force-stop`、`settings put`、`svc data/wifi disable`、`pm disable`
-- SSRF 扩展检测：IPv6 回环 (`[::1]`)、IPv6 映射 IPv4 (`[::ffff:127.0.0.1]`)、GCP 元数据 (`metadata.google.internal`)
+- SSRF 扩展检测：`0.0.0.0`、IPv6 回环 (`[::1]`)、IPv6 映射 IPv4 (`[::ffff:127.0.0.1]`)、GCP 元数据 (`metadata.google.internal`)
 - `runWdaRequest` 破坏性 URL 检测：delete / uninstall / reset 操作
 - `chromeArgs` 高危参数检测：`--disable-web-security`、`--allow-file-access-from-files`、`--remote-debugging-port`
 - `cookie` 路径遍历检测：path 字段 `..` 模式检测
-- `maxAliases` 限制从 100 降低至 25（防 YAML alias 炸弹）
+- `output.filePath` 路径遍历检测 + 绝对路径警告
+- `maxAliases` 限制为 25（detector + validator + transpiler 统一，防 YAML alias 炸弹）
 - 变量收集：支持 AI 动作 name 字段 + javascript 步骤 name/output
 
 ### 错误分类
@@ -215,7 +216,7 @@ node scripts/health-check.js
 
 ## 测试结构
 
-758 个测试，分布在 13 个测试文件中：
+764+ 个测试，分布在 13 个测试文件中：
 
 | 测试文件 | 覆盖范围 |
 |---------|---------|

@@ -655,7 +655,7 @@ function processFile(yamlPath, args) {
     }
 
     const exitCode = typeof result.exitCode === 'number' ? result.exitCode : 1;
-    return exitCode || 1;
+    return exitCode ?? 1;
   }
 }
 
@@ -773,9 +773,22 @@ function executeFile(yamlPath, detection, args) {
   return result;
 }
 
+// ---------------------------------------------------------------------------
+// Signal handlers — cleanup temp files on interrupt
+// ---------------------------------------------------------------------------
+function setupSignalHandlers() {
+  const cleanup = (signal) => {
+    try { cleanStaleTempFiles(); } catch { /* best effort */ }
+    process.exit(signal === 'SIGINT' ? 130 : 143);
+  };
+  process.on('SIGINT', () => cleanup('SIGINT'));
+  process.on('SIGTERM', () => cleanup('SIGTERM'));
+}
+
 // Export parseArgs and resolveYamlFiles for testability; run main() only when executed directly.
 module.exports = { parseArgs, resolveYamlFiles };
 
 if (require.main === module) {
+  setupSignalHandlers();
   main();
 }

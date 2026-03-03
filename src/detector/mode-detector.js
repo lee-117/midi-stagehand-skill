@@ -184,7 +184,7 @@ function detect(yamlInput) {
 
   let doc;
   try {
-    doc = yaml.load(content);
+    doc = yaml.load(content, { maxAliases: 25 });
   } catch {
     return { mode: 'native', features: [], needs_transpilation: false };
   }
