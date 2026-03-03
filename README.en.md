@@ -30,9 +30,9 @@ Supports **Web**, **Android**, **iOS**, and **Computer** platforms.
 npx skills add https://gitee.com/lee-zh/midi-stagehand-skill.git -a qoder -y
 ```
 
-> **Optional**: Add the `-g` flag to install skills globally, shared across all projects. You can also use the GitHub source:
+> **Global install (optional)**: Add the `-g` flag to install skills globally, shared across all projects:
 > ```bash
-> npx skills add https://github.com/lee-117/midi-stagehand-skill -a qoder -y
+> npx skills add https://gitee.com/lee-zh/midi-stagehand-skill.git -a qoder -y -g
 > ```
 
 Supported AI Agents:
