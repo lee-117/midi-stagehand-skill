@@ -1,3 +1,17 @@
+/**
+ * native-runner.js
+ *
+ * Executes Midscene YAML files via the @midscene/web CLI as a subprocess.
+ * This module does NOT use @midscene/web's Node.js API (ScriptPlayer, PuppeteerAgent, etc.)
+ * directly. Instead, it shells out to `npx @midscene/web run <file>` using execFileSync
+ * (no shell, prevents command injection).
+ *
+ * Chrome is auto-detected via findSystemChrome() and passed as PUPPETEER_EXECUTABLE_PATH.
+ *
+ * For programmatic usage, prefer `runYaml()` from `src/runner/run-yaml.js` or
+ * `src/index.js` — it wraps this module with validation, detection, and report parsing.
+ */
+
 const { execFileSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');

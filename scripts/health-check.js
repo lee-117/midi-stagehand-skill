@@ -14,6 +14,11 @@ const { findSystemChrome } = require('../src/runner/runner-utils');
 
 const ROOT = path.resolve(__dirname, '..');
 
+// Load .env using dotenv (consistent with midscene-run.js)
+try {
+  require('dotenv').config({ path: path.join(ROOT, '.env') });
+} catch { /* dotenv not available — fall back to manual parsing below */ }
+
 let passed = 0;
 let failed = 0;
 
@@ -82,17 +87,18 @@ check('tsx runtime (Extended mode)', () => {
 
 // 6. AI model configuration
 check('AI model configured', () => {
-  // Load .env if present
-  const envPath = path.join(ROOT, '.env');
-  if (fs.existsSync(envPath)) {
-    const envContent = fs.readFileSync(envPath, 'utf8');
-    for (const line of envContent.split('\n')) {
-      const match = line.match(/^\s*([^#=]+?)\s*=\s*(.*?)\s*$/);
-      if (match) {
-        const [, key, val] = match;
-        // Strip surrounding quotes from .env values
-        const stripped = val.replace(/^(['"])(.*)\1$/, '$2');
-        if (!process.env[key]) process.env[key] = stripped;
+  // dotenv was loaded at startup; fall back to manual parsing if dotenv was unavailable
+  if (!process.env.MIDSCENE_MODEL_API_KEY) {
+    const envPath = path.join(ROOT, '.env');
+    if (fs.existsSync(envPath)) {
+      const envContent = fs.readFileSync(envPath, 'utf8');
+      for (const line of envContent.split('\n')) {
+        const match = line.match(/^\s*([^#=]+?)\s*=\s*(.*?)\s*$/);
+        if (match) {
+          const [, key, val] = match;
+          const stripped = val.replace(/^(['"])(.*)\1$/, '$2');
+          if (!process.env[key]) process.env[key] = stripped;
+        }
       }
     }
   }

@@ -61,6 +61,13 @@ function findSystemChrome() {
   const platform = os.platform();
   const candidates = [];
 
+  // Check standard environment variable overrides first (used by Karma, Lighthouse, Puppeteer)
+  const envChrome = process.env.CHROME_BIN || process.env.CHROMIUM_BIN;
+  if (envChrome && fs.existsSync(envChrome)) {
+    _cachedChrome = envChrome;
+    return _cachedChrome;
+  }
+
   if (platform === 'win32') {
     const bases = [process.env['PROGRAMFILES'], process.env['PROGRAMFILES(X86)'], process.env['LOCALAPPDATA']].filter(Boolean);
     for (const base of bases) {

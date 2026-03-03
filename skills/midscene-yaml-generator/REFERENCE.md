@@ -18,7 +18,8 @@
 | "获取/提取/读取 XXX" | `aiQuery: { query: "XXX", name: "result" }` | name 用于存储结果；可选 `domIncluded`/`screenshotIncluded` 控制 AI 分析范围 |
 | "暂停/等待 N 秒" | `sleep: N*1000` | 参数为毫秒 |
 | "执行 JS 代码" | `javascript: "代码内容"` | 直接执行 JavaScript；可选 `output`/`name` 存储返回值到变量 |
-| "截图记录到报告" | `recordToReport: "标题"` + `content: "描述"` | 截图并记录描述到报告 |
+| "截图记录到报告" | `recordToReport: "标题"` + `content: "描述"` | 截图并记录描述到报告。如需同时验证页面状态，先用 `aiAssert` 再截图 |
+| "截图/截屏/保存截图" | `recordToReport: "标题"` | 截图保存到报告；如需验证结果，先用 `aiAssert: "验证条件"` |
 | "双击 XXX" | `aiDoubleClick: "XXX"` | 可选 `deepThink: true`；支持 `locate` 对象 |
 | "右键点击 XXX" | `aiRightClick: "XXX"` | 右键操作（Web/Computer 平台）；可选 `deepThink: true`；支持 `locate` 对象 |
 | "定位 XXX 元素" | `aiLocate: "XXX"` + `name: "elem"` | 定位元素，结果存入变量（Extended 模式可引用） |

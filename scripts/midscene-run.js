@@ -5,6 +5,11 @@
 const path = require('path');
 const fs = require('fs');
 
+// Load environment variables from .env at the project root (before any runner)
+try {
+  require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
+} catch { /* dotenv not available — environment variables must be set manually */ }
+
 // ---------------------------------------------------------------------------
 // Module imports from ../src/
 // ---------------------------------------------------------------------------

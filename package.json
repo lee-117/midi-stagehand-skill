@@ -2,7 +2,7 @@
   "name": "midi-stagehand-skill",
   "version": "0.0.1",
   "description": "Midscene YAML Superset Ecosystem — AI-powered low-code browser automation via natural language (Claude Code Skills)",
-  "main": "scripts/midscene-run.js",
+  "main": "src/index.js",
   "bin": {
     "midscene-run": "./scripts/midscene-run.js"
   },
@@ -17,13 +17,14 @@
     "detect": "node -e \"const d = require('./src/detector/mode-detector'); console.log(d.detect(process.argv[1]))\""
   },
   "dependencies": {
+    "@midscene/web": "^1.0.0",
+    "dotenv": "^16.4.7",
     "handlebars": "^4.7.8",
     "js-yaml": "^4.1.1",
     "tsx": "^4.19.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@midscene/web": "^1.0.0",
     "c8": "^11.0.0",
     "eslint": "^10.0.2"
   },
