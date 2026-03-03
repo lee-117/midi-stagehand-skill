@@ -19,7 +19,7 @@ Direct execution, no transpilation needed.
 | `native/web-cookie-session.yaml` | Session restore via cookie file |
 | `native/web-local-serve.yaml` | Test local static files with built-in server |
 | `native/web-long-press.yaml` | Long press interaction with duration control |
-| `native/deep-think-locator.yaml` | Complex element location with deepThink/xpath |
+| `native/web-deep-think-locator.yaml` | Complex element location with deepThink/xpath |
 | `native/android-app.yaml` | Android app testing via ADB |
 | `native/android-system-buttons.yaml` | Android system buttons (Back / Home / RecentApps) |
 | `native/android-advanced-config.yaml` | Android advanced config (scrcpy, IME, keyboard) |

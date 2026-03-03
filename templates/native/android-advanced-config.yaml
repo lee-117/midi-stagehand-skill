@@ -1,6 +1,7 @@
 # Android 高级配置模板
-# 场景: scrcpy 配置、输入法策略、键盘关闭策略等高级配置
-# 适用平台: Android
+# Android Advanced Config Template
+# 演示 scrcpy 配置、输入法策略、键盘关闭策略等高级配置
+# Usage: node scripts/midscene-run.js templates/native/android-advanced-config.yaml --dry-run
 
 engine: native
 

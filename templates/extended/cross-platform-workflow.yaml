@@ -1,0 +1,95 @@
+# 跨平台工作流模板
+# Cross-Platform Workflow Template
+# 演示通过变量参数化实现 Web 与移动端共享测试逻辑
+# Usage: node scripts/midscene-run.js templates/extended/cross-platform-workflow.yaml --dry-run
+
+engine: extended
+features: [variables, logic]
+
+# 默认使用 Web 平台配置
+# 跨平台切换说明:
+#   - Web: 使用下方 web 配置
+#   - Android: 注释 web 块，取消注释 android 块
+#   - iOS: 注释 web 块，取消注释 ios 块
+#
+# Android 配置示例（取消注释以启用）:
+# android:
+#   deviceId: "emulator-5554"
+#   keyboardDismissStrategy: "esc-first"
+#   imeStrategy: "yadb-for-non-ascii"
+#
+# iOS 配置示例（取消注释以启用）:
+# ios:
+#   wdaPort: 8100
+#   wdaHost: "localhost"
+#   autoDismissKeyboard: true
+
+web:
+  url: "https://example.com"
+  headless: false
+  viewportWidth: 1280
+  viewportHeight: 960
+
+variables:
+  # 平台标识: "web" | "android" | "ios"
+  platform: "web"
+  appName: "示例应用"
+  searchKeyword: "Midscene 自动化"
+
+tasks:
+  # ========== 共享逻辑: 搜索功能测试 ==========
+  - name: "跨平台搜索测试"
+    flow:
+      # 平台适配: 页面/应用加载
+      - logic:
+          if: "页面上有搜索框或搜索图标"
+          then:
+            - ai: "找到搜索入口"
+          else:
+            - ai: "向下滚动页面寻找搜索功能"
+
+      - aiWaitFor: "搜索框可见"
+        timeout: 10000
+
+      # 共享测试逻辑 — 所有平台通用
+      - aiInput: "搜索框"
+        value: "${searchKeyword}"
+
+      - aiTap: "搜索按钮或按下回车"
+
+      - aiWaitFor: "搜索结果加载完成"
+        timeout: 15000
+
+      - aiAssert: "页面显示了与 ${searchKeyword} 相关的结果"
+
+      - aiQuery:
+          query: "搜索结果的数量和前三条结果标题"
+          name: "searchResults"
+
+      - recordToReport: "${platform} 平台搜索测试"
+        content: "在 ${platform} 平台完成搜索功能验证"
+
+  # ========== 共享逻辑: 导航测试 ==========
+  - name: "跨平台导航测试"
+    flow:
+      # 导航到不同页面/功能模块
+      - logic:
+          if: "页面有导航栏或侧边菜单"
+          then:
+            - aiTap: "导航栏的第一个链接或菜单项"
+            - aiWaitFor: "新页面加载完成"
+              timeout: 10000
+          else:
+            - ai: "找到并点击页面上的任意可导航链接"
+            - aiWaitFor: "页面发生跳转"
+              timeout: 10000
+
+      - aiAssert: "成功导航到新页面"
+
+      # 返回操作 — 跨平台通用
+      - ai: "返回上一页"
+      - aiWaitFor: "回到原始页面"
+        timeout: 10000
+
+      - recordToReport: "${platform} 平台导航测试"
+        content: "在 ${platform} 平台完成导航功能验证"

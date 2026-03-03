@@ -1,6 +1,7 @@
 # 文件下载操作模板
-# 场景: 触发下载、等待完成和验证下载文件
-# 适用平台: Web
+# Web File Download Template
+# 演示触发下载、等待完成和验证下载文件
+# Usage: node scripts/midscene-run.js templates/native/web-file-download.yaml --dry-run
 
 engine: native
 

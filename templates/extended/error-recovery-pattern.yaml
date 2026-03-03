@@ -1,0 +1,114 @@
+# 错误恢复模式模板
+# Error Recovery Pattern Template
+# 演示 try/catch/finally 异常处理和错误恢复策略
+# Usage: node scripts/midscene-run.js templates/extended/error-recovery-pattern.yaml --dry-run
+
+engine: extended
+features: [try_catch, logic, variables]
+
+web:
+  url: "https://example.com"
+  headless: false
+  viewportWidth: 1280
+  viewportHeight: 960
+
+variables:
+  retryCount: 0
+  maxRetries: 3
+  operationSuccess: false
+
+tasks:
+  # ========== 模式 1: 基础 try/catch/finally ==========
+  # 错误处理最佳实践:
+  # - try: 包含可能失败的操作
+  # - catch: 处理异常，记录错误信息
+  # - finally: 无论成功或失败都执行的清理操作
+  - name: "基础错误处理"
+    flow:
+      - try:
+          flow:
+            - aiWaitFor: "页面加载完成"
+              timeout: 10000
+            - aiTap: "可能不存在的按钮"
+            - aiWaitFor: "操作结果出现"
+              timeout: 5000
+        catch:
+          flow:
+            - recordToReport: "操作失败"
+              content: "目标元素未找到或操作超时"
+            # 在 catch 中查询错误信息
+            - aiQuery:
+                query: "页面是否显示了错误提示？如有，提取错误内容"
+                name: "errorMessage"
+        finally:
+          flow:
+            # finally 中的操作始终执行
+            - recordToReport: "基础错误处理完成"
+              content: "try/catch/finally 流程执行完毕"
+
+  # ========== 模式 2: 嵌套 try/catch 重试 ==========
+  - name: "重试恢复策略"
+    flow:
+      - try:
+          flow:
+            # 第一次尝试
+            - aiTap: "提交按钮"
+            - aiWaitFor: "提交成功提示"
+              timeout: 10000
+        catch:
+          flow:
+            - recordToReport: "第一次尝试失败"
+              content: "开始重试流程"
+            # 嵌套 try/catch — 第二次尝试
+            - try:
+                flow:
+                  - ai: "刷新页面"
+                  - aiWaitFor: "页面重新加载完成"
+                    timeout: 10000
+                  - aiTap: "提交按钮"
+                  - aiWaitFor: "提交成功提示"
+                    timeout: 15000
+              catch:
+                flow:
+                  - recordToReport: "第二次尝试也失败"
+                    content: "重试失败，尝试备用方案"
+                  # 第三次尝试 — 备用方案
+                  - try:
+                      flow:
+                        - ai: "使用页面上的备用提交方式"
+                        - aiWaitFor: "操作完成提示"
+                          timeout: 20000
+                    catch:
+                      flow:
+                        - recordToReport: "所有尝试均失败"
+                          content: "已耗尽重试次数，需人工介入"
+
+  # ========== 模式 3: 条件恢复路径 ==========
+  - name: "条件恢复"
+    flow:
+      - try:
+          flow:
+            - aiTap: "主功能按钮"
+            - aiWaitFor: "主功能执行结果"
+              timeout: 10000
+        catch:
+          flow:
+            # 根据错误类型选择恢复路径
+            - logic:
+                if: "页面显示了网络错误或超时提示"
+                then:
+                  # 网络错误 — 等待后重试
+                  - sleep: 3000
+                  - ai: "刷新页面"
+                  - aiWaitFor: "页面加载完成"
+                    timeout: 15000
+                  - recordToReport: "网络错误恢复"
+                    content: "已刷新页面重试"
+                else:
+                  # 其他错误 — 记录并跳过
+                  - recordToReport: "非网络错误"
+                    content: "遇到非网络错误，记录后继续"
+        finally:
+          flow:
+            - recordToReport: "条件恢复测试完成"
+              content: "根据错误类型执行不同恢复策略"

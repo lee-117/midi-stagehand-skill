@@ -64,6 +64,13 @@ function run(yamlPath, options = {}) {
     }
   }
 
+  // Note: native-runner executes the entire YAML file as a single unit via
+  // @midscene/web CLI. Individual task-level progress (start/pass/fail per task)
+  // is not available here because execFileSync runs the whole file atomically.
+  // Task-level details are available post-execution via report-parser.
+  const yamlBasename = path.basename(resolvedPath);
+  process.stderr.write('[Runner] Task "' + yamlBasename + '" started\n');
+
   try {
     execFileSync(bin, execArgs, {
       stdio: 'inherit',
@@ -72,8 +79,10 @@ function run(yamlPath, options = {}) {
       timeout: options.timeout || DEFAULT_TIMEOUT
     });
 
+    process.stderr.write('[Runner] Task "' + yamlBasename + '" passed\n');
     return { success: true, reportDir: reportDir };
   } catch (error) {
+    process.stderr.write('[Runner] Task "' + yamlBasename + '" failed\n');
     const { errorMessage, exitCode } = normaliseExecError(error);
     return {
       success: false,

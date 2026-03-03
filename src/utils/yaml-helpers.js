@@ -171,9 +171,17 @@ function walkFlow(flow, pathPrefix, visitor, _depth) {
  *
  * @param {object} doc - Parsed YAML document.
  * @param {function(object, string): boolean|void} visitor
+ * @param {function(string, number): void} [onDepthLimit] - Optional callback
+ *   invoked when walkFlow reaches MAX_WALK_DEPTH.  Passed through to
+ *   walkFlow as `visitor._onDepthLimit`.
  */
-function walkAllFlows(doc, visitor) {
+function walkAllFlows(doc, visitor, onDepthLimit) {
   if (!doc || !doc.tasks || !Array.isArray(doc.tasks)) return;
+
+  // Attach the depth-limit callback so walkFlow can invoke it.
+  if (typeof onDepthLimit === 'function') {
+    visitor._onDepthLimit = onDepthLimit;
+  }
 
   doc.tasks.forEach(function (task, taskIndex) {
     const flow = getNestedFlow(task);

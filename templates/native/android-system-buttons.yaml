@@ -1,6 +1,7 @@
 # Android 系统按钮操作模板
-# 场景: Android 设备物理/虚拟按键操作 + ADB Shell 命令
-# 适用平台: Android
+# Android System Buttons Template
+# 演示 Android 设备物理/虚拟按键操作和 ADB Shell 命令
+# Usage: node scripts/midscene-run.js templates/native/android-system-buttons.yaml --dry-run
 
 engine: native
 

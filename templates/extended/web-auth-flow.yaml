@@ -1,6 +1,8 @@
 # OAuth/认证流程模板
-# 场景: 第三方 OAuth 登录、多步认证、SSO 流程
-# 注意: 本模板使用 ${ENV:...} 变量引用，需要 extended 模式
+# Web Auth Flow Template
+# 演示第三方 OAuth 登录、多步认证、SSO 流程
+# Usage: node scripts/midscene-run.js templates/extended/web-auth-flow.yaml --dry-run
+
 engine: extended
 features: [variables]
 

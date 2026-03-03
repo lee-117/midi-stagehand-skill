@@ -1,7 +1,7 @@
-# 端到端工作流模板 — 展示 Extended 模式完整能力
-# 适用场景: 复杂工作流（登录→采集→处理→上报）
-# 使用方式: node scripts/midscene-run.js templates/extended/e2e-workflow.yaml --dry-run
-# 说明: 此模板用于演示，需要替换 URL 和凭证后才能实际执行
+# 端到端工作流模板
+# E2E Workflow Template
+# 展示 Extended 模式完整能力，演示登录、采集、处理、上报等复杂工作流
+# Usage: node scripts/midscene-run.js templates/extended/e2e-workflow.yaml --dry-run
 
 engine: extended
 features: [variables, logic, loop, try_catch, data_transform, external_call]
@@ -72,6 +72,9 @@ tasks:
                 name: "errorInfo"
 
   # ========== 阶段 3: 数据处理 ==========
+  # 注意: 此任务引用了"采集数据"任务中 aiQuery 定义的 ${pageData} 变量。
+  # 跨任务变量共享需要 output: { filePath, dataName } 将数据导出为 JSON 文件，
+  # 然后在后续任务中通过 import 或文件读取获取。此处为演示简化写法。
   - name: 处理采集数据
     flow:
       - data_transform:
@@ -88,6 +91,9 @@ tasks:
           name: "sortedItems"
 
   # ========== 阶段 4: 结果上报 ==========
+  # 注意: 此任务引用了"处理采集数据"任务中 data_transform 定义的 ${sortedItems} 变量。
+  # 跨任务变量共享需要 output: { filePath, dataName } 将数据导出为 JSON 文件。
+  # 本任务末尾的 output 配置即为导出示例。
   - name: 上报结果
     flow:
       - try:

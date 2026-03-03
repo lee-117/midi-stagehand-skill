@@ -1,7 +1,7 @@
-# 网页搜索模板 — 打开搜索引擎并搜索关键词
-# 适用场景: 基础搜索操作、搜索结果验证
-# 使用方式: node scripts/midscene-run.js templates/native/web-search.yaml
-# 兼容性: @midscene/web >= 1.x
+# 网页搜索模板
+# Web Search Template
+# 打开搜索引擎并搜索关键词，适用于基础搜索操作和搜索结果验证
+# Usage: node scripts/midscene-run.js templates/native/web-search.yaml --dry-run
 
 engine: native
 

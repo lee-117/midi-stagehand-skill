@@ -1,0 +1,83 @@
+# 缓存策略配置模板
+# Web Cache Strategy Template
+# 演示 Agent 缓存策略配置和不同策略的效果
+# Usage: node scripts/midscene-run.js templates/native/web-cache-strategy.yaml --dry-run
+
+engine: native
+
+web:
+  url: "https://example.com"
+  headless: false
+  viewportWidth: 1280
+  viewportHeight: 960
+
+# Agent 缓存策略说明:
+# cache.strategy 可选值:
+#   - "read-write": 读写缓存，首次执行写入缓存，后续执行复用缓存结果（推荐）
+#   - "read-only": 只读缓存，仅读取已有缓存，不写入新缓存
+#   - "write-only": 只写缓存，仅写入缓存，不读取已有缓存
+#   - false: 禁用缓存
+#
+# cache.id: 缓存标识符，相同 id 共享缓存。
+# 建议: 使用 cache.strategy 时同时设置 cache.id 以精确控制缓存范围。
+agent:
+  cache:
+    strategy: "read-write"
+    id: "example-cache-demo"
+
+tasks:
+  # ========== 任务 1: 首次执行（缓存写入） ==========
+  - name: "首次数据提取（写入缓存）"
+    flow:
+      - aiWaitFor: "页面加载完成"
+        timeout: 10000
+
+      # 首次执行时，以下查询结果会被写入缓存
+      - aiQuery:
+          query: "页面标题文字"
+          name: "pageTitle"
+
+      - aiQuery:
+          query: "页面中所有链接的文字和数量"
+          name: "pageLinks"
+
+      - aiBoolean: "页面是否包含导航栏"
+        name: "hasNavbar"
+
+      - recordToReport: "首次执行完成"
+        content: "查询结果已写入缓存，后续执行将复用"
+
+  # ========== 任务 2: 重复执行（缓存命中） ==========
+  # 当使用 read-write 策略重复执行时:
+  # - 相同的 aiQuery/aiBoolean 等查询会命中缓存
+  # - 跳过 AI 模型调用，直接返回缓存结果
+  # - 显著减少执行时间和 API 调用成本
+  - name: "缓存命中验证"
+    flow:
+      # 这些查询与任务 1 相同，将从缓存读取
+      - aiQuery:
+          query: "页面标题文字"
+          name: "cachedPageTitle"
+
+      - aiBoolean: "页面是否包含导航栏"
+        name: "cachedHasNavbar"
+
+      - recordToReport: "缓存命中验证完成"
+        content: "重复查询已从缓存读取，无需重新调用 AI"
+
+  # ========== 任务 3: 非缓存操作 ==========
+  # 注意: aiTap、aiInput 等交互操作不会被缓存，
+  # 因为每次页面状态可能不同。缓存主要针对查询类操作。
+  - name: "交互操作（不受缓存影响）"
+    flow:
+      - aiTap: "页面中的第一个链接"
+      - aiWaitFor: "新页面加载完成"
+        timeout: 10000
+
+      # 新页面的查询不会命中旧缓存
+      - aiQuery:
+          query: "当前页面的标题"
+          name: "newPageTitle"
+
+      - recordToReport: "交互操作测试完成"
+        content: "交互操作不受缓存影响，查询类操作受益于缓存"

@@ -466,6 +466,148 @@ describe('parseArgs', () => {
       assert.equal(args.dryRun, true);
     });
   });
+
+  // -----------------------------------------------------------------------
+  // --max-files (T122/T123)
+  // -----------------------------------------------------------------------
+  describe('--max-files', () => {
+    it('defaults to 100', () => {
+      const args = parseArgs(argv());
+      assert.equal(args.maxFiles, 100);
+    });
+
+    it('accepts a valid positive integer', () => {
+      const args = parseArgs(argv('--max-files', '50'));
+      assert.equal(args.maxFiles, 50);
+    });
+
+    it('accepts large values', () => {
+      const args = parseArgs(argv('--max-files', '10000'));
+      assert.equal(args.maxFiles, 10000);
+    });
+
+    it('exits on zero value', () => {
+      const exitCalls = [];
+      const origExit = process.exit;
+      const origError = console.error;
+      process.exit = (code) => { exitCalls.push(code); };
+      console.error = () => {};
+      try {
+        parseArgs(argv('--max-files', '0'));
+        assert.ok(exitCalls.includes(1), 'Should call process.exit(1) for zero max-files');
+      } finally {
+        process.exit = origExit;
+        console.error = origError;
+      }
+    });
+
+    it('exits on negative value', () => {
+      const exitCalls = [];
+      const origExit = process.exit;
+      const origError = console.error;
+      process.exit = (code) => { exitCalls.push(code); };
+      console.error = () => {};
+      try {
+        parseArgs(argv('--max-files', '-5'));
+        assert.ok(exitCalls.includes(1), 'Should call process.exit(1) for negative max-files');
+      } finally {
+        process.exit = origExit;
+        console.error = origError;
+      }
+    });
+
+    it('exits on non-numeric value', () => {
+      const exitCalls = [];
+      const origExit = process.exit;
+      const origError = console.error;
+      process.exit = (code) => { exitCalls.push(code); };
+      console.error = () => {};
+      try {
+        parseArgs(argv('--max-files', 'abc'));
+        assert.ok(exitCalls.includes(1), 'Should call process.exit(1) for non-numeric max-files');
+      } finally {
+        process.exit = origExit;
+        console.error = origError;
+      }
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // --json-log (T126/T127)
+  // -----------------------------------------------------------------------
+  describe('--json-log', () => {
+    it('defaults to false', () => {
+      const args = parseArgs(argv());
+      assert.equal(args.jsonLog, false);
+    });
+
+    it('--json-log sets jsonLog to true', () => {
+      const args = parseArgs(argv('--json-log'));
+      assert.equal(args.jsonLog, true);
+    });
+
+    it('combines with other flags', () => {
+      const args = parseArgs(argv('test.yaml', '--json-log', '--verbose'));
+      assert.equal(args.jsonLog, true);
+      assert.equal(args.verbose, true);
+      assert.equal(args.yamlPath, 'test.yaml');
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // T192 — Combined new options (--max-files + --json-log)
+  // -----------------------------------------------------------------------
+  describe('combined new options (--max-files and --json-log)', () => {
+    it('parses --max-files and --json-log together', () => {
+      const args = parseArgs(argv('suite.yaml', '--max-files', '200', '--json-log'));
+      assert.equal(args.yamlPath, 'suite.yaml');
+      assert.equal(args.maxFiles, 200);
+      assert.equal(args.jsonLog, true);
+    });
+
+    it('parses --max-files with --json-log and other flags', () => {
+      const args = parseArgs(argv(
+        'suite.yaml',
+        '--max-files', '50',
+        '--json-log',
+        '--dry-run',
+        '--verbose',
+        '--retry', '3',
+      ));
+      assert.equal(args.yamlPath, 'suite.yaml');
+      assert.equal(args.maxFiles, 50);
+      assert.equal(args.jsonLog, true);
+      assert.equal(args.dryRun, true);
+      assert.equal(args.verbose, true);
+      assert.equal(args.retry, 3);
+    });
+
+    it('--max-files value 1 is accepted (minimum positive integer)', () => {
+      const args = parseArgs(argv('--max-files', '1'));
+      assert.equal(args.maxFiles, 1);
+    });
+
+    it('exits when --max-files value is missing (end of args)', () => {
+      const exitCalls = [];
+      const origExit = process.exit;
+      const origError = console.error;
+      process.exit = (code) => { exitCalls.push(code); };
+      console.error = () => {};
+      try {
+        parseArgs(argv('--max-files'));
+        assert.ok(exitCalls.includes(1), 'Should call process.exit(1) when --max-files has no value');
+      } finally {
+        process.exit = origExit;
+        console.error = origError;
+      }
+    });
+
+    it('parses float value for --max-files as truncated integer', () => {
+      // parseInt('3.5', 10) returns 3, which is a valid positive integer
+      const args = parseArgs(argv('--max-files', '3.5'));
+      assert.equal(args.maxFiles, 3);
+    });
+  });
 });
 
 // ===========================================================================
@@ -590,12 +732,12 @@ describe('resolveYamlFiles', () => {
   // Edge cases
   // -----------------------------------------------------------------------
   describe('edge cases', () => {
-    it('works with the templates directory to find all 31 templates', () => {
+    it('works with the templates directory to find all 41 templates', () => {
       const pattern = path.resolve(__dirname, '..', 'templates', '**', '*.yaml');
       const result = resolveYamlFiles(pattern);
-      // We know there are 31 templates (19 native + 12 extended)
-      assert.ok(result.length >= 28,
-        `Should find at least 28 templates, found ${result.length}`);
+      // We know there are 41 templates (25 native + 16 extended)
+      assert.ok(result.length >= 39,
+        `Should find at least 39 templates, found ${result.length}`);
     });
   });
 });

@@ -14,7 +14,7 @@
       "description": "Loop control (for/while/repeat)"
     },
     "import": {
-      "keywords": ["import", "use", "with", "as", "flow", "data"],
+      "keywords": ["import", "use", "with", "as", "flow", "data", "file"],
       "description": "External file import and parameterized sub-flow invocation"
     },
     "data_transform": {
@@ -38,7 +38,7 @@
   "allExtendedKeywords": [
     "variables", "logic", "if", "then", "else",
     "loop", "items", "as", "itemVar", "item", "condition", "maxIterations", "max_iterations", "count", "times", "indexVar",
-    "import", "use", "with", "flow", "data",
+    "import", "use", "with", "flow", "data", "file",
     "data_transform", "input", "operations", "source", "operation", "name", "output", "filter", "sort", "map", "reduce", "unique", "distinct", "slice", "flatten", "groupBy", "condition", "by", "order", "template", "reducer", "initial", "start", "end",
     "try", "catch", "finally",
     "external_call", "type", "method", "headers", "body", "response_as", "command",

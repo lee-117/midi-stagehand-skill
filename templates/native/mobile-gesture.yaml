@@ -1,0 +1,78 @@
+# 移动端手势操作模板
+# Mobile Gesture Operations Template
+# 演示 Android 平台的滑动、长按、点击等手势操作
+# Usage: node scripts/midscene-run.js templates/native/mobile-gesture.yaml --dry-run
+
+engine: native
+
+android:
+  deviceId: "emulator-5554"
+  screenshotResizeScale: 0.75
+  keyboardDismissStrategy: "esc-first"
+  imeStrategy: "yadb-for-non-ascii"
+  alwaysRefreshScreenInfo: true
+
+tasks:
+  # ========== 任务 1: 滑动手势 ==========
+  - name: "滑动手势操作"
+    flow:
+      - launch: "com.android.chrome"
+      - sleep: 2000
+
+      - ai: "在地址栏输入 https://example.com 并回车"
+      - aiWaitFor: "页面加载完成"
+        timeout: 15000
+
+      # aiScroll — 页面滚动，scrollType 可选:
+      # singleAction | scrollToBottom | scrollToTop | scrollToRight | scrollToLeft
+      - aiScroll: "页面主体内容区域"
+        scrollType: "scrollToBottom"
+
+      - aiAssert: "已滚动到页面底部"
+
+      - aiScroll: "页面主体内容区域"
+        scrollType: "scrollToTop"
+
+      - aiAssert: "已回到页面顶部"
+
+      # aiSwipe — 指定方向和距离的滑动
+      - ai: "从屏幕中间向左滑动"
+
+      - recordToReport: "滑动手势测试完成"
+        content: "已验证 aiScroll 和滑动操作"
+
+  # ========== 任务 2: 长按手势 ==========
+  - name: "长按手势操作"
+    flow:
+      # aiLongPress — 长按操作，支持 duration 参数（毫秒）
+      - aiLongPress: "页面中的链接文字"
+        duration: 1500
+
+      - aiWaitFor: "出现长按菜单（如复制链接、分享等选项）"
+        timeout: 5000
+
+      - aiAssert: "长按弹出了上下文菜单"
+
+      # 关闭弹出菜单
+      - AndroidBackButton: true
+      - sleep: 500
+
+      - recordToReport: "长按手势测试完成"
+        content: "已验证 aiLongPress 和 duration 参数"
+
+  # ========== 任务 3: 点击与双击 ==========
+  - name: "点击与双击操作"
+    flow:
+      # aiTap — 单次点击
+      - aiTap: "页面中的第一个链接"
+      - aiWaitFor: "链接目标页面加载完成"
+        timeout: 10000
+
+      - AndroidBackButton: true
+      - sleep: 1000
+
+      # aiDoubleClick — 双击操作（选中文字等场景）
+      - aiDoubleClick: "页面中的一段文本"
+
+      - recordToReport: "点击手势测试完成"
+        content: "已验证 aiTap 和 aiDoubleClick 操作"

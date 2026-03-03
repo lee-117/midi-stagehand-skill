@@ -1,0 +1,71 @@
+# 冻结页面上下文模板
+# Web Freeze Page Context Template
+# 演示 freezePageContext 提升连续查询的性能
+# Usage: node scripts/midscene-run.js templates/native/web-freeze-context.yaml --dry-run
+
+engine: native
+
+web:
+  url: "https://example.com/dashboard"
+  headless: false
+  viewportWidth: 1280
+  viewportHeight: 960
+
+tasks:
+  # ========== 任务 1: 冻结上下文批量查询 ==========
+  # freezePageContext 说明:
+  # 冻结页面上下文后，Midscene 会复用同一份页面快照进行多次查询，
+  # 避免每次 aiQuery 都重新截图和分析页面，显著提升连续查询性能。
+  # 适用场景: 页面内容在多次查询期间不会发生变化。
+  - name: "批量数据提取（冻结上下文）"
+    flow:
+      - aiWaitFor: "仪表盘页面加载完成，数据图表已渲染"
+        timeout: 15000
+
+      # 冻结页面上下文 — 开始批量查询
+      - freezePageContext: true
+
+      # 连续多次 aiQuery 共享同一份页面快照
+      - aiQuery:
+          query: "仪表盘顶部的总收入数字"
+          name: "totalRevenue"
+
+      - aiQuery:
+          query: "仪表盘中的活跃用户数量"
+          name: "activeUsers"
+
+      - aiQuery:
+          query: "仪表盘中的订单总数"
+          name: "totalOrders"
+
+      - aiQuery:
+          query: "仪表盘中最近更新时间"
+          name: "lastUpdated"
+
+      - aiBoolean: "仪表盘中是否显示了警告或异常指标"
+        name: "hasWarnings"
+
+      # 解冻页面上下文 — 后续操作将重新获取页面状态
+      - unfreezePageContext: true
+
+      - recordToReport: "批量数据提取完成"
+        content: "通过冻结上下文，5 次查询共享同一快照，提升性能"
+
+  # ========== 任务 2: 对比冻结与非冻结效果 ==========
+  - name: "非冻结模式查询对比"
+    flow:
+      # 不使用冻结上下文 — 每次查询独立截图
+      # 适用于页面内容会动态变化的场景（如实时数据）
+      - aiQuery:
+          query: "当前页面显示的实时数据"
+          name: "realtimeData"
+
+      - sleep: 3000
+
+      # 页面内容可能已更新，非冻结模式会获取最新状态
+      - aiQuery:
+          query: "当前页面显示的实时数据"
+          name: "realtimeDataAfterWait"
+
+      - recordToReport: "查询模式对比完成"
+        content: "非冻结模式每次查询获取最新页面状态"

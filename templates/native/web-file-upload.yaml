@@ -1,8 +1,7 @@
-# 文件上传模板 — 适用于带有文件上传表单的网页自动化
-# 适用场景: 上传图片、文档、头像等需要文件选择的表单页面
-# 使用方式: node scripts/midscene-run.js templates/native/web-file-upload.yaml
-# 说明: 替换 url 和文件路径后即可执行
-# 兼容性: @midscene/web >= 1.x
+# 文件上传模板
+# Web File Upload Template
+# 演示文件上传表单操作，适用于上传图片、文档、头像等场景
+# Usage: node scripts/midscene-run.js templates/native/web-file-upload.yaml --dry-run
 
 engine: native
 

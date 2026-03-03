@@ -1,8 +1,7 @@
-# 多标签页处理模板 — 演示跨标签页操作场景
-# 适用场景: 链接在新标签页打开、需要在多个页面间切换
-# 使用方式: node scripts/midscene-run.js templates/native/web-multi-tab.yaml
-# 兼容性: @midscene/web >= 1.x
-# 说明: Midscene 原生 YAML 通过 javascript 步骤管理标签页切换
+# 多标签页处理模板
+# Web Multi-Tab Template
+# 演示跨标签页操作场景，通过 javascript 步骤管理标签页切换
+# Usage: node scripts/midscene-run.js templates/native/web-multi-tab.yaml --dry-run
 
 engine: native
 

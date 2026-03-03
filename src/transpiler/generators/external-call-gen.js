@@ -137,6 +137,9 @@ function generate(step, ctx) {
     }
 
     case 'shell': {
+      // SECURITY WARNING: Shell commands are executed via execSync.
+      // User-controlled input in shell commands can lead to command injection.
+      // The validator warns on template variables in shell commands.
       const command = toCodeString(resolveTemplate(call.command));
       varScope.add(responseVar);
       return pad + "const " + responseVar + " = execSync(" + command + ").toString();";

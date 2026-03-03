@@ -1,5 +1,8 @@
 # 多视口响应式测试模板
-# 场景: 验证页面在不同屏幕尺寸下的布局正确性
+# Responsive Test Template
+# 验证页面在不同屏幕尺寸下的布局正确性
+# Usage: node scripts/midscene-run.js templates/extended/responsive-test.yaml --dry-run
+
 engine: extended
 features:
   - loop

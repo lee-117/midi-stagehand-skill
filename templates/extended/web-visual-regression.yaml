@@ -1,0 +1,80 @@
+# 视觉回归测试模板
+# Web Visual Regression Test Template
+# 演示关键页面截图捕获和基线对比工作流
+# Usage: node scripts/midscene-run.js templates/extended/web-visual-regression.yaml --dry-run
+
+engine: extended
+features: [variables, data_transform]
+
+web:
+  url: "https://example.com"
+  headless: false
+  viewportWidth: 1280
+  viewportHeight: 960
+
+variables:
+  baselinePages:
+    - { name: "首页", path: "/" }
+    - { name: "关于页", path: "/about" }
+    - { name: "联系页", path: "/contact" }
+  siteUrl: "https://example.com"
+
+tasks:
+  # ========== 阶段 1: 捕获基线截图 ==========
+  - name: "捕获页面基线截图"
+    flow:
+      - aiWaitFor: "页面加载完成"
+        timeout: 10000
+
+      # 截图记录 — 首页基线
+      - recordToReport: "首页基线截图"
+        content: "捕获首页完整状态作为视觉基线"
+
+      # 不同视口宽度下的截图
+      - javascript: |
+          // 记录当前视口尺寸
+          return `视口: ${window.innerWidth}x${window.innerHeight}`;
+        name: "viewportInfo"
+
+      - recordToReport: "首页视口信息"
+        content: "记录当前视口尺寸用于回归比较"
+
+  # ========== 阶段 2: 关键交互状态截图 ==========
+  - name: "交互状态截图"
+    flow:
+      - aiWaitFor: "页面加载完成"
+        timeout: 10000
+
+      # 悬停状态截图
+      - aiHover: "导航菜单的第一个菜单项"
+      - recordToReport: "悬停状态截图"
+        content: "记录菜单项悬停高亮效果"
+
+      # 展开状态截图
+      - ai: "展开第一个可折叠区域或手风琴面板"
+      - recordToReport: "展开状态截图"
+        content: "记录内容展开后的布局"
+
+      # 提取页面关键视觉属性
+      - aiQuery:
+          query: >
+            检查页面的视觉一致性：
+            - 主色调是否正常
+            - 字体是否正确加载
+            - 图片是否完整显示
+            - 布局是否有错位或重叠
+          name: "visualCheck"
+
+  # ========== 阶段 3: 数据汇总 ==========
+  # 注意: 实际像素级对比需要外部工具（如 pixelmatch、resemble.js）
+  # 此模板展示截图捕获流程，对比逻辑需在 CI/CD 中集成
+  - name: "生成视觉回归报告"
+    flow:
+      - data_transform:
+          source: "${baselinePages}"
+          operation: map
+          template: "{ page: item.name, path: item.path, captured: true }"
+          name: "captureStatus"
+
+      - recordToReport: "视觉回归测试汇总"
+        content: "所有基线截图已捕获，可用于后续版本对比"

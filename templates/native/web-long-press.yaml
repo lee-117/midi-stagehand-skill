@@ -1,6 +1,7 @@
 # 长按操作模板
-# 场景: 移动端 Web 长按触发上下文菜单、拖拽预览等
-# 适用平台: Web（需启用 enableTouchEventsInActionSpace）、Android、iOS
+# Web Long Press Template
+# 移动端 Web 长按触发上下文菜单、拖拽预览等，适用 Web/Android/iOS 平台
+# Usage: node scripts/midscene-run.js templates/native/web-long-press.yaml --dry-run
 
 engine: native
 

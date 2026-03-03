@@ -57,6 +57,12 @@ function run(tsCode, options = {}) {
 
   console.log('[ts-runner] Executing: ' + bin + ' ' + execArgs.join(' '));
 
+  // Note: ts-runner executes the entire transpiled TypeScript file as a single
+  // unit via tsx. Individual task-level progress is not available here because
+  // execFileSync runs the whole file atomically. Task-level details are
+  // available post-execution via report-parser.
+  process.stderr.write('[Runner] Executing TypeScript...\n');
+
   try {
     execFileSync(bin, execArgs, {
       stdio: 'inherit',
@@ -68,8 +74,10 @@ function run(tsCode, options = {}) {
       timeout: options.timeout || DEFAULT_TIMEOUT
     });
 
+    process.stderr.write('[Runner] Execution completed\n');
     return { success: true, tsPath: tsPath, reportDir: reportDir };
   } catch (error) {
+    process.stderr.write('[Runner] Execution failed\n');
     const { errorMessage, exitCode } = normaliseExecError(error);
     return {
       success: false,

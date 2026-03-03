@@ -94,13 +94,13 @@ const VALID_IME_STRATEGIES = new Set(['always-yadb', 'yadb-for-non-ascii']);
 const VALID_SCRCPY_CONFIG_FIELDS = new Set(['enabled', 'maxSize', 'videoBitRate', 'idleTimeoutMs']);
 
 // Suspicious JS patterns for javascript step validation (security).
-const SUSPICIOUS_JS = /\b(require|import|eval|Function|execSync|exec|spawn)\s*\(/;
+const SUSPICIOUS_JS = /\b(require|import|eval|Function|execSync|exec|spawn|fetch|XMLHttpRequest|sendBeacon)\s*\(|document\.cookie/;
 
 // Dangerous ADB shell command patterns (security).
-const DANGEROUS_ADB_PATTERN = /\b(rm\s+-rf|dd\s+if=|reboot|pm\s+uninstall|pm\s+clear)\b/i;
+const DANGEROUS_ADB_PATTERN = /\b(rm\s+-rf|dd\s+if=|reboot|pm\s+uninstall|pm\s+clear|am\s+force-stop|settings\s+put|svc\s+(data|wifi)\s+disable|pm\s+disable)\b/i;
 
 // Internal/private network URL pattern for external_call SSRF detection.
-const INTERNAL_URL_PATTERN = /^https?:\/\/(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|169\.254\.169\.254)(:\d+)?(\/|$)/i;
+const INTERNAL_URL_PATTERN = /^https?:\/\/(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|169\.254\.169\.254|\[::1\]|\[::ffff:127\.0\.0\.1\]|metadata\.google\.internal)(:\d+)?(\/|$)/i;
 
 // AI actions that produce named variable results (used in collectDefinedVariables).
 const AI_VAR_ACTIONS = ['aiBoolean', 'aiNumber', 'aiString', 'aiAsk', 'aiLocate'];
@@ -174,7 +174,7 @@ function makeWarning(message, yamlPath) {
  */
 function validateSyntax(content, errors) {
   try {
-    const doc = yaml.load(content, { maxAliases: 100 });
+    const doc = yaml.load(content, { maxAliases: 25 });
     return doc;
   } catch (err) {
     errors.push(makeError(
@@ -292,6 +292,18 @@ function validateStructure(doc, errors, warnings) {
       '"acceptInsecureCerts: true" disables SSL certificate validation. This is a security risk in production and may expose traffic to MITM attacks.',
       '/web/acceptInsecureCerts'
     ));
+  }
+
+  // Warn when web.url is missing the http:// or https:// protocol prefix.
+  if (doc.web && typeof doc.web === 'object' && typeof doc.web.url === 'string') {
+    const webUrl = doc.web.url.trim();
+    if (webUrl && !TEMPLATE_VAR_PATTERN.test(webUrl) && !/^https?:\/\//i.test(webUrl)) {
+      warnings.push(makeWarning(
+        `URL "${doc.web.url}" is missing an "http://" or "https://" protocol prefix. ` +
+        `Consider using: url: "https://${doc.web.url}"`,
+        '/web/url'
+      ));
+    }
   }
 
   // Validate bridgeMode in web config if present.
@@ -451,7 +463,8 @@ function validateStructure(doc, errors, warnings) {
     }
   });
 
-  // Warn on duplicate task names.
+  // Warn on duplicate task names — helps users avoid confusion when tasks
+  // share the same name (e.g. in reports or error messages).
   const taskNames = new Map();
   doc.tasks.forEach((task, index) => {
     if (task && typeof task === 'object' && typeof task.name === 'string') {
@@ -707,7 +720,8 @@ function validateLoopStep(step, stepPath, errors, warnings) {
     // Error if while loop has no maxIterations (safety requirement).
     if (loop.type === 'while' && loop.maxIterations === undefined) {
       errors.push(makeError(
-        'While loop must have a "maxIterations" safety limit to prevent infinite loops.',
+        'While loop must have a "maxIterations" safety limit to prevent infinite loops. ' +
+        'Add: maxIterations: 50 (or another suitable limit for your use case).',
         `${loopPath}/maxIterations`
       ));
     }
@@ -867,7 +881,6 @@ function validateDataTransformStep(step, stepPath, errors, warnings) {
   }
 
   // Security: warn on suspicious JS patterns in condition/reducer expressions
-  const SUSPICIOUS_JS = /\b(require|import|eval|Function|execSync|exec|spawn)\s*\(/;
   const exprFields = ['condition', 'reducer', 'template'];
   for (const field of exprFields) {
     const val = transform[field];
@@ -949,11 +962,27 @@ function validateNativeActionFormats(doc, warnings) {
       }
     }
 
-    // Check standalone recordToReport (no title value).
-    if (step.recordToReport === true || step.recordToReport === null) {
+    // Enhanced aiWaitFor nested format detection: also catch the "assertion"
+    // sub-key variant (e.g. aiWaitFor: { assertion: "...", timeout: ... }).
+    // The primary "condition" sub-key is already handled above.
+    if (step.aiWaitFor !== undefined && typeof step.aiWaitFor === 'object' && step.aiWaitFor !== null) {
+      if (step.aiWaitFor.assertion !== undefined) {
+        warnings.push(makeWarning(
+          '"aiWaitFor" uses nested object format with "assertion" sub-key. ' +
+          'Use flat format instead: aiWaitFor: "assertion text" with timeout as a sibling key.',
+          `${stepPath}/aiWaitFor`
+        ));
+      }
+    }
+
+    // Check recordToReport without a descriptive title — a meaningful title
+    // improves report readability and helps identify test steps at a glance.
+    if (step.recordToReport === true || step.recordToReport === null ||
+        (typeof step.recordToReport === 'string' && step.recordToReport.trim() === '')) {
       warnings.push(makeWarning(
-        '"recordToReport" is used without a title value. ' +
-        'Use: recordToReport: "title" with optional content as sibling key.',
+        '"recordToReport" is used without a descriptive title. ' +
+        'Add a title that describes the captured state, e.g.: recordToReport: "Login page loaded" ' +
+        'with optional content as sibling key.',
         `${stepPath}/recordToReport`
       ));
     }
@@ -963,7 +992,8 @@ function validateNativeActionFormats(doc, warnings) {
       warnings.push(makeWarning(
         '"aiInput" is used without a "value" sibling key. ' +
         'This is likely a mistake — aiInput requires a value to type. ' +
-        'Use: aiInput: "target" with value: "text to type" as sibling key.',
+        'Use: aiInput: "target" with value: "text to type" as sibling key. ' +
+        'Auto-fix: add value: "" as a placeholder if the value will be set dynamically.',
         `${stepPath}/aiInput`
       ));
     }
@@ -982,6 +1012,17 @@ function validateNativeActionFormats(doc, warnings) {
         `"runAdbShell" contains a potentially dangerous command pattern. Destructive commands (rm -rf, dd, reboot, pm uninstall, pm clear) can cause data loss or device issues.`,
         `${stepPath}/runAdbShell`
       ));
+    }
+
+    // Security: warn on potentially dangerous WDA requests.
+    if (step.runWdaRequest !== undefined && typeof step.runWdaRequest === 'object' && step.runWdaRequest !== null) {
+      const wdaUrl = step.runWdaRequest.url;
+      if (typeof wdaUrl === 'string' && /\b(delete|remove|reset|uninstall)\b/i.test(wdaUrl)) {
+        warnings.push(makeWarning(
+          '"runWdaRequest" URL contains a potentially destructive operation. Review the request carefully before execution.',
+          `${stepPath}/runWdaRequest`
+        ));
+      }
     }
 
     // Common step-level value checks (sleep, timeout).

@@ -10,3 +10,8 @@ midscene-output/
 CLAUDE.md
 SKILL-IMPROVEMENT-PLAN*.md
 skills-lock.json
+
+# Security - sensitive files
+.env
+.env.*
+*.pem

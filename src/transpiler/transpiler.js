@@ -110,7 +110,7 @@ function resolveYaml(yamlInput) {
     raw = fs.readFileSync(yamlInput, 'utf8');
   }
 
-  return yaml.load(raw, { maxAliases: 100 });
+  return yaml.load(raw, { maxAliases: 25 });
 }
 
 // ---------------------------------------------------------------------------

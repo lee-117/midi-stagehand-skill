@@ -83,7 +83,7 @@
             { "type": "string", "enum": ["newTabWithUrl", "currentTab"] }
           ]
         },
-        "forceSameTabNavigation": { "type": "boolean" },
+        "forceSameTabNavigation": { "type": "boolean", "default": true },
         "waitForNavigationTimeout": { "type": "integer", "description": "Navigation completion wait time in ms (default 5000, 0 to disable)" },
         "waitForNetworkIdleTimeout": { "type": "integer", "description": "Network idle wait time in ms (default 2000, 0 to disable)" },
         "enableTouchEventsInActionSpace": { "type": "boolean", "description": "Enable touch gestures (default false)" },
@@ -94,7 +94,7 @@
             { "type": "string" }
           ]
         },
-        "closeNewTabsAfterDisconnect": { "type": "boolean" },
+        "closeNewTabsAfterDisconnect": { "type": "boolean", "default": false },
         "outputFormat": {
           "type": "string",
           "enum": ["single-html", "html-and-external-assets"],
@@ -216,8 +216,8 @@
         "reportFileName": { "type": "string" },
         "replanningCycleLimit": { "type": "integer", "description": "Max replanning cycles (default 20, UI-TARS 40)" },
         "aiActContext": { "type": "string", "description": "Background knowledge for AI actions" },
-        "screenshotShrinkFactor": { "type": "number", "minimum": 0, "description": "Screenshot scale factor to save tokens (0-1)" },
-        "waitAfterAction": { "type": "integer", "minimum": 0, "description": "Wait time after each action in ms (default 300)" },
+        "screenshotShrinkFactor": { "type": "number", "minimum": 1, "description": "Screenshot shrink divisor — higher values reduce resolution to save tokens (minimum 1, e.g. 2 = half resolution)" },
+        "waitAfterAction": { "type": "integer", "minimum": 0, "default": 300, "description": "Wait time after each action in ms (default 300)" },
         "outputFormat": {
           "type": "string",
           "enum": ["single-html", "html-and-external-assets"],
@@ -362,7 +362,8 @@
         "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
-        "cacheable": { "type": "boolean" }
+        "cacheable": { "type": "boolean", "default": true },
+        "fileChooserAccept": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }], "description": "File path(s) for file chooser dialog" }
       },
       "additionalProperties": false
     },
@@ -388,7 +389,7 @@
         "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
-        "cacheable": { "type": "boolean" }
+        "cacheable": { "type": "boolean", "default": true }
       },
       "additionalProperties": false
     },
@@ -414,7 +415,7 @@
         "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
-        "cacheable": { "type": "boolean" }
+        "cacheable": { "type": "boolean", "default": true }
       },
       "additionalProperties": false
     },
@@ -440,7 +441,7 @@
         "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
-        "cacheable": { "type": "boolean" }
+        "cacheable": { "type": "boolean", "default": true }
       },
       "additionalProperties": false
     },
@@ -470,7 +471,8 @@
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
         "cacheable": { "type": "boolean" },
-        "images": { "type": "array", "items": { "type": "object" }, "description": "Image prompts for visual element matching" }
+        "images": { "type": "array", "items": { "type": "object" }, "description": "Image prompts for visual element matching" },
+        "autoDismissKeyboard": { "type": "boolean", "description": "Auto-dismiss keyboard after input (action-level override)" }
       },
       "additionalProperties": false
     },
@@ -510,6 +512,7 @@
               "type": "object",
               "properties": {
                 "locator": { "type": "string" },
+                "locate": { "$ref": "#/definitions/locateObject" },
                 "direction": { "type": "string", "enum": ["up", "down", "left", "right"] },
                 "distance": { "type": "integer" },
 
@@ -532,7 +535,7 @@
         },
         "deepThink": { "type": "boolean" },
         "timeout": { "type": "integer" },
-        "cacheable": { "type": "boolean" }
+        "cacheable": { "type": "boolean", "default": true }
       },
       "additionalProperties": false
     },
@@ -547,7 +550,8 @@
               "type": "object",
               "properties": {
                 "from": { "type": "string", "description": "Source element" },
-                "to": { "type": "string", "description": "Target element" }
+                "to": { "type": "string", "description": "Target element" },
+                "locate": { "$ref": "#/definitions/locateObject" }
               },
               "required": ["from", "to"],
               "additionalProperties": false
@@ -558,7 +562,7 @@
         "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
-        "cacheable": { "type": "boolean" }
+        "cacheable": { "type": "boolean", "default": true }
       },
       "additionalProperties": false
     },
@@ -570,7 +574,7 @@
         "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
-        "cacheable": { "type": "boolean" }
+        "cacheable": { "type": "boolean", "default": true }
       },
       "additionalProperties": false
     },
@@ -699,7 +703,7 @@
         "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
-        "cacheable": { "type": "boolean" }
+        "cacheable": { "type": "boolean", "default": true }
       },
       "additionalProperties": false
     },
@@ -871,6 +875,7 @@
               "type": "object",
               "properties": {
                 "locator": { "type": "string" },
+                "locate": { "$ref": "#/definitions/locateObject" },
                 "xpath": { "type": "string" },
                 "deepThink": { "type": "boolean" }
               },
@@ -883,7 +888,7 @@
         "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
-        "cacheable": { "type": "boolean" }
+        "cacheable": { "type": "boolean", "default": true }
       },
       "additionalProperties": false
     },

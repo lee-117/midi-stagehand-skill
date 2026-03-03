@@ -10,7 +10,7 @@
   "aiAssertions": ["aiAssert", "aiWaitFor"],
   "tools": ["sleep", "javascript", "recordToReport", "freezePageContext", "unfreezePageContext"],
   "platformSpecific": ["runAdbShell", "runWdaRequest", "launch", "AndroidBackButton", "AndroidHomeButton", "AndroidRecentAppsButton", "IOSHomeButton", "IOSAppSwitcher"],
-  "actionOptions": ["value", "direction", "distance", "to", "keyName", "deepThink", "xpath", "timeout", "timeoutMs", "name", "output", "locator", "convertHttpImage2Base64", "scrollType", "cacheable", "assertion", "errorMessage", "query", "condition", "content", "mode", "images", "fileChooserAccept", "autoDismissKeyboard", "checkIntervalMs", "domIncluded", "screenshotIncluded", "duration", "prompt"],
+  "actionOptions": ["value", "direction", "distance", "to", "keyName", "deepThink", "xpath", "timeout", "timeoutMs", "name", "output", "locator", "locate", "convertHttpImage2Base64", "scrollType", "cacheable", "assertion", "errorMessage", "query", "condition", "content", "mode", "images", "fileChooserAccept", "autoDismissKeyboard", "checkIntervalMs", "domIncluded", "screenshotIncluded", "duration", "prompt"],
   "metaKeys": ["engine", "features", "steps"],
   "allKeywords": [
     "engine", "features", "steps",
@@ -28,7 +28,7 @@
     "AndroidBackButton", "AndroidHomeButton", "AndroidRecentAppsButton",
     "IOSHomeButton", "IOSAppSwitcher",
     "value", "direction", "distance", "to", "keyName", "deepThink", "xpath", "timeout", "timeoutMs", "name", "output",
-    "locator", "convertHttpImage2Base64", "scrollType", "cacheable", "assertion", "errorMessage", "query", "condition", "content",
+    "locator", "locate", "convertHttpImage2Base64", "scrollType", "cacheable", "assertion", "errorMessage", "query", "condition", "content",
     "mode", "images", "fileChooserAccept", "autoDismissKeyboard", "checkIntervalMs",
     "domIncluded", "screenshotIncluded", "duration", "prompt",
     "url", "headless", "viewportWidth", "viewportHeight", "userAgent", "waitForNetworkIdle",

@@ -1,5 +1,7 @@
 # 复杂元素定位模板
-# 场景: 当文字描述不足以定位元素时，使用 deepThink 或 xpath 辅助 AI 定位
+# Web Deep Think Locator Template
+# 当文字描述不足以定位元素时，使用 deepThink 或 xpath 辅助 AI 定位
+# Usage: node scripts/midscene-run.js templates/native/web-deep-think-locator.yaml --dry-run
 
 engine: native
 

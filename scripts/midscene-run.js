@@ -30,6 +30,8 @@ function parseArgs(argv) {
     verbose: false,
     help: false,
     version: false,
+    maxFiles: 100,
+    jsonLog: false,
   };
 
   const rawArgs = argv.slice(2); // skip node + script path
@@ -104,6 +106,20 @@ function parseArgs(argv) {
         args.reportDir = rawArgs[++i];
         break;
 
+      case '--max-files': {
+        const maxFilesVal = parseInt(rawArgs[++i], 10);
+        if (isNaN(maxFilesVal) || maxFilesVal <= 0) {
+          console.error('[midscene-run] --max-files must be a positive integer.');
+          process.exit(1);
+        }
+        args.maxFiles = maxFilesVal;
+        break;
+      }
+
+      case '--json-log':
+        args.jsonLog = true;
+        break;
+
       case '--template': {
         if (!rawArgs[i + 1] || rawArgs[i + 1].startsWith('-')) {
           console.error('[midscene-run] --template requires a template name (puppeteer | playwright).');
@@ -164,6 +180,9 @@ Options:
                            (default: 300000 = 5 minutes)
   --retry <count>          Retry failed executions (for flaky scenarios)
                            (default: 0 = no retry)
+  --max-files <n>          Maximum files in batch execution
+                           (default: 100)
+  --json-log               Output results as JSON Lines format
   --clean                  Clean stale temp files from .midscene-tmp/
   --verbose, -v            Show detailed output (validation details,
                            detection info, environment)
@@ -323,6 +342,14 @@ function cleanStaleTempFiles(cwd) {
 // Main
 // ---------------------------------------------------------------------------
 function main() {
+  // T121: Node.js >= 22 version pre-check
+  const nodeMajor = parseInt(process.versions.node.split('.')[0], 10);
+  if (nodeMajor < 22) {
+    console.error(`[midscene-run] Error: Node.js >= 22 is required (current: ${process.versions.node}).`);
+    console.error('  Please upgrade Node.js: https://nodejs.org/');
+    process.exit(1);
+  }
+
   const args = parseArgs(process.argv);
 
   // Show version if requested
@@ -346,10 +373,16 @@ function main() {
   }
 
   // Validate output paths are within project boundary
+  // T124: On Windows, normalize paths to lowercase for case-insensitive comparison
+  const isWin = process.platform === 'win32';
+  const normalizePath = (p) => isWin ? p.toLowerCase() : p;
+
   if (args.outputTs) {
     const resolvedTs = path.resolve(args.outputTs);
     const cwd = process.cwd();
-    if (!resolvedTs.startsWith(cwd + path.sep) && resolvedTs !== cwd && !resolvedTs.startsWith(cwd)) {
+    const nTs = normalizePath(resolvedTs);
+    const nCwd = normalizePath(cwd);
+    if (!nTs.startsWith(nCwd + path.sep) && nTs !== nCwd && !nTs.startsWith(nCwd)) {
       console.error('[midscene-run] Error: --output-ts path must be within the project directory.');
       process.exit(1);
     }
@@ -357,7 +390,9 @@ function main() {
   if (args.reportDir && args.reportDir !== DEFAULT_REPORT_DIR) {
     const resolvedReport = path.resolve(args.reportDir);
     const cwd = process.cwd();
-    if (!resolvedReport.startsWith(cwd + path.sep) && resolvedReport !== cwd && !resolvedReport.startsWith(cwd)) {
+    const nReport = normalizePath(resolvedReport);
+    const nCwd = normalizePath(cwd);
+    if (!nReport.startsWith(nCwd + path.sep) && nReport !== nCwd && !nReport.startsWith(nCwd)) {
       console.error('[midscene-run] Error: --report-dir path must be within the project directory.');
       process.exit(1);
     }
@@ -376,19 +411,43 @@ function main() {
 
   // Batch mode: process multiple files sequentially.
   if (yamlFiles.length > 1) {
+    // T122: Enforce --max-files limit
+    if (yamlFiles.length > args.maxFiles) {
+      console.error(`[midscene-run] Error: Batch matched ${yamlFiles.length} files, exceeding --max-files limit of ${args.maxFiles}.`);
+      console.error('  Use --max-files <n> to increase the limit.');
+      process.exit(1);
+    }
+
     console.log(`[midscene-run] Batch mode: ${yamlFiles.length} files matched.\n`);
     const batchResults = [];
 
     for (let i = 0; i < yamlFiles.length; i++) {
       const filePath = yamlFiles[i];
       const relPath = path.relative(process.cwd(), filePath);
-      console.log(`[midscene-run] [${i + 1}/${yamlFiles.length}] ${relPath}`);
+      // T130: Task progress output
+      console.log(`[${i + 1}/${yamlFiles.length}] Task "${relPath}" started`);
 
+      const fileStartTime = Date.now();
       try {
         const exitCode = processFile(filePath, args);
-        batchResults.push({ file: relPath, success: exitCode === 0 });
+        const fileDuration = Date.now() - fileStartTime;
+        const success = exitCode === 0;
+        batchResults.push({ file: relPath, success, duration: fileDuration });
+        // T130: Task progress - passed/failed
+        console.log(`[${i + 1}/${yamlFiles.length}] Task "${relPath}" ${success ? 'passed' : 'failed'}`);
+        // T128: JSON Lines output for batch mode
+        if (args.jsonLog) {
+          console.log(JSON.stringify({ file: relPath, status: success ? 'passed' : 'failed', duration: fileDuration }));
+        }
       } catch (err) {
-        batchResults.push({ file: relPath, success: false, error: err.message });
+        const fileDuration = Date.now() - fileStartTime;
+        batchResults.push({ file: relPath, success: false, error: err.message, duration: fileDuration });
+        // T130: Task progress - failed
+        console.log(`[${i + 1}/${yamlFiles.length}] Task "${relPath}" failed`);
+        // T128: JSON Lines output for batch mode (error case)
+        if (args.jsonLog) {
+          console.log(JSON.stringify({ file: relPath, status: 'failed', duration: fileDuration, error: err.message }));
+        }
       }
       console.log('');
     }
@@ -415,7 +474,14 @@ function main() {
   }
 
   // Single file mode.
+  const singleStartTime = Date.now();
   const exitCode = processFile(yamlFiles[0], args);
+  // T129: JSON Lines output for single file mode
+  if (args.jsonLog) {
+    const singleDuration = Date.now() - singleStartTime;
+    const relPath = path.relative(process.cwd(), yamlFiles[0]);
+    console.log(JSON.stringify({ file: relPath, status: exitCode === 0 ? 'passed' : 'failed', duration: singleDuration }));
+  }
   process.exit(exitCode);
 }
 
@@ -505,7 +571,18 @@ function processFile(yamlPath, args) {
     result = executeFile(yamlPath, detection, args);
 
     // For dry-run, executeFile returns a number (exit code)
-    if (typeof result === 'number') return result;
+    if (typeof result === 'number') {
+      // T125: Warn if API key may not be configured for actual execution
+      if (args.dryRun) {
+        const hasEnvFile = fs.existsSync(path.resolve(process.cwd(), '.env'));
+        const hasApiKey = !!process.env.MIDSCENE_MODEL_API_KEY;
+        if (!hasEnvFile && !hasApiKey) {
+          console.warn('[midscene-run] WARNING: Neither .env file nor MIDSCENE_MODEL_API_KEY environment variable found.');
+          console.warn('  API key may not be configured for actual execution. Set MIDSCENE_MODEL_API_KEY in .env or environment variables.');
+        }
+      }
+      return result;
+    }
 
     if (result.success) break;
 

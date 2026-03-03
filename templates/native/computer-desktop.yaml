@@ -1,8 +1,7 @@
-# 桌面应用自动化模板 — 自动化 PC 桌面操作
-# 适用场景: Windows/macOS/Linux 桌面应用测试、桌面端自动化操作
-# 使用方式: node scripts/midscene-run.js templates/native/computer-desktop.yaml
-# 兼容性: @midscene/web >= 1.x
-# 注意: 需要在 Midscene 桌面模式下运行
+# 桌面应用自动化模板
+# Computer Desktop Automation Template
+# 自动化 Windows/macOS/Linux 桌面操作，需要在 Midscene 桌面模式下运行
+# Usage: node scripts/midscene-run.js templates/native/computer-desktop.yaml --dry-run
 
 engine: native
 

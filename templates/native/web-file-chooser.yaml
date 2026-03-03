@@ -1,0 +1,78 @@
+# 文件选择器上传模板
+# Web File Chooser Upload Template
+# 演示 fileChooserAccept 选项处理文件上传对话框
+# Usage: node scripts/midscene-run.js templates/native/web-file-chooser.yaml --dry-run
+
+engine: native
+
+web:
+  url: "https://example.com/upload"
+  headless: false
+  viewportWidth: 1280
+  viewportHeight: 960
+
+tasks:
+  # ========== 任务 1: 单文件上传 ==========
+  - name: "单文件上传"
+    flow:
+      - aiWaitFor: "文件上传区域已显示在页面上"
+        timeout: 10000
+
+      # fileChooserAccept 说明:
+      # 当点击触发了浏览器原生文件选择对话框时，
+      # fileChooserAccept 会自动拦截对话框并填入指定文件路径。
+      # 支持绝对路径和相对路径。
+      - aiTap: "选择文件按钮"
+        fileChooserAccept: "/path/to/document.pdf"
+
+      - aiWaitFor: "文件名显示在上传区域中"
+        timeout: 10000
+
+      - aiAssert: "页面显示了已选择的文件名"
+
+      - recordToReport: "单文件上传完成"
+        content: "通过 fileChooserAccept 成功选择并上传文件"
+
+  # ========== 任务 2: 图片上传 ==========
+  - name: "图片上传"
+    flow:
+      - aiWaitFor: "图片上传区域可见"
+        timeout: 10000
+
+      # fileChooserAccept 也适用于 ai 指令
+      - ai: "点击图片上传按钮或拖拽上传区域"
+        fileChooserAccept: "/path/to/image.png"
+
+      - aiWaitFor: "图片预览已显示"
+        timeout: 15000
+
+      - aiAssert: "页面中可以看到上传图片的预览"
+
+      # 提取上传结果
+      - aiQuery:
+          query: >
+            提取上传图片的信息：
+            - fileName: 文件名
+            - fileSize: 文件大小
+            - previewVisible: 是否显示了预览
+          name: "uploadInfo"
+
+      - recordToReport: "图片上传完成"
+        content: "通过 fileChooserAccept 完成图片上传和预览验证"
+
+  # ========== 任务 3: 提交上传表单 ==========
+  - name: "提交上传表单"
+    flow:
+      # 填写附加表单字段
+      - aiInput: "文件描述输入框"
+        value: "自动化测试上传的文件"
+
+      - aiTap: "上传/提交按钮"
+
+      - aiWaitFor: "上传成功提示出现"
+        timeout: 30000
+
+      - aiAssert: "页面显示了上传成功的消息"
+
+      - recordToReport: "文件上传表单提交完成"
+        content: "文件选择、表单填写和提交全流程验证通过"

@@ -1,0 +1,63 @@
+# iframe 与 Shadow DOM 交互模板
+# Web Iframe & Shadow DOM Interaction Template
+# 演示 iframe 内元素操作和 Shadow DOM 透明处理
+# Usage: node scripts/midscene-run.js templates/native/web-iframe-shadow-dom.yaml --dry-run
+
+engine: native
+
+web:
+  url: "https://example.com/embedded-content"
+  headless: false
+  viewportWidth: 1280
+  viewportHeight: 960
+
+tasks:
+  # ========== 任务 1: iframe 内元素交互 ==========
+  # 注意: Midscene 自动处理 iframe 内的元素定位，
+  # 无需手动切换 iframe 上下文，直接用自然语言描述目标即可。
+  - name: "iframe 内容交互"
+    flow:
+      - aiWaitFor: "页面加载完成，包含嵌入的 iframe 内容"
+        timeout: 15000
+
+      # Midscene 会自动穿透 iframe 边界定位元素
+      - ai: "在 iframe 中找到并点击提交按钮"
+      - aiInput: "iframe 内的搜索输入框"
+        value: "Midscene 自动化"
+      - aiTap: "iframe 内的搜索按钮"
+
+      - aiWaitFor: "iframe 内显示了搜索结果"
+        timeout: 10000
+
+      - aiQuery:
+          query: "iframe 内显示的搜索结果标题列表"
+          name: "iframeResults"
+
+      - aiAssert: "iframe 内有搜索结果显示"
+
+      - recordToReport: "iframe 交互测试完成"
+        content: "成功在 iframe 内完成输入、点击和数据提取"
+
+  # ========== 任务 2: Shadow DOM 交互说明 ==========
+  # Midscene 基于视觉和 AI 理解进行元素定位，
+  # Shadow DOM 对 Midscene 是透明的，不影响操作。
+  # 传统自动化工具需要 shadowRoot.querySelector，但 Midscene 不需要。
+  - name: "Shadow DOM 透明交互"
+    flow:
+      - aiWaitFor: "页面加载完成"
+        timeout: 10000
+
+      # 即使目标元素在 Shadow DOM 内部，直接用自然语言描述即可
+      - aiTap: "自定义组件内的切换开关"
+      - aiAssert: "切换开关已变为开启状态"
+
+      - aiInput: "自定义组件内的文本框"
+        value: "Shadow DOM 内的输入测试"
+      - aiAssert: "文本框中已输入内容"
+
+      - aiQuery:
+          query: "自定义组件内显示的状态信息"
+          name: "shadowDomStatus"
+
+      - recordToReport: "Shadow DOM 交互测试完成"
+        content: "Midscene 自动处理 Shadow DOM，无需额外配置"

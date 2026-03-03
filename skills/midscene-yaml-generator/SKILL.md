@@ -24,7 +24,7 @@ allowed-tools:
 2. **每个 `aiInput` 必须有 `value` 参数** — 没有 value 的 aiInput 等于空操作
 3. **循环必须有安全上限** — `while` 循环必须设置 `maxIterations`；`for`/`repeat` 的 count 不应超过 10000
 4. **`name` 变量仅 task 内有效** — 跨 task 传递数据需用 `output: { filePath, dataName }` 导出为 JSON 文件
-5. **生成前必须读取 schema 和模板** — 使用 Read 工具读取 `schema/native-keywords.json` 和选中的模板文件，不要生成 schema 中未定义的关键字
+5. **生成前参考映射表和模板，不确定时查 schema** — 优先参考本文档中的映射表和选中的模板文件，对合法关键字有疑问时再用 Read 工具读取 `schema/native-keywords.json` 确认，不要生成 schema 中未定义的关键字
 6. **仅在平台配置字段中使用的 `${ENV:XXX}` 不需要 Extended 模式**；在 flow 步骤中使用变量插值才需要 Extended 模式
 7. **viewportHeight 默认值为 960**（非 720），viewportWidth 默认值为 1280
 
@@ -132,10 +132,11 @@ English trigger phrases:
 - `cookie` — Cookie JSON 文件路径（实现免登录会话恢复）
 - `bridgeMode` — Bridge 模式：`false`（默认）| `'newTabWithUrl'` | `'currentTab'`，复用已登录的桌面浏览器
 - `chromeArgs` — 自定义 Chrome 启动参数数组（如 `['--disable-gpu', '--proxy-server=...']`）
-- `serve` — 本地静态文件目录，启动内置服务器（本地开发测试用）
+- `serve` — 本地静态文件目录，启动内置服务器用于本地开发/构建产物测试
 - `acceptInsecureCerts` — 忽略 HTTPS 证书错误（默认 false，用于本地 HTTPS 或自签名证书的测试环境）
 - `closeNewTabsAfterDisconnect` — 断开时关闭新打开的标签页（默认 false）
 - `outputFormat` — 报告输出格式：`'single-html'` | `'html-and-external-assets'`
+- `output` — JSON 输出文件路径
 - `forceSameTabNavigation` — 限制导航在当前标签页（默认 true）
 - `enableTouchEventsInActionSpace` — 启用触摸事件（`true`/`false`，默认 false）。启用后 AI 可使用 Swipe 手势
 - `forceChromeSelectRendering` — 强制 Chrome 渲染 `<select>` 元素（需 Puppeteer >24.6.0 或 Playwright >=1.52.0）
@@ -230,8 +231,8 @@ Native 模式的动作参数支持两种格式：
 | 自然语言模式 | YAML 映射 | 说明 |
 |-------------|-----------|------|
 | "打开/访问/进入 XXX 网站" | `web: { url: "XXX" }` | 平台配置 |
-| "自动规划并执行 XXX" | `ai: "XXX"` | AI 自动拆解为多步骤执行；`aiAct` 为推荐别名（`aiAction` 已弃用）；可选 `fileChooserAccept: "path"` 处理文件上传对话框; 可选 `deepLocate: true`（v1.4+，执行期间深度定位） |
-| "点击/按/选择 XXX" | `aiTap: "XXX"` | 简写形式；通用选项 `deepThink`、`xpath`、`cacheable`（默认 true，缓存 AI 结果避免重复调用）；支持 `locate` 对象; 支持 `fileChooserAccept: "path"` 处理文件上传 |
+| "自动规划并执行 XXX" | `ai: "XXX"` | AI 自动拆解为多步骤执行；`aiAct` 为推荐名称（`ai` 和 `aiAction` 亦为有效别名）；可选 `fileChooserAccept: "path"` 处理文件上传对话框; 可选 `deepLocate: true`（v1.4+，执行期间深度定位）。⚠️ `deepLocate` 尚未纳入 YAML Schema — 官方 v1.4 changelog 提及但尚未在 YAML 文档中正式支持。如需使用，请确认最新版本兼容性。 |
+| "点击/按/选择 XXX" | `aiTap: "XXX"` | 简写形式；通用选项 `deepThink: true|false|"unset"` — 启用两阶段深度定位（true）、禁用（false）或使用默认策略（"unset"）；`xpath`、`cacheable`（默认 true，缓存 AI 结果避免重复调用）；支持 `locate` 对象; 支持 `fileChooserAccept: "path"` 处理文件上传 |
 | "悬停/移到 XXX 上" | `aiHover: "XXX"` | 触发下拉菜单或 tooltip；支持 `locate` 对象 |
 | "在 XXX 输入 YYY" | `aiInput: "XXX"` + `value: "YYY"` | 扁平兄弟格式；`mode: "replace"(默认)\|"clear"\|"typeOnly"`；支持 `locate` 对象 |
 | "按键盘 XXX 键" | `aiKeyboardPress: "XXX"` | 支持组合键如 "Control+A"；`keyName` 可作为替代参数 |
@@ -243,7 +244,7 @@ Native 模式的动作参数支持两种格式：
 | "执行 JS 代码" | `javascript: "代码内容"` | 直接执行 JavaScript |
 | "截图记录到报告" | `recordToReport: "标题"` + `content: "描述"` | 截图并记录描述到报告 |
 | "双击 XXX" | `aiDoubleClick: "XXX"` | 双击操作；可选 `deepThink: true`；支持 `locate` 对象 |
-| "右键点击 XXX" | `aiRightClick: "XXX"` | 右键操作；可选 `deepThink: true`；支持 `locate` 对象 |
+| "右键点击 XXX" | `aiRightClick: "XXX"` | 右键操作（仅 Web 平台）；可选 `deepThink: true`；支持 `locate` 对象 |
 | "定位 XXX 元素" | `aiLocate: "XXX"` + `name: "elem"` | 定位元素，结果存入变量（Extended 模式可引用） |
 | "XXX 是否为真？" | `aiBoolean: "XXX"` + `name: "flag"` | 返回布尔值；`domIncluded`(true/false/"visible-only") 控制是否使用 DOM 文本，`screenshotIncluded`(true/false) 控制是否使用截图；嵌套对象格式支持 `prompt:` 字段 |
 | "获取 XXX 数量" | `aiNumber: "XXX"` + `name: "count"` | 返回数字；同上 `domIncluded`/`screenshotIncluded` 选项；嵌套对象格式支持 `prompt:` 字段 |
@@ -261,6 +262,18 @@ Native 模式的动作参数支持两种格式：
 | "Android 最近任务" | `AndroidRecentAppsButton: true` | Android 最近应用按钮 |
 | "iOS 主页" | `IOSHomeButton: true` | iOS 系统主页按钮 |
 | "iOS 切换应用" | `IOSAppSwitcher: true` | iOS 应用切换器 |
+
+> **选项支持速查**:
+> - `deepThink`: aiTap, aiHover, aiDoubleClick, aiRightClick, aiInput, aiScroll, aiDragAndDrop, aiClearInput, aiLongPress, aiLocate
+> - `xpath`: aiTap, aiHover, aiDoubleClick, aiRightClick, aiDragAndDrop, aiClearInput, aiLongPress, aiLocate
+> - `cacheable`: aiTap, aiHover, aiDoubleClick, aiRightClick, aiInput, aiScroll, aiDragAndDrop, aiClearInput, aiLongPress, aiLocate, aiAssert, aiWaitFor, aiQuery
+> - `locate` 对象: aiTap, aiHover, aiDoubleClick, aiRightClick, aiDragAndDrop, aiLongPress
+> - `fileChooserAccept`: ai, aiAct, aiAction, aiTap
+
+> **aiInput mode 参数**:
+> - `replace`（默认）— 先清空输入框内容，再输入新值。适合大多数填表场景
+> - `clear` — 仅清空输入框，不输入新值。等效于 `aiClearInput`
+> - `typeOnly` — 直接在当前光标位置追加输入，不清空已有内容。适合搜索建议、自动补全场景
 
 #### Extended 控制流映射
 
@@ -390,7 +403,7 @@ tasks:
 - `templates/native/web-search.yaml` — 网页搜索流程
 - `templates/native/web-file-upload.yaml` — 文件上传表单
 - `templates/native/web-multi-tab.yaml` — 多标签页操作
-- `templates/native/deep-think-locator.yaml` — 图片辅助定位（deepThink/xpath）
+- `templates/native/web-deep-think-locator.yaml` — 图片辅助定位（deepThink/xpath）
 - `templates/native/android-app.yaml` — Android 测试
 - `templates/native/ios-app.yaml` — iOS 测试
 - `templates/native/computer-desktop.yaml` — 桌面应用自动化
@@ -437,7 +450,7 @@ tasks:
 | 完整业务流程（多步骤 + 变量 + 导出） | `extended/e2e-workflow.yaml` |
 | 子流程复用 / 模块化 | `extended/reusable-sub-flows.yaml` |
 | 多屏幕尺寸响应式验证 | `extended/responsive-test.yaml` |
-| 复杂元素定位 / deepThink | `native/deep-think-locator.yaml` |
+| 复杂元素定位 / deepThink | `native/web-deep-think-locator.yaml` |
 | 多标签页操作 | `native/web-multi-tab.yaml` |
 | 连接已运行的浏览器（Bridge 模式） | `native/web-bridge-mode.yaml` |
 | 免登录会话恢复（Cookie） | `native/web-cookie-session.yaml` |
@@ -454,7 +467,7 @@ tasks:
 
 ### 第 5 步：生成 YAML
 
-**生成前，使用 Read 工具读取 `schema/native-keywords.json`（Native 模式）或 `schema/extended-keywords.json`（Extended 模式）确认合法关键字。不要生成 schema 中未定义的关键字。**
+**生成前参考映射表和模板，不确定时查 schema 确认合法关键字。** 如对某关键字不确定，可用 Read 工具读取 `schema/native-keywords.json`（Native 模式）或 `schema/extended-keywords.json`（Extended 模式）。不要生成 schema 中未定义的关键字。
 
 基于模板和转换规则生成 YAML 内容，注意以下要点：
 
@@ -555,7 +568,7 @@ tasks:
 ### 定位策略优先级
 
 1. **自然语言描述**（首选）：可读性高，适应页面变化
-2. **deepThink 模式**：复杂页面中多个相似元素时启用，AI 会进行更深层分析，准确率更高但耗时更长
+2. **deepThink 模式**（`deepThink: true|false|"unset"`）：复杂页面中多个相似元素时启用（true），AI 会进行更深层分析，准确率更高但耗时更长；设为 false 禁用；设为 "unset" 使用默认策略
 3. **图片辅助定位**（image prompting）：当文字描述不够时，可通过截图标注辅助 AI 理解目标元素（官方 `locate.images` 能力）
 4. **xpath 选择器**（最后手段）：当自然语言无法精确定位时。**注意：xpath 仅适用于 Web 平台**，Android/iOS 应使用自然语言描述
 
@@ -592,6 +605,13 @@ tasks:
     - "./images/target-icon.png"
 ```
 
+`convertHttpImage2Base64: true` — 将 HTTP 图片 URL 自动转换为 base64 编码，避免跨域限制或不可访问的外部图片问题。当图片 URL 为 HTTP/HTTPS 链接时建议启用。
+
+> **支持的图片 URL 格式**:
+> - 本地文件路径: `"./images/icon.png"`
+> - HTTP/HTTPS URL: `"https://example.com/icon.png"`（建议配合 `convertHttpImage2Base64: true`）
+> - Base64 Data URL: `"data:image/png;base64,..."`
+
 ### aiQuery 结果格式化
 
 在 `query` 中明确指定期望的数据结构：
@@ -621,13 +641,36 @@ tasks:
 
 - **优先使用即时动作** — `aiTap`、`aiInput` 等比 `ai` 更快更可靠，适合已知操作
 - **精确描述**: 位置 + 颜色 + 文字内容组合描述，如"右上角蓝色的登录按钮"
-- **复杂 UI 启用 `deepThink: true`** — 多个相似元素时使用两阶段定位
+- **复杂 UI 启用 `deepThink: true`** — 多个相似元素时使用两阶段定位；支持三个值：`true`（启用）、`false`（禁用）、`"unset"`（默认策略）
 - **`deviceScaleFactor: 0`** — 修复 Puppeteer 与系统 DPI 不匹配导致的浏览器闪烁
 - **`aiActContext`** — 为 AI 提供领域知识（如多语言网站标注语言、特殊术语）
 - **`domIncluded: 'visible-only'`** — aiQuery/aiAssert 等数据操作支持三值：`false`（默认仅截图）| `true`（全部 DOM）| `'visible-only'`（仅可见 DOM，性能最优）
 - **调试日志** — 设置 `DEBUG=midscene:*` 获取完整日志；`DEBUG=midscene:ai:profile:stats` 查看性能指标
 - **环境变量 `MIDSCENE_RUN_DIR`** — 配置运行时产物（报告、缓存）存储目录（默认 `./midscene_run`）
 - **分离模型配置** — 可通过 `MIDSCENE_INSIGHT_MODEL_*` 和 `MIDSCENE_PLANNING_MODEL_*` 前缀为不同阶段指定不同模型（如用快速模型做 Planning 降低成本，用精确 VL 模型做 Insight 保证定位准确率）
+
+> 更多详细的 AI 指令编写指南和完整示例，请参考 `guide/MIDSCENE_YAML_GUIDE.md` 的「AI 指令编写」章节。
+
+### aiActContext 最佳实践
+
+`aiActContext` 为 AI 操作提供背景知识，帮助 AI 理解页面上下文。在以下场景特别有用：
+- **多语言网站**: 标注页面使用的语言，避免 AI 误解非英文 UI
+- **专业领域术语**: 提供行业术语解释，帮助 AI 准确识别专业 UI 元素
+- **非标准 UI 组件**: 描述自定义组件的外观和行为，指导 AI 正确交互
+
+```yaml
+# 示例 1: 多语言网站
+agent:
+  aiActContext: "这是一个日语电商网站。'カートに入れる' 表示'加入购物车'，'購入手続き' 表示'去结算'。"
+
+# 示例 2: 专业术语
+agent:
+  aiActContext: "这是一个医疗信息系统。'HIS' 代表 Hospital Information System，'EMR' 代表 Electronic Medical Records。"
+
+# 示例 3: 非标准 UI
+agent:
+  aiActContext: "这个应用使用自定义日期选择器：左侧是月份导航，右侧的网格是日期选择区域，底部有'确认'和'取消'按钮。"
+```
 
 ## 数据转换操作参考
 
@@ -646,6 +689,10 @@ Extended 模式下 `data_transform` 支持的操作：
 
 > **两种格式**: 平面格式 `{source, operation, name}` 适合单步操作；嵌套格式 `{input, operations:[], output}` 支持链式多步操作。两种格式均支持所有 8 种操作。
 
+> **格式选择规则**: 单步操作使用平面格式 `{source, operation, name}`，多步链式操作使用嵌套格式 `{input, operations:[], output}`。
+
+> 完整的 data_transform 使用指南和高级示例，请参考 `guide/MIDSCENE_YAML_GUIDE.md` 的 L4 章节。
+
 ## 平台特定注意事项
 
 ### Web 平台
@@ -659,6 +706,13 @@ Extended 模式下 `data_transform` 支持的操作：
 - 使用 `launch: "com.example.app"` 启动应用（在 flow 中作为 action 步骤）
 - 可使用 `runAdbShell` 执行 ADB 命令
 - 额外配置：`keyboardDismissStrategy`（`esc-first` | `back-first`）、`imeStrategy`（`always-yadb` | `yadb-for-non-ascii`，默认 `yadb-for-non-ascii`）、`scrcpyConfig`、`androidAdbPath`（自定义 ADB 路径）、`remoteAdbHost`/`remoteAdbPort`（远程 ADB）、`screenshotResizeScale`、`alwaysRefreshScreenInfo`、`displayId`
+- `scrcpyConfig` — Scrcpy 屏幕捕获配置（对象格式）：
+  - `enabled`: 启用 Scrcpy（boolean）
+  - `maxSize`: 最大屏幕尺寸（像素）
+  - `videoBitRate`: 视频码率
+  - `idleTimeoutMs`: 空闲超时时间（ms）
+
+> 注意: `launch` 有两种用法：(1) 平台配置中 `launch: true` 或 `launch: "com.example.app"` 表示启动时行为 (2) flow 步骤中 `launch: "com.example.app"` 表示执行中启动应用
 
 ### iOS 平台
 - 需要配置 `wdaPort`（WebDriverAgent 端口，默认 8100）和 `wdaHost`（默认 localhost）
@@ -666,9 +720,13 @@ Extended 模式下 `data_transform` 支持的操作：
 - 可使用 `runWdaRequest` 发送 WebDriverAgent 请求
 - 额外配置：`autoDismissKeyboard`（自动关闭键盘，默认 false）、`unstableLogContent`（日志持久化，实验性）
 
+> 注意: `launch` 有两种用法：(1) 平台配置中 `launch: true` 或 `launch: "com.example.app"` 表示启动时行为 (2) flow 步骤中 `launch: "com.example.app"` 表示执行中启动应用
+
 ### Computer 平台
 - 用于通用桌面自动化场景
-- 额外配置：`xvfbResolution`（如 `'1920x1080x24'`，Linux 虚拟显示器分辨率）、`headless`（`true`/`false`，Linux Xvfb 无头模式）、`displayId`（多显示器选择）
+- `headless` — Linux Xvfb 无头模式（true/false），CI 环境中自动启用虚拟显示器
+- `xvfbResolution` — Xvfb 虚拟显示器分辨率，格式 "宽x高x色深"（如 "1920x1080x24"）
+- `displayId` — 多显示器选择
 
 ## 常见错误模式（Anti-patterns）
 
@@ -758,6 +816,30 @@ tasks: [...]
     count: "${maxPages}"
 ```
 
+**7. 硬编码敏感信息**
+
+```yaml
+# WRONG — 密码硬编码在 YAML 中
+- aiInput: "密码输入框"
+  value: "MyP@ssw0rd123"
+
+# RIGHT — 使用环境变量
+- aiInput: "密码输入框"
+  value: "${ENV:TEST_PASSWORD}"
+```
+
+**8. 模糊 AI 指令**
+
+```yaml
+# WRONG — 描述太模糊，AI 可能误操作
+- aiTap: "按钮"
+- ai: "填写表单"
+
+# RIGHT — 描述具体，减少歧义
+- aiTap: "页面右上角文字为'提交订单'的蓝色按钮"
+- ai: "在'收货地址'部分依次填写姓名、手机号、详细地址，然后点击保存"
+```
+
 ## 输出前自检清单
 
 生成 YAML 后，在输出前核验以下事项：
@@ -776,9 +858,14 @@ tasks: [...]
 - **`javascript:` 步骤** — 代码在浏览器上下文执行，可访问 DOM/Cookie/localStorage。避免在其中放入不可信内容，不要通过 `fetch()` 将页面数据发送到第三方
 - **`external_call: shell`** — 命令直接在系统 shell 中执行，存在命令注入风险。变量引用 `${varName}` 会被模板解析后嵌入命令字符串，确保变量值来源可信
 - **`runAdbShell` / `runWdaRequest`** — 在移动设备上执行命令/请求，避免使用破坏性命令（`rm`、`reboot`、`pm uninstall`）
+- **`runWdaRequest` URL** 中避免使用包含 `delete`、`remove`、`reset`、`uninstall` 等破坏性操作的路径
 - **`external_call: http`** — URL 由 YAML 控制，避免请求内网地址（127.0.0.1、10.x、172.16-31.x、192.168.x）或云 metadata 端点（169.254.169.254）
+- **`data_transform` 表达式** — `condition`、`reducer`、`template` 字段中的 JS 表达式在运行时执行。避免在这些字段中使用 `require()`、`eval()`、`fetch()` 等危险 API
 - **环境变量 `${ENV:XXX}`** — 引用的值可能在报告截图、`--output-ts` 文件或日志中暴露。避免引用 `SECRET`/`PASSWORD`/`TOKEN` 类变量到 UI 可见位置
 - **报告截图** — 执行过程中每步截图可能包含敏感数据（密码输入、Token 显示）。CI/CD 中应将报告标记为私有 artifact
+- **CI/CD 密钥管理** — 在 CI 环境中使用 GitHub Secrets / GitLab CI Variables 注入 `MIDSCENE_MODEL_API_KEY`，不要在 YAML 文件或仓库中硬编码 API Key
+- **输出数据** — `aiQuery` 和 `external_call` 返回的数据来自外部源，在后续 `javascript` 步骤或 `external_call` 中使用时应视为不可信输入
+- **`acceptInsecureCerts: true`** — 此选项禁用 SSL 证书验证，仅用于本地开发/自签名证书的测试环境，生产环境中**绝不应使用**
 
 ## 注意事项
 

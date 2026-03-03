@@ -1,8 +1,7 @@
-# 子流程复用模板 — 展示 import 和 use 实现模块化
-# 适用场景: 多个测试用例复用同一登录流程、共享测试数据
-# 使用方式: node scripts/midscene-run.js templates/extended/reusable-sub-flows.yaml --dry-run
-# 说明: 此模板用于演示，需要替换导入路径和参数后才能实际执行
-# 兼容性: @midscene/web >= 1.x
+# 子流程复用模板
+# Reusable Sub-Flows Template
+# 展示 import 和 use 实现模块化，多个测试用例复用同一登录流程
+# Usage: node scripts/midscene-run.js templates/extended/reusable-sub-flows.yaml --dry-run
 
 engine: extended
 features: [import, variables]

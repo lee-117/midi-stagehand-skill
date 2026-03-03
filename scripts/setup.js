@@ -66,9 +66,9 @@ function execSilent(cmd, opts = {}) {
 function commandExists(cmd) {
   try {
     if (isWindows) {
-      execSync('where ' + cmd, { stdio: 'pipe', timeout: 5000 });
+      execFileSync('where', [cmd], { stdio: 'pipe', timeout: 5000 });
     } else {
-      execSync('which ' + cmd, { stdio: 'pipe', timeout: 5000 });
+      execFileSync('which', [cmd], { stdio: 'pipe', timeout: 5000 });
     }
     return true;
   } catch {

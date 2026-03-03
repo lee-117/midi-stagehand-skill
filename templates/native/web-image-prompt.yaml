@@ -1,0 +1,74 @@
+# 图片提示定位模板
+# Web Image Prompt Template
+# 演示使用图片作为 AI 指令的辅助提示进行元素定位
+# Usage: node scripts/midscene-run.js templates/native/web-image-prompt.yaml --dry-run
+
+engine: native
+
+web:
+  url: "https://example.com"
+  headless: false
+  viewportWidth: 1280
+  viewportHeight: 960
+  # convertHttpImage2Base64 说明:
+  # 当 images 参数引用 HTTP URL 时，是否自动转换为 Base64。
+  # 某些 AI 模型服务不支持直接访问外部 URL，启用此选项可确保兼容性。
+
+tasks:
+  # ========== 任务 1: 使用 URL 图片作为提示 ==========
+  - name: "URL 图片提示定位"
+    flow:
+      - aiWaitFor: "页面加载完成"
+        timeout: 10000
+
+      # images 参数接受 URL 数组，AI 会参考图片内容辅助定位
+      - aiTap: "与参考图片中样式相似的按钮"
+        images:
+          - "https://example.com/assets/reference-button.png"
+
+      - aiAssert: "已点击目标按钮"
+
+      # 在 aiQuery 中使用图片提示
+      - aiQuery:
+          query: "找到与参考图片中相似的图标，返回其位置和文字描述"
+          images:
+            - "https://example.com/assets/reference-icon.png"
+          name: "iconInfo"
+
+      - recordToReport: "URL 图片提示测试完成"
+        content: "通过 URL 图片辅助完成元素定位"
+
+  # ========== 任务 2: 使用本地文件图片作为提示 ==========
+  - name: "本地图片提示定位"
+    flow:
+      # images 也支持本地文件路径
+      - aiTap: "与参考图片中外观一致的组件"
+        images:
+          - "/path/to/local/reference-component.png"
+
+      - aiAssert: "已成功定位并点击目标组件"
+
+      # 多图片提示 — 提供多个参考图片提高定位精度
+      - aiTap: "与参考图片匹配的表单提交按钮"
+        images:
+          - "/path/to/local/submit-button-default.png"
+          - "/path/to/local/submit-button-hover.png"
+
+      - recordToReport: "本地图片提示测试完成"
+        content: "通过本地文件图片辅助完成元素定位"
+
+  # ========== 任务 3: 图片提示配合 convertHttpImage2Base64 ==========
+  - name: "Base64 图片转换"
+    flow:
+      # convertHttpImage2Base64: true 时，
+      # Midscene 会先下载 HTTP 图片并转为 Base64 再发送给 AI 模型。
+      # 适用于 AI 模型服务无法直接访问外部图片 URL 的情况。
+      - aiTap: "与参考图片匹配的导航菜单项"
+        images:
+          - "https://example.com/assets/nav-menu-item.png"
+        convertHttpImage2Base64: true
+
+      - aiAssert: "成功点击了目标菜单项"
+
+      - recordToReport: "Base64 图片转换测试完成"
+        content: "验证 convertHttpImage2Base64 选项正确转换并使用图片"

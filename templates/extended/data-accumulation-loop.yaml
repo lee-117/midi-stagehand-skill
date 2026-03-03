@@ -1,0 +1,111 @@
+# 循环数据累积模板
+# Data Accumulation Loop Template
+# 演示 forEach 循环逐步收集数据并通过 data_transform 合并
+# Usage: node scripts/midscene-run.js templates/extended/data-accumulation-loop.yaml --dry-run
+
+engine: extended
+features: [loop, data_transform, variables]
+
+web:
+  url: "https://example.com/categories"
+  headless: false
+  viewportWidth: 1280
+  viewportHeight: 960
+
+variables:
+  categories:
+    - { name: "电子产品", path: "/electronics" }
+    - { name: "图书", path: "/books" }
+    - { name: "服装", path: "/clothing" }
+  collectedData: []
+
+tasks:
+  # ========== 阶段 1: 循环采集各分类数据 ==========
+  - name: "逐分类数据采集"
+    flow:
+      - aiWaitFor: "页面加载完成"
+        timeout: 10000
+
+      # forEach 循环 — 遍历每个分类并采集数据
+      - loop:
+          type: for
+          items: "${categories}"
+          itemVar: "category"
+          indexVar: "categoryIndex"
+          flow:
+            # 导航到分类页面
+            - ai: "点击 ${category.name} 分类链接"
+            - aiWaitFor: "${category.name} 分类页面加载完成"
+              timeout: 10000
+
+            # 提取当前分类的商品列表
+            - aiQuery:
+                query: >
+                  提取当前分类页面的前 5 个商品信息，
+                  每个商品包含：名称(name)、价格(price)、评分(rating)
+                name: "categoryItems"
+
+            - recordToReport: "第${categoryIndex}个分类: ${category.name}"
+              content: "已采集 ${category.name} 分类数据"
+
+            # 返回分类列表页
+            - ai: "点击返回或面包屑导航回到分类列表"
+            - sleep: 1000
+
+  # ========== 阶段 2: 数据合并与累积 ==========
+  # 注意: 以下 data_transform 演示数据累积处理模式。
+  # 实际使用中，跨循环迭代的数据累积通常通过
+  # output + import 或 javascript 步骤实现。
+  - name: "数据合并处理"
+    flow:
+      # 扁平化 — 将嵌套的分类数据展平为单一列表
+      - data_transform:
+          source: "${categoryItems}"
+          operation: flatten
+          name: "flatItems"
+
+      # 去重 — 根据商品名称去除重复项
+      - data_transform:
+          source: "${flatItems}"
+          operation: unique
+          by: "name"
+          name: "uniqueItems"
+
+      # 排序 — 按价格升序排列
+      - data_transform:
+          source: "${uniqueItems}"
+          operation: sort
+          by: "price"
+          order: "asc"
+          name: "sortedItems"
+
+      # 过滤 — 筛选高评分商品
+      - data_transform:
+          source: "${sortedItems}"
+          operation: filter
+          condition: "item.rating >= 4.0"
+          name: "highRatedItems"
+
+      - recordToReport: "数据合并完成"
+        content: "已完成展平、去重、排序和过滤"
+
+  # ========== 阶段 3: 数据汇总 ==========
+  - name: "生成汇总报告"
+    flow:
+      # 嵌套格式 data_transform — 链式操作
+      - data_transform:
+          input: "${highRatedItems}"
+          operations:
+            - map: "{ name: item.name, price: item.price, rating: item.rating, value: item.rating / item.price }"
+            - sort: "value desc"
+            - slice:
+                start: 0
+                end: 10
+          output: "topValueItems"
+
+      - recordToReport: "数据累积汇总"
+        content: "从多个分类循环采集数据，经合并处理后输出 Top 10 性价比商品"
+
+    output:
+      filePath: "./midscene-output/accumulated-data.json"
+      dataName: "topValueItems"
