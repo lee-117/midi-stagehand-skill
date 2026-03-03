@@ -528,6 +528,30 @@ describe('classifyError', () => {
     assert.ok('suggestion' in result);
     assert.ok('severity' in result);
   });
+
+  it('classifies "out of memory" as memory_exhaustion', () => {
+    const result = classifyError('FATAL ERROR: out of memory');
+    assert.equal(result.category, 'memory_exhaustion');
+    assert.equal(result.severity, 'fatal');
+  });
+
+  it('classifies "heap size limit exceeded" as memory_exhaustion', () => {
+    const result = classifyError('FATAL ERROR: Reached heap size limit exceeded');
+    assert.equal(result.category, 'memory_exhaustion');
+    assert.equal(result.severity, 'fatal');
+  });
+
+  it('classifies ENOMEM as memory_exhaustion', () => {
+    const result = classifyError('Error: spawn ENOMEM');
+    assert.equal(result.category, 'memory_exhaustion');
+    assert.equal(result.severity, 'fatal');
+  });
+
+  it('classifies "allocation failed" as memory_exhaustion', () => {
+    const result = classifyError('V8: allocation failed - process out of memory');
+    assert.equal(result.category, 'memory_exhaustion');
+    assert.equal(result.severity, 'fatal');
+  });
 });
 
 // ---------------------------------------------------------------------------

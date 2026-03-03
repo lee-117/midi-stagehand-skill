@@ -598,7 +598,9 @@
         "output": { "type": "string", "description": "Variable name to store the query result" },
         "name": { "type": "string" },
         "timeout": { "type": "integer" },
-        "cacheable": { "type": "boolean" }
+        "cacheable": { "type": "boolean" },
+        "domIncluded": { "oneOf": [{ "type": "boolean" }, { "const": "visible-only" }] },
+        "screenshotIncluded": { "type": "boolean" }
       },
       "additionalProperties": false
     },
@@ -753,7 +755,9 @@
         "errorMessage": { "type": "string", "description": "Custom error message on assertion failure (flat format)" },
         "name": { "type": "string", "description": "JSON output key for assertion result" },
         "timeout": { "type": "integer" },
-        "cacheable": { "type": "boolean" }
+        "cacheable": { "type": "boolean" },
+        "domIncluded": { "oneOf": [{ "type": "boolean" }, { "const": "visible-only" }] },
+        "screenshotIncluded": { "type": "boolean" }
       },
       "additionalProperties": false
     },

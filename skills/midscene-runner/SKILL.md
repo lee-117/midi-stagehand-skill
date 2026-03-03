@@ -10,6 +10,7 @@ allowed-tools:
   - Edit
   - Bash
   - Glob
+  - Grep
 ---
 
 你是 Midscene Runner，负责执行、验证、调试和解读 Midscene YAML 自动化文件。
@@ -83,103 +84,32 @@ node scripts/health-check.js
 | Model Key 缺失 | 可 dry-run；需配置后执行 |
 | Node < 22 | 立即停止；建议升级 |
 
-**模型未配置？** Midscene 执行 AI 操作需要视觉语言模型。在项目根目录创建 `.env` 文件：
+**模型未配置？** 在项目根目录创建 `.env` 文件，配置以下三个变量（任选一组模型，互斥，每次仅保留一组有效 Key）：
 
 ```env
+# 千问 VL（推荐国内）
 MIDSCENE_MODEL_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 MIDSCENE_MODEL_API_KEY=sk-your-key
 MIDSCENE_MODEL_NAME=qwen-vl-max-latest
 
-# Gemini 模型配置
-MIDSCENE_MODEL_BASE_URL=https://generativelanguage.googleapis.com/v1beta
-MIDSCENE_MODEL_API_KEY=AIza...
-MIDSCENE_MODEL_NAME=gemini-2.0-flash
-
-# GPT-4o 模型配置
-MIDSCENE_MODEL_BASE_URL=https://api.openai.com/v1
-MIDSCENE_MODEL_API_KEY=sk-...
-MIDSCENE_MODEL_NAME=gpt-4o
-
-# GLM-V 模型配置
-MIDSCENE_MODEL_BASE_URL=https://open.bigmodel.cn/api/paas/v4
-MIDSCENE_MODEL_API_KEY=...
-MIDSCENE_MODEL_NAME=glm-4v-flash
+# 其他可选：Gemini / GPT-4o / GLM-V — 详见 midscenejs.com/zh/model-common-config.html
 ```
 
-详细配置说明见 [Midscene 模型配置文档](https://midscenejs.com/zh/model-common-config.html)。
+**常用环境变量**：
+- `MIDSCENE_RUN_DIR` — 产物目录（默认 `./midscene_run`）
+- `DEBUG=midscene:*` — 完整日志；`midscene:ai:call`(API)；`midscene:ai:profile:stats`(性能)
+- `MIDSCENE_INSIGHT_MODEL_*` / `MIDSCENE_PLANNING_MODEL_*` — 分阶段模型配置
+- `MIDSCENE_MODEL_HTTP_PROXY` — AI API 代理；`MIDSCENE_PREFERRED_LANGUAGE` — 响应语言
 
-**支持的模型家族**（通过 `MIDSCENE_MODEL_FAMILY` 指定）：
-`doubao-seed-1.6`、`doubao-seed-2.0`、`qwen3.5`、`qwen3-vl`、`qwen2.5-vl`、`glm-v`、`gemini`、`vlm-ui-tars`
+**首次使用？** 运行 `npm run setup`（自动安装依赖、预热缓存、检测 Chrome）。
 
-**高级环境变量**：
-- `MIDSCENE_RUN_DIR` — 运行时产物目录（报告、缓存），默认 `./midscene_run`
-- `DEBUG=midscene:*` — 启用完整调试日志
-- `DEBUG=midscene:ai:call` — 仅显示 AI API 调用详情
-- `DEBUG=midscene:ai:profile:stats` — 显示性能统计
-- `MIDSCENE_INSIGHT_MODEL_*` / `MIDSCENE_PLANNING_MODEL_*` — 为 Insight（元素定位）和 Planning（操作规划）阶段分别配置模型（如用快速模型做 Planning，精确 VL 模型做 Insight）
-- `MIDSCENE_MODEL_REASONING_ENABLED` — 启用/禁用推理（`"true"`/`"false"`）
-- `MIDSCENE_MODEL_REASONING_EFFORT` — 推理强度（`"low"`/`"medium"`/`"high"`）
-- `MIDSCENE_MODEL_REASONING_BUDGET` — thinking token 预算（数字）
-- `MIDSCENE_MODEL_HTTP_PROXY` / `MIDSCENE_MODEL_SOCKS_PROXY` — AI API 代理配置
-- `MIDSCENE_MODEL_INIT_CONFIG_JSON` — 覆盖 OpenAI SDK 初始化配置（JSON 字符串）
-- `MIDSCENE_PREFERRED_LANGUAGE` — 设置 AI 响应语言。GMT+8 时区默认中文，其他时区默认英文。可设置为 `en`、`zh`、`ja` 等语言代码。
-- `DEBUG=midscene:ai:profile:detail` — 详细 token 日志
-- `DEBUG=midscene:android:adb` — Android ADB 调试
-- `DEBUG=midscene:cache:*` — 缓存调试
-
-**首次使用？运行一键环境初始化**：
-
-```bash
-npm run setup
-```
-
-`setup` 会自动完成以下工作：
-- 智能检测网络环境，自动选择最快的 npm 镜像（国内自动使用淘宝源加速）
-- 安装所有项目依赖
-- 预热 `@midscene/web` 和 `tsx` 到 npx 缓存（避免首次执行时等待下载）
-- 检测系统 Chrome，若无则自动下载 Chromium
-- 输出环境就绪报告
-
-**Chrome 浏览器检测**（Web 平台）：
-
-框架会自动按以下顺序查找系统 Chrome/Chromium/Edge：
-- Windows: `Program Files\Google\Chrome`、`Chromium`、`Microsoft\Edge` (LOCALAPPDATA/PROGRAMFILES)
-- macOS: `/Applications/Google Chrome.app`、`/Applications/Chromium.app`
-- Linux: `/usr/bin/google-chrome`、`/usr/bin/chromium`、`/snap/bin/chromium`、`which google-chrome`
-
-如果未找到系统 Chrome，有两种解决方案：
-1. 安装 Chrome 浏览器（推荐）
-2. 运行 `npx puppeteer browsers install chrome` 安装 Chromium
-
-如果 Chrome 在非标准路径，设置环境变量：
-```bash
-# Linux/macOS
-export PUPPETEER_EXECUTABLE_PATH="/path/to/chrome"
-# Windows PowerShell
-$env:PUPPETEER_EXECUTABLE_PATH="C:\path\to\chrome.exe"
-```
-
-**平台特定前提条件**：
-
-| 平台 | 依赖 |
-|------|------|
-| Web | Chrome/Chromium 浏览器（自动检测，见上方说明） |
-| Android | ADB 已连接设备（`adb devices` 验证） |
-| iOS | WebDriverAgent 已配置 |
-| Extended 模式 | `tsx` 运行时（`npx tsx --version`） |
-
-如果缺少依赖，提示用户安装：
-```bash
-npm install && npm run setup
-```
+**Chrome 未找到？** 安装 Chrome 或设置 `PUPPETEER_EXECUTABLE_PATH="/path/to/chrome"`。运行 `node scripts/health-check.js` 验证。
 
 ### 第 1 步：定位 YAML 文件
 
-确定要执行的 YAML 文件路径。如果用户没有指定完整路径：
-- 检查 `./midscene-output/` 目录下最近生成的文件
-- 检查 `./templates/` 目录下的模板文件
-- 检查当前目录下的 `.yaml` / `.yml` 文件
-- 提示用户提供文件路径
+确定要执行的 YAML 文件路径。**如果用户未指定文件，主动用 Glob 工具列出 `./midscene-output/` 下最近文件供选择**。备选查找：
+- `./templates/` 目录下的模板文件
+- 当前目录下的 `.yaml` / `.yml` 文件
 
 多文件场景：如果用户要求执行多个文件，可逐个执行并汇总结果。
 
@@ -208,7 +138,7 @@ node scripts/midscene-run.js <yaml-file> --dry-run
 
 **自动修复流程**：仅对确定性琐碎修改（添加 engine: extended、修复缩进）允许静默修复。对任何改变语义的修改，先展示 diff 并确认。
 
-> **注意**: `--dry-run` 通过但 API Key 未配置时，实际执行 AI 操作会失败。dry-run 验证的是 YAML 结构正确性，不检测模型配置。如果 `MIDSCENE_MODEL_API_KEY` 未设置且 `.env` 中也没有，dry-run 成功后仍需在执行前配置。
+> **Post-dry-run 执行就绪检查**: dry-run 通过后，执行前确认：(1) `MIDSCENE_MODEL_API_KEY` 已配置？(2) Chrome 可用？(`node scripts/health-check.js`) (3) 目标 URL/设备可达？
 
 ### 第 3 步：执行
 
@@ -265,6 +195,8 @@ npx @midscene/web "tests/**/*.yaml" --concurrent --continue-on-error
 - `--report-dir <path>` — 报告输出目录（默认 `./midscene-report`）
 - `--template puppeteer|playwright` — 选择 TS 模板（默认 playwright；puppeteer 适合仅需 Chrome 的场景）
 - `--clean` — 清理 `.midscene-tmp/` 中超过 24 小时的过期临时文件
+- `--max-files <n>` — 批量执行时限制文件数（默认 100）
+- `--json-log` — JSON Lines 格式输出，适合 CI/CD 日志解析
 - `--verbose` / `-v` — 显示详细输出（验证详情、检测信息、步骤计数）。注意：错误分类、失败任务详情和修复建议默认已显示，无需 `--verbose`
 - `--help` / `-h` — 显示帮助信息
 - `--version` / `-V` — 显示版本号
@@ -317,59 +249,22 @@ node scripts/midscene-run.js test.yaml --output-ts ./debug-output.ts
 | 11 | `ECONNRESET` / 网络断开 | network_failure | fatal | 检查网络 |
 | 12 | `ENOSPC` / 磁盘满 | disk_full | fatal | --clean 清理 |
 | 13 | `browser crash` | browser_crash | fatal | 减少并行 / 增加内存 |
+| 14 | `out of memory` / `ENOMEM` | memory_exhaustion | fatal | 减少并行任务 / 增加内存 / --clean |
 
-**详细排查说明**：
+**退出码**: 0=成功、1=执行失败、2=配置/验证错误
 
-按以下决策树分析错误并修复：
+**修复策略速查**：
+- `api_key`/`401` → 配置 `MIDSCENE_MODEL_API_KEY`
+- `timeout` → `--timeout 60000` 或增加 `aiWaitFor` timeout
+- `element_not_found` → 精确 AI 描述 → `deepThink: true` → `xpath`
+- `assertion` → 查看报告截图对比实际 vs 预期
+- `navigation`(URL/DNS 问题，recoverable) → 检查 URL 拼写和 DNS；`network_failure`(连接断开，fatal) → 检查网络/代理
+- `transpiler` → `--dry-run --output-ts ./debug.ts`
+- `rate_limit`/`429` → 增加 sleep 间隔，`--retry 3`（需增加间隔）
+- `browser_not_found` → `node scripts/health-check.js`
+- `disk_full` → `--clean`
 
-```
-错误消息包含什么？
-├─ "API key" / "401" / "Unauthorized"
-│   → 模型未配置。设置 MIDSCENE_MODEL_API_KEY 环境变量或 .env 文件
-│
-├─ "Timeout" / "exceeded"
-│   ├─ 页面能在浏览器中正常打开？
-│   │   ├─ 是 → 页面加载慢，增加 timeout 值（如 timeout: 30000）
-│   │   │   示例: node scripts/midscene-run.js test.yaml --timeout 60000
-│   │   └─ 否 → 检查 URL 是否正确、网络是否可达
-│   └─ 出现在 aiWaitFor？→ 条件描述可能不准确，检查 assertion 文本
-│
-├─ "Element not found" / "not found"
-│   ├─ 第一次就失败？→ AI 描述不够精确，改用更具体的文字描述
-│   ├─ 之前能成功？→ 页面结构可能变了，查看报告截图对比
-│   └─ 仍然失败？→ 尝试 deepThink: true 或改用 xpath 定位
-│
-├─ "Assertion failed"
-│   → 查看报告截图，对比实际页面状态 vs 预期描述，调整 aiAssert 文本
-│
-├─ "Navigation failed" / "net::ERR_"
-│   → 检查 URL 协议（https://）和可访问性
-│
-├─ "Transpiler error"
-│   → 使用 --dry-run --output-ts 查看生成的代码排查语法问题
-│   示例: node scripts/midscene-run.js test.yaml --dry-run --output-ts ./debug.ts
-│
-├─ "Permission denied"
-│   → 页面需要登录或特殊权限，添加登录步骤或 cookie 配置
-│
-├─ "javascript" 步骤报错
-│   → 检查 JS 代码语法，注意浏览器环境 vs Node 环境的 API 差异
-│
-├─ "Chrome" / "browser" / "launch failed"
-│   → Chrome 未找到或启动失败。安装 Chrome 或设置 PUPPETEER_EXECUTABLE_PATH
-│   示例: node scripts/health-check.js
-│
-├─ "ERR_INTERNET_DISCONNECTED" / "ECONNRESET"
-│   → 网络断开。检查网络连接和代理配置（MIDSCENE_MODEL_HTTP_PROXY）
-│
-├─ "429" / "rate limit"
-│   → AI API 限流。增加操作间 sleep 间隔，或使用 --retry 配合等待
-│   示例: node scripts/midscene-run.js test.yaml --retry 3
-│
-└─ "ENOSPC" / "disk full"
-    → 磁盘空间不足。清理报告目录和临时文件，或扩大磁盘空间
-    示例: node scripts/midscene-run.js test.yaml --clean
-```
+> **重试策略**: recoverable 类可重试；fatal 类不重试需修正根因；rate_limit 需退避增加间隔
 
 **迭代修复流程**：
 1. 分析错误原因
@@ -394,7 +289,10 @@ node scripts/midscene-run.js test.yaml --output-ts ./debug-output.ts
 3. **需要升级给 Generator 的错误**（使用以下格式）：
    ```
    [ESCALATE] ./midscene-output/<file>.yaml
-   [ERROR_TYPE] element_not_found | assertion | navigation | timeout
+   [MODE] native|extended
+   [PLATFORM] web|android|ios|computer
+   [ENV] Node <version>, Chrome <version>, <OS>
+   [ERROR_TYPE] element_not_found | assertion | navigation | timeout | memory_exhaustion
    [ERROR_MSG] <实际错误消息片段>
    [FAILED_STEP] task "<任务名>" → step <N>
    [REPORT_PATH] ./midscene-report/<report>.html
@@ -431,102 +329,32 @@ Failed: N
 Status: passed|failed
 ```
 
-## 快速执行命令参考
-
-### 使用项目 CLI（完整项目）
+## 快速命令参考
 
 ```bash
-# 基本执行
-node scripts/midscene-run.js test.yaml
-
-# 仅验证，不执行
-node scripts/midscene-run.js test.yaml --dry-run
-
-# 保存生成的 TS（仅 extended 模式）
-node scripts/midscene-run.js test.yaml --output-ts ./output.ts
-
-# 使用 Playwright 模板
-node scripts/midscene-run.js test.yaml --template playwright
-
-# 指定报告目录
-node scripts/midscene-run.js test.yaml --report-dir ./reports
-
-# 设置超时为 10 分钟
-node scripts/midscene-run.js test.yaml --timeout 600000
-
-# 验证 + 保存 TS（排查转译问题）
-node scripts/midscene-run.js test.yaml --dry-run --output-ts ./debug.ts
-
-# 查看帮助
-node scripts/midscene-run.js --help
-```
-
-### 直接使用 Midscene CLI（外部项目）
-
-```bash
-# 有界面执行（调试推荐）
-npx @midscene/web test.yaml --headed
-
-# 无头模式执行（CI/CD 推荐）
-npx @midscene/web test.yaml
+node scripts/midscene-run.js test.yaml                      # 执行
+node scripts/midscene-run.js test.yaml --dry-run             # 仅验证
+node scripts/midscene-run.js test.yaml --dry-run --output-ts ./debug.ts  # 排查转译
+node scripts/midscene-run.js test.yaml --timeout 600000      # 10 分钟超时
+node scripts/midscene-run.js test.yaml --retry 3             # 失败重试
+node scripts/midscene-run.js "tests/**/*.yaml" --max-files 50  # 批量执行
+npx @midscene/web test.yaml --headed                         # 外部项目（有界面）
 ```
 
 ## YAML 配置速查
 
-> 完整 YAML 配置参考（agent 配置、动作映射、data_transform 等）请查看 Generator Skill 或 `guide/MIDSCENE_YAML_GUIDE.md`。
+> 完整 YAML 配置参考（agent 配置、动作映射、平台配置详情）请查看 `skills/midscene-yaml-generator/REFERENCE.md` 或 `guide/MIDSCENE_YAML_GUIDE.md`。
 
-### 平台配置选项
+### 平台配置最小示例
 
 ```yaml
-# Web 平台完整配置
-web:
-  url: "https://example.com"
-  headless: false       # true = 无头模式（适合 CI/CD）; false = 有界面（适合调试）
-  viewportWidth: 1920   # 默认 1280；移动端模拟可用 375
-  viewportHeight: 1080  # 默认 960；移动端模拟可用 667
-  userAgent: "Custom User Agent"
-  waitForNetworkIdle:
-    timeout: 2000
-    continueOnNetworkIdleError: true
-
-# Android 平台（需先 adb devices 确认设备已连接）
-android:
-  deviceId: "emulator-5554"   # adb devices 输出中的设备 ID
-# 在 flow 中使用 launch: "com.example.app" 启动应用
-
-# iOS 平台（需先配置 WebDriverAgent）
-ios:
-  wdaPort: 8100              # WebDriverAgent 端口
-  wdaHost: "localhost"       # WebDriverAgent 主机
-# 在 flow 中使用 launch: "com.example.app" 启动应用
-
-# Agent 配置完整参考
-agent:
-  testId: "test-001"             # 测试用例标识
-  groupName: "smoke-tests"       # 报告分组名
-  groupDescription: "冒烟测试"   # 分组描述
-  cache: true                    # 缓存策略: true | { strategy, id }
-  generateReport: true           # 是否生成报告
-  autoPrintReportMsg: true       # 自动打印报告路径
-  reportFileName: "my-report"    # 报告文件名
-  replanningCycleLimit: 20       # AI 重新规划上限（默认 20）
-  aiActContext: "背景知识..."    # AI 操作背景信息
-  screenshotShrinkFactor: 2      # 截图缩放除数（默认 1）
-  waitAfterAction: 300           # 操作后等待（ms，默认 300）
-  outputFormat: "single-html"    # 报告格式
-  modelConfig: {}                # 自定义模型配置
+web: { url: "https://example.com" }      # headless: true 用于 CI
+android: { deviceId: "emulator-5554" }    # flow 中 launch: "包名"
+ios: { wdaPort: 8100 }                    # flow 中 launch: "bundleId"
+computer: { launch: "/path/to/app" }      # headless + xvfbResolution 用于 CI
 ```
 
-> **缓存配置详解**:
-> - `cache: true` — 启用默认缓存策略（read-write）
-> - `cache: { strategy: "read-write", id: "unique-id" }` — 读写缓存，相同 id 的缓存可复用
-> - `cache: { strategy: "read-only", id: "..." }` — 仅读取已有缓存，不写入新结果
-> - `cache: { strategy: "write-only", id: "..." }` — 仅写入缓存，不读取已有结果（CI 推荐）
-> - 缓存按 AI 调用参数生成 key，页面变化后自动失效
-
-## Native 动作快速参考
-
-调试时可查阅以下合法动作列表：
+### Native 动作分类
 
 | 类别 | 动作 |
 |------|------|
@@ -535,63 +363,50 @@ agent:
 | 数据提取 | `aiQuery`, `aiBoolean`, `aiNumber`, `aiString`, `aiLocate`, `aiAsk` |
 | 断言/等待 | `aiAssert`, `aiWaitFor` |
 | 工具 | `sleep`, `javascript`, `recordToReport`, `freezePageContext`, `unfreezePageContext` |
-| 平台特定 | `runAdbShell`, `runWdaRequest`, `launch`, `AndroidBackButton`, `AndroidHomeButton`, `AndroidRecentAppsButton`, `IOSHomeButton`, `IOSAppSwitcher` |
-
-> 完整参数说明见 Generator Skill 或 `guide/MIDSCENE_YAML_GUIDE.md`
+| 平台特定 | `runAdbShell`, `runWdaRequest`, `launch`, Android/iOS 系统按钮 |
 
 ## 调试技巧
 
-1. **查看报告截图**: 执行后查看 HTML 报告，每一步都有截图
-2. **分段执行**: 先只写前几步验证通过，再逐步添加
-3. **增加等待**: 在关键步骤后添加 `aiWaitFor` 确保页面就绪
-4. **插入断言**: 在中间步骤插入 `aiAssert` 验证当前状态
-5. **查看 TS 代码**: Extended 模式使用 `--output-ts` 查看生成的代码排查问题
-6. **使用 deepThink**: 元素定位不准时开启 `deepThink: true`
-7. **降级到 xpath**: 自然语言无法定位时使用 `xpath` 精确选择
-8. **使用 javascript**: 通过 `javascript` 步骤直接执行 JS 代码调试页面状态
-9. **使用 recordToReport**: 在关键节点插入 `recordToReport` 截图记录
-10. **iframe/shadow DOM**: 目标元素在 iframe 内时，使用 `ai:` 描述操作（AI 可跨 iframe 交互），或用 `javascript` 步骤切换上下文。Shadow DOM 元素优先用自然语言描述定位
-11. **DEBUG 环境变量粒度**:
-    - `DEBUG=midscene:*` — 完整日志（所有模块）
-    - `DEBUG=midscene:ai:call` — 仅 AI API 调用详情
-    - `DEBUG=midscene:ai:profile:stats` — 性能统计
-    - `DEBUG=midscene:ai:profile:detail` — 详细 token 消耗
-    - `DEBUG=midscene:cache:*` — 缓存命中/未命中
-    - `DEBUG=midscene:android:adb` — Android ADB 调试
-12. **自定义截图记录**: 使用 `recordToReport: "标题"` + `content: "描述"` 在关键节点插入自定义截图，便于调试复杂流程中间状态
-13. **freezePageContext 性能优化**: 当需要连续多次 `aiQuery`/`aiBoolean`/`aiString` 提取数据时，先 `freezePageContext: true` 冻结页面，连续提取后 `unfreezePageContext: true`。减少每次 AI 调用的截图重新捕获开销
-14. **缓存策略**: 使用 `agent.cache: true` 缓存 AI 定位结果，重复执行时自动复用。开发阶段用 `{ strategy: "read-write", id: "dev-cache" }`，CI 环境用 `{ strategy: "write-only", id: "ci-..." }` 仅写入不读取
+1. **查看报告截图**: HTML 报告每步有截图，绿 ✓ 通过、红 ✗ 失败
+2. **分段执行**: 先写前几步验证通过，再逐步添加
+3. **增加等待**: 关键步骤后 `aiWaitFor` 确保页面就绪
+4. **deepThink → xpath**: 定位不准时 `deepThink: true`，仍失败用 `xpath`
+5. **查看 TS 代码**: Extended 用 `--output-ts` 排查转译问题
+6. **DEBUG 环境变量**: `midscene:*`(全部) / `midscene:ai:call`(API) / `midscene:ai:profile:stats`(性能) / `midscene:cache:*`(缓存)
+7. **freezePageContext**: 连续 3+ 次 aiQuery 时冻结页面提升性能
+8. **缓存策略**: 开发 `read-write`，CI `write-only`
 
 ## 执行常见陷阱
 
-- **首次执行可能因下载依赖而慢**：首次运行时 `npx` 可能需要下载 `@midscene/web` 和 `tsx`，耗时数分钟。建议先运行 `npm run setup` 预热缓存
-- **timeout 包含浏览器启动时间**：浏览器冷启动可能消耗 10-20 秒，建议 timeout 最少设置 60000ms，避免因启动超时导致误报失败
-- **headless 模式渲染可能与 headed 不同**：部分页面在无头模式下布局或字体渲染不同，可能导致 AI 定位偏差。调试时建议先用 `headless: false` 确认
-- **反爬机制可能阻止 headless Chrome**：某些网站检测到无头浏览器后会返回验证码或空白页面。可尝试设置自定义 `userAgent` 或使用 `headless: false`
-- **移动端键盘遮挡**: Android/iOS 上 `aiInput` 输入时虚拟键盘可能遮挡目标元素或下一步要操作的按钮。使用 `autoDismissKeyboard: true`（iOS 平台配置）或 `keyboardDismissStrategy: "back-first"`（Android 平台配置）自动收起键盘
-- **多标签页管理**: 点击链接可能打开新标签页，后续操作可能在错误的页面上下文中执行。使用 `forceSameTabNavigation: true`（默认已启用）限制导航在同一标签页。如果需要多标签页操作，参考 `templates/native/web-multi-tab.yaml`
+- **首次慢**: `npx` 首次需下载依赖，先运行 `npm run setup` 预热
+- **timeout 包含启动时间**: 浏览器冷启动 10-20s，timeout 最少 60000ms
+- **headless 渲染差异**: 调试先用 `headless: false`
+- **反爬/验证码**: 用 `userAgent` + `headless: false` + `bridgeMode`
+- **移动端键盘遮挡**: iOS `autoDismissKeyboard: true`；Android `keyboardDismissStrategy: "back-first"`
 
 ## 执行安全
 
-- **报告截图安全**: 执行过程的截图可能包含敏感数据（密码、Token、个人信息）。CI/CD 中应将报告标记为私有 artifact，避免上传到公开存储
-- **API Key 保护**: `MIDSCENE_MODEL_API_KEY` 等密钥应通过 CI secrets 管理，不要硬编码在 YAML 或 `.env` 提交到版本库
-- **日志安全**: `--verbose` 和 `DEBUG=midscene:*` 输出可能包含请求详情，不要在公共日志渠道中输出
-- **临时文件**: `.midscene-tmp/` 中的临时 TypeScript 文件可能包含环境变量引用，执行后建议使用 `--clean` 清理
-- **网络隔离** — CI 环境中建议使用独立网络或容器隔离，避免自动化脚本意外访问生产环境 API
-- **`--no-sandbox` 选项** — 在 Docker/CI 环境中 Chrome 可能需要 `chromeArgs: ['--no-sandbox']`。此选项禁用沙箱安全，仅在受信任的容器环境中使用
-- **报告保留策略** — HTML 报告包含每步截图，体积较大。建议 CI 中设置报告保留期限（如 7-30 天），避免存储溢出
-- **`--verbose` 日志** — CI 流水线中 `--verbose` 和 `DEBUG=midscene:*` 可能输出包含 API Key 或页面数据的详细日志。避免在公开 CI 日志中启用
-- **`.env` 文件** — 确保 `.gitignore` 包含 `.env` 和 `.env.*`（项目已配置）。CI 中使用 secrets 管理而非 `.env` 文件
+- **报告截图**: 可能含敏感数据，CI/CD 中标记为私有 artifact
+- **API Key**: 通过 CI secrets 管理，不硬编码；`.env` 确保在 `.gitignore` 中
+- **日志**: `--verbose` / `DEBUG=midscene:*` 可能含请求详情，CI 中避免公开输出
+- **临时文件**: 执行后用 `--clean` 清理 `.midscene-tmp/`
+- **Docker/CI**: `chromeArgs: ['--no-sandbox']` 仅在受信容器中使用；建议网络隔离
+
+## CI/CD 集成
+
+- **批量执行**: 项目 CLI 串行 `node scripts/midscene-run.js "tests/**/*.yaml"`；官方 CLI 并行 `npx @midscene/web "tests/**/*.yaml" --concurrent 4 --continue-on-error`
+- **汇总报告**: `--summary report.json` 输出 JSON 格式执行汇总（每文件通过/失败状态），适合 CI 自动解析
+- **Docker 基础配置**: 基础镜像需 Chrome + CJK 字体。示例 `Dockerfile` 片段：
+  ```dockerfile
+  FROM node:22-slim
+  RUN apt-get update && apt-get install -y chromium fonts-noto-cjk --no-install-recommends \
+      && rm -rf /var/lib/apt/lists/*
+  ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+  ```
+  容器内需 `chromeArgs: ['--no-sandbox']`（仅受信环境）+ `headless: true`
 
 ## 注意事项
 
-- 执行 Web 平台测试需要安装 Chrome/Chromium 浏览器
-- 首次运行可能需要安装依赖：`npm install`
-- Android 测试需要 ADB 连接设备，iOS 测试需要 WebDriverAgent
-- Extended 模式的 YAML 会先转换为 TypeScript 再执行，需要 tsx 运行时
-- 报告中的截图路径为相对路径，在报告目录内查找
-- 如果需要生成新的 YAML 文件，可以使用 **Midscene YAML Generator** skill
-- 环境变量通过系统环境或 `.env` 文件传入，在 YAML 中用 `${ENV:NAME}` 或 `${ENV.NAME}` 引用（两种语法等价）
-- `parallel` 分支在独立浏览器上下文中运行，执行期间互不影响；各分支的 `aiQuery` 结果在全部完成后可合并访问（通过 `merge_results: true`）
-- `--dry-run` 仅检查 YAML 语法和结构，不检测模型配置和网络可达性
-- 如果 `npx skills check` 检测不到已有更新，可能是 lock 文件格式过旧（v1），需要重新安装以升级为 v3 格式：`npx skills add https://github.com/lee-117/midi-stagehand-skill -a claude-code`
+- Web 需 Chrome；Android 需 ADB；iOS 需 WDA；Extended 需 tsx 运行时
+- `--dry-run` 仅检查语法/结构，不检测 API Key/网络/Chrome
+- 生成新 YAML 用 **Midscene YAML Generator** skill；环境变量 `${ENV:NAME}` 两种语法等价

@@ -27,7 +27,7 @@ templates/          → 41 个 YAML 模板（native 25 个 + extended 16 个）
                         error-recovery-pattern, data-accumulation-loop
 skills/             → Claude Code Skill 定义（见下方）
 guide/              → 渐进式指导手册（L1-L5）
-test/               → 745 个单元测试（13 个测试文件）
+test/               → 758 个单元测试（13 个测试文件）
 ```
 
 ### 架构流程图
@@ -161,16 +161,18 @@ node scripts/health-check.js
 - 临时文件使用 `crypto.randomUUID()` 命名
 - `setup.js` 的 `findSystemChrome` 从 `runner-utils.js` 导入（memoized）
 - 安全检测：JS 注入 / ADB 危险命令 / SSRF 内部 URL / 路径遍历 / `acceptInsecureCerts` 警告 / `runWdaRequest` 破坏性 URL 检测
-- JS 注入扩展检测：`fetch(`、`XMLHttpRequest`、`sendBeacon`、`document.cookie`
+- JS 注入扩展检测：`fetch(`、`XMLHttpRequest`、`sendBeacon`、`document.cookie`、`WebSocket`、`postMessage`
 - ADB 扩展检测：`am force-stop`、`settings put`、`svc data/wifi disable`、`pm disable`
 - SSRF 扩展检测：IPv6 回环 (`[::1]`)、IPv6 映射 IPv4 (`[::ffff:127.0.0.1]`)、GCP 元数据 (`metadata.google.internal`)
 - `runWdaRequest` 破坏性 URL 检测：delete / uninstall / reset 操作
+- `chromeArgs` 高危参数检测：`--disable-web-security`、`--allow-file-access-from-files`、`--remote-debugging-port`
+- `cookie` 路径遍历检测：path 字段 `..` 模式检测
 - `maxAliases` 限制从 100 降低至 25（防 YAML alias 炸弹）
 - 变量收集：支持 AI 动作 name 字段 + javascript 步骤 name/output
 
 ### 错误分类
 
-13 类错误，含严重性级别：
+14 类错误，含严重性级别：
 
 | 类别 | 严重性 | 说明 |
 |------|--------|------|
@@ -187,6 +189,7 @@ node scripts/health-check.js
 | `browser_not_found` | fatal | 未找到浏览器 |
 | `network_failure` | fatal | 网络连接失败 |
 | `disk_full` | fatal | 磁盘空间不足 |
+| `memory_exhaustion` | fatal | 内存不足（OOM） |
 
 ## 关键文件
 
@@ -207,11 +210,12 @@ node scripts/health-check.js
 | `schema/native-keywords.json` | Native 关键字定义 |
 | `schema/extended-keywords.json` | Extended 关键字定义 |
 | `schema/yaml-superset-schema.json` | 完整 JSON Schema |
+| `skills/midscene-yaml-generator/REFERENCE.md` | Generator 按需参考表（动作映射、模板决策、平台配置、安全/性能指南） |
 | `guide/MIDSCENE_YAML_GUIDE.md` | 用户指导手册 |
 
 ## 测试结构
 
-745 个测试，分布在 13 个测试文件中：
+758 个测试，分布在 13 个测试文件中：
 
 | 测试文件 | 覆盖范围 |
 |---------|---------|

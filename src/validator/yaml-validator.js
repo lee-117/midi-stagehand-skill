@@ -94,7 +94,10 @@ const VALID_IME_STRATEGIES = new Set(['always-yadb', 'yadb-for-non-ascii']);
 const VALID_SCRCPY_CONFIG_FIELDS = new Set(['enabled', 'maxSize', 'videoBitRate', 'idleTimeoutMs']);
 
 // Suspicious JS patterns for javascript step validation (security).
-const SUSPICIOUS_JS = /\b(require|import|eval|Function|execSync|exec|spawn|fetch|XMLHttpRequest|sendBeacon)\s*\(|document\.cookie/;
+const SUSPICIOUS_JS = /\b(require|import|eval|Function|execSync|exec|spawn|fetch|XMLHttpRequest|sendBeacon|WebSocket|postMessage)\s*\(|document\.cookie/;
+
+// High-risk Chrome launch arguments (security).
+const HIGH_RISK_CHROME_ARGS = ['--disable-web-security', '--allow-file-access-from-files', '--remote-debugging-port'];
 
 // Dangerous ADB shell command patterns (security).
 const DANGEROUS_ADB_PATTERN = /\b(rm\s+-rf|dd\s+if=|reboot|pm\s+uninstall|pm\s+clear|am\s+force-stop|settings\s+put|svc\s+(data|wifi)\s+disable|pm\s+disable)\b/i;
@@ -292,6 +295,35 @@ function validateStructure(doc, errors, warnings) {
       '"acceptInsecureCerts: true" disables SSL certificate validation. This is a security risk in production and may expose traffic to MITM attacks.',
       '/web/acceptInsecureCerts'
     ));
+  }
+
+  // Security: warn on high-risk chromeArgs parameters.
+  if (doc.web && typeof doc.web === 'object' && Array.isArray(doc.web.chromeArgs)) {
+    for (const arg of doc.web.chromeArgs) {
+      if (typeof arg === 'string') {
+        for (const risky of HIGH_RISK_CHROME_ARGS) {
+          if (arg.startsWith(risky)) {
+            warnings.push(makeWarning(
+              `chromeArgs contains high-risk parameter "${arg}". This can weaken browser security and should not be used in production.`,
+              '/web/chromeArgs'
+            ));
+          }
+        }
+      }
+    }
+  }
+
+  // Security: warn on path traversal in cookie paths.
+  if (doc.web && typeof doc.web === 'object' && doc.web.cookie !== undefined) {
+    const cookies = Array.isArray(doc.web.cookie) ? doc.web.cookie : [doc.web.cookie];
+    for (const c of cookies) {
+      if (c && typeof c === 'object' && typeof c.path === 'string' && c.path.includes('..')) {
+        warnings.push(makeWarning(
+          `cookie path "${c.path}" contains path traversal pattern "..". This may indicate a path traversal attack.`,
+          '/web/cookie'
+        ));
+      }
+    }
   }
 
   // Warn when web.url is missing the http:// or https:// protocol prefix.

