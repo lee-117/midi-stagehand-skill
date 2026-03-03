@@ -27,12 +27,12 @@ Supports **Web**, **Android**, **iOS**, and **Computer** platforms.
 
 ```bash
 # Install both skills to the current project (Qoder example)
-npx skills add https://github.com/lee-117/midi-stagehand-skill -a qoder -y
+npx skills add https://gitee.com/lee-zh/midi-stagehand-skill.git -a qoder -y
 ```
 
-> **Global install (optional)**: Add the `-g` flag to install skills globally, shared across all projects:
+> **Optional**: Add the `-g` flag to install skills globally, shared across all projects. You can also use the GitHub source:
 > ```bash
-> npx skills add https://github.com/lee-117/midi-stagehand-skill -a qoder -y -g
+> npx skills add https://github.com/lee-117/midi-stagehand-skill -a qoder -y
 > ```
 
 Supported AI Agents:
@@ -49,15 +49,8 @@ Supported AI Agents:
 Install a single skill:
 
 ```bash
-npx skills add https://github.com/lee-117/midi-stagehand-skill --skill midscene-yaml-generator -a qoder -y
-npx skills add https://github.com/lee-117/midi-stagehand-skill --skill midscene-runner -a qoder -y
-```
-
-From Gitee (clone first):
-
-```bash
-git clone https://gitee.com/lee-zh/midi-stagehand-skill.git
-npx skills add ./midi-stagehand-skill -a qoder -y
+npx skills add https://gitee.com/lee-zh/midi-stagehand-skill.git --skill midscene-yaml-generator -a qoder -y
+npx skills add https://gitee.com/lee-zh/midi-stagehand-skill.git --skill midscene-runner -a qoder -y
 ```
 
 Verify installation: `npx skills list`
