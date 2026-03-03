@@ -94,7 +94,7 @@ const VALID_IME_STRATEGIES = new Set(['always-yadb', 'yadb-for-non-ascii']);
 const VALID_SCRCPY_CONFIG_FIELDS = new Set(['enabled', 'maxSize', 'videoBitRate', 'idleTimeoutMs']);
 
 // Suspicious JS patterns for javascript step validation (security).
-const SUSPICIOUS_JS = /\b(require|import|eval|Function|execSync|exec|spawn|fetch|XMLHttpRequest|sendBeacon|WebSocket|postMessage)\s*\(|document\.cookie/;
+const SUSPICIOUS_JS = /\b(require|import|eval|Function|execSync|exec|spawn|fetch|XMLHttpRequest|sendBeacon|WebSocket|postMessage|globalThis)\s*[.(]|\bprocess\.env\b|\bimport\s*\(|document\.cookie/;
 
 // High-risk Chrome launch arguments (security).
 const HIGH_RISK_CHROME_ARGS = ['--disable-web-security', '--allow-file-access-from-files', '--remote-debugging-port'];
@@ -298,8 +298,15 @@ function validateStructure(doc, errors, warnings) {
   }
 
   // Security: warn on high-risk chromeArgs parameters.
-  if (doc.web && typeof doc.web === 'object' && Array.isArray(doc.web.chromeArgs)) {
-    for (const arg of doc.web.chromeArgs) {
+  if (doc.web && typeof doc.web === 'object' && doc.web.chromeArgs !== undefined) {
+    // Support both array and string format
+    let argsToCheck = [];
+    if (Array.isArray(doc.web.chromeArgs)) {
+      argsToCheck = doc.web.chromeArgs;
+    } else if (typeof doc.web.chromeArgs === 'string') {
+      argsToCheck = doc.web.chromeArgs.split(/\s+/);
+    }
+    for (const arg of argsToCheck) {
       if (typeof arg === 'string') {
         for (const risky of HIGH_RISK_CHROME_ARGS) {
           if (arg.startsWith(risky)) {
@@ -588,6 +595,11 @@ function validateExtendedMode(doc, rawContent, errors, warnings) {
   walkAllFlows(doc, function (step, stepPath) {
     validateExtendedStep(step, stepPath, errors, warnings);
     validateCommonStepValues(step, stepPath, warnings);
+  }, function (pathStr, _depth) {
+    warnings.push(makeWarning(
+      `Maximum nesting depth (${MAX_WALK_DEPTH}) reached at "${pathStr}". Deeply nested YAML may indicate overly complex structure — consider splitting into sub-flows.`,
+      pathStr
+    ));
   });
 }
 

@@ -316,17 +316,21 @@ function cleanStaleTempFiles(cwd) {
 
   const now = Date.now();
   let cleaned = 0;
-  const files = fs.readdirSync(tmpDir);
+  const entries = fs.readdirSync(tmpDir, { withFileTypes: true });
 
-  for (const file of files) {
-    const filePath = path.join(tmpDir, file);
+  for (const entry of entries) {
+    const entryPath = path.join(tmpDir, entry.name);
     try {
-      const stat = fs.statSync(filePath);
+      const stat = fs.statSync(entryPath);
       if (now - stat.mtimeMs > STALE_TEMP_THRESHOLD_MS) {
-        fs.unlinkSync(filePath);
+        if (entry.isDirectory()) {
+          fs.rmSync(entryPath, { recursive: true });
+        } else {
+          fs.unlinkSync(entryPath);
+        }
         cleaned++;
       }
-    } catch { /* skip unreadable files */ }
+    } catch { /* skip unreadable entries */ }
   }
 
   // Remove empty directory
@@ -382,7 +386,7 @@ function main() {
     const cwd = process.cwd();
     const nTs = normalizePath(resolvedTs);
     const nCwd = normalizePath(cwd);
-    if (!nTs.startsWith(nCwd + path.sep) && nTs !== nCwd && !nTs.startsWith(nCwd)) {
+    if (!nTs.startsWith(nCwd + path.sep) && nTs !== nCwd) {
       console.error('[midscene-run] Error: --output-ts path must be within the project directory.');
       process.exit(1);
     }
@@ -392,7 +396,7 @@ function main() {
     const cwd = process.cwd();
     const nReport = normalizePath(resolvedReport);
     const nCwd = normalizePath(cwd);
-    if (!nReport.startsWith(nCwd + path.sep) && nReport !== nCwd && !nReport.startsWith(nCwd)) {
+    if (!nReport.startsWith(nCwd + path.sep) && nReport !== nCwd) {
       console.error('[midscene-run] Error: --report-dir path must be within the project directory.');
       process.exit(1);
     }
@@ -456,7 +460,11 @@ function main() {
     const passed = batchResults.filter(r => r.success).length;
     const failed = batchResults.length - passed;
 
+    const totalBatchDuration = batchResults.reduce((sum, r) => sum + (r.duration || 0), 0);
+    const totalBatchSeconds = (totalBatchDuration / 1000).toFixed(1);
+
     console.log('='.repeat(60));
+    console.log(`[BATCH_RESULT] ${passed}/${batchResults.length} passed, ${failed} failed, ${totalBatchSeconds}s total`);
     console.log(`[midscene-run] Batch Summary:`);
     console.log(`  Total : ${batchResults.length}`);
     console.log(`  Passed: ${passed}`);
@@ -515,7 +523,7 @@ function processFile(yamlPath, args) {
     const allMsgs = (validation.errors || []).map(e => typeof e === 'object' ? e.message : String(e)).join(' ');
     printQuickFixHints(allMsgs, '');
     console.error('\n[midscene-run] Validation failed. Aborting.');
-    return 1;
+    return 2;
   }
 
   console.log('[midscene-run] Validation passed.');

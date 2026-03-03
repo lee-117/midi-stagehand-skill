@@ -8,6 +8,7 @@ const Handlebars = require('handlebars');
 const { looksLikeFilePath } = require('../utils/yaml-helpers');
 const { getPad, escapeStringLiteral, resolveEnvRefs } = require('./generators/utils');
 const { MAX_WALK_DEPTH } = require('../utils/yaml-helpers');
+const { MAX_FILE_SIZE } = require('../constants');
 
 // ---------------------------------------------------------------------------
 // Generator imports
@@ -104,10 +105,12 @@ function resolveYaml(yamlInput) {
   let raw = yamlInput;
   if (looksLikeFilePath(yamlInput)) {
     const stat = fs.statSync(yamlInput);
-    if (stat.size > 1024 * 1024) {
-      throw new Error('YAML file exceeds 1MB size limit (' + Math.round(stat.size / 1024) + 'KB). Consider splitting into smaller files using import.');
+    if (stat.size > MAX_FILE_SIZE) {
+      throw new Error('YAML file exceeds size limit (' + Math.round(stat.size / 1024) + 'KB). Consider splitting into smaller files using import.');
     }
     raw = fs.readFileSync(yamlInput, 'utf8');
+  } else if (raw.length > MAX_FILE_SIZE) {
+    throw new Error('YAML string exceeds size limit (' + Math.round(raw.length / 1024) + 'KB). Consider splitting into smaller files using import.');
   }
 
   return yaml.load(raw, { maxAliases: 25 });
@@ -526,7 +529,7 @@ function transpile(yamlInput, options) {
 
     if (useContinueOnError) {
       codeLines.push(getPad(BASE_INDENT) + '} catch (_continueErr) {');
-      codeLines.push(getPad(BASE_INDENT + 1) + "console.warn('[continueOnError] Task \"" + taskName + "\" failed:', _continueErr.message);");
+      codeLines.push(getPad(BASE_INDENT + 1) + "console.warn('[continueOnError] Task \"" + escapeStringLiteral(taskName) + "\" failed:', _continueErr.message);");
       codeLines.push(getPad(BASE_INDENT) + '}');
     }
 

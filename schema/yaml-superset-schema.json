@@ -175,7 +175,12 @@
     "computerPlatform": {
       "type": "object",
       "properties": {
-        "launch": { "type": "string" },
+        "launch": {
+          "oneOf": [
+            { "type": "boolean" },
+            { "type": "string", "description": "Application to launch" }
+          ]
+        },
         "displayId": {
           "oneOf": [
             { "type": "integer" },
@@ -311,6 +316,7 @@
         "ai": { "type": "string", "description": "Natural language instruction for the AI to plan and execute" },
         "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
         "cacheable": { "type": "boolean" },
+        "planningStrategy": { "type": "string", "description": "Planning strategy for multi-step AI actions" },
         "fileChooserAccept": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }], "description": "File path(s) for file chooser dialog" },
         "timeout": { "type": "integer" }
       },
@@ -323,6 +329,7 @@
         "aiAct": { "type": "string", "description": "Natural language action instruction" },
         "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
         "cacheable": { "type": "boolean" },
+        "planningStrategy": { "type": "string", "description": "Planning strategy for multi-step AI actions" },
         "fileChooserAccept": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }], "description": "File path(s) for file chooser dialog" },
         "timeout": { "type": "integer" }
       },
@@ -335,6 +342,7 @@
         "aiAction": { "type": "string", "description": "Natural language action instruction (alias for aiAct)" },
         "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
         "cacheable": { "type": "boolean" },
+        "planningStrategy": { "type": "string", "description": "Planning strategy for multi-step AI actions" },
         "fileChooserAccept": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }], "description": "File path(s) for file chooser dialog" },
         "timeout": { "type": "integer" }
       },
@@ -359,6 +367,7 @@
             }
           ]
         },
+        "locate": { "$ref": "#/definitions/locateObject" },
         "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
@@ -386,6 +395,7 @@
             }
           ]
         },
+        "locate": { "$ref": "#/definitions/locateObject" },
         "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
@@ -412,6 +422,7 @@
             }
           ]
         },
+        "locate": { "$ref": "#/definitions/locateObject" },
         "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
@@ -438,6 +449,7 @@
             }
           ]
         },
+        "locate": { "$ref": "#/definitions/locateObject" },
         "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
@@ -467,6 +479,7 @@
         },
         "value": { "oneOf": [{ "type": "string" }, { "type": "number" }], "description": "Value to input (flat format)" },
         "mode": { "type": "string", "enum": ["replace", "clear", "typeOnly"], "description": "Input mode" },
+        "locate": { "$ref": "#/definitions/locateObject" },
         "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
@@ -490,13 +503,14 @@
                 "locate": { "$ref": "#/definitions/locateObject" },
                 "keyName": { "type": "string" },
                 "xpath": { "type": "string" },
-                "deepThink": { "type": "boolean" }
+                "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] }
               },
               "additionalProperties": false
             }
           ]
         },
         "keyName": { "type": "string", "description": "Key name (alternative to aiKeyboardPress value)" },
+        "locate": { "$ref": "#/definitions/locateObject" },
         "deepThink": { "oneOf": [{ "type": "boolean" }, { "const": "unset" }] },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
@@ -536,6 +550,7 @@
           "enum": ["singleAction", "scrollToBottom", "scrollToTop", "scrollToRight", "scrollToLeft"],
           "description": "Scroll behavior type (flat format sibling key)"
         },
+        "locate": { "$ref": "#/definitions/locateObject" },
         "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
@@ -563,6 +578,7 @@
           ]
         },
         "to": { "type": "string", "description": "Target element (flat format)" },
+        "locate": { "$ref": "#/definitions/locateObject" },
         "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
@@ -589,6 +605,7 @@
             }
           ]
         },
+        "locate": { "$ref": "#/definitions/locateObject" },
         "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
@@ -607,7 +624,9 @@
               "type": "object",
               "properties": {
                 "query": { "type": "string" },
-                "name": { "type": "string" }
+                "name": { "type": "string" },
+                "domIncluded": { "oneOf": [{ "type": "boolean" }, { "const": "visible-only" }] },
+                "screenshotIncluded": { "type": "boolean" }
               },
               "additionalProperties": false
             }
@@ -720,6 +739,7 @@
           ]
         },
         "name": { "type": "string", "description": "Variable name to store the located element" },
+        "locate": { "$ref": "#/definitions/locateObject" },
         "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
@@ -866,7 +886,12 @@
       "type": "object",
       "required": ["launch"],
       "properties": {
-        "launch": { "type": "string", "description": "Application to launch" }
+        "launch": {
+          "oneOf": [
+            { "type": "boolean", "description": "Launch the configured application" },
+            { "type": "string", "description": "Application URL or package name to launch" }
+          ]
+        }
       },
       "additionalProperties": false
     },
@@ -906,6 +931,7 @@
           ]
         },
         "duration": { "type": "integer", "minimum": 0, "description": "Long press duration in ms" },
+        "locate": { "$ref": "#/definitions/locateObject" },
         "deepThink": { "type": "boolean" },
         "xpath": { "type": "string" },
         "timeout": { "type": "integer" },
@@ -1051,7 +1077,8 @@
               "items": { "$ref": "#/definitions/flowStep" },
               "description": "Alias for flow"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -1318,12 +1345,17 @@
         "images": {
           "type": "array",
           "items": {
-            "type": "object",
-            "properties": {
-              "name": { "type": "string" },
-              "url": { "type": "string" }
-            },
-            "required": ["name", "url"]
+            "oneOf": [
+              { "type": "string", "description": "Image file path shorthand (e.g. './images/icon.png')" },
+              {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "url": { "type": "string" }
+                },
+                "required": ["name", "url"]
+              }
+            ]
           }
         },
         "convertHttpImage2Base64": { "type": "boolean", "description": "Convert HTTP image URLs to base64 for prompting" }

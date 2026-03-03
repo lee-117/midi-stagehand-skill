@@ -21,6 +21,20 @@ function resolveEnvRefs(str) {
 }
 
 /**
+ * Check if a template expression is safe (simple identifier/property path only).
+ * Allows: variable names, dot access, bracket notation with numeric indices or simple strings.
+ * Rejects: function calls, require, eval, import, __proto__, constructor, prototype.
+ *
+ * @param {string} expr - The expression inside ${...}.
+ * @returns {boolean}
+ */
+const UNSAFE_EXPR_PATTERN = /[()`;]|\b(require|eval|import|Function|__proto__|constructor|prototype)\b/;
+function isSafeTemplateExpr(expr) {
+  if (typeof expr !== 'string') return false;
+  return !UNSAFE_EXPR_PATTERN.test(expr);
+}
+
+/**
  * Resolve YAML ${var} template syntax into JS template literals.
  * ${ENV.XXX} and ${ENV:XXX} are converted to process.env.XXX.
  *
@@ -28,6 +42,9 @@ function resolveEnvRefs(str) {
  * - The original string if no templates found.
  * - { __expr: 'varName' } if the entire string is a single ${varName} expression.
  * - { __template: '`...`' } if the string contains embedded expressions.
+ *
+ * Security: rejects expressions containing function calls or dangerous identifiers
+ * (require, process, eval, import, Function, __proto__, constructor, prototype).
  *
  * @param {*} str - Input value (only strings are processed).
  * @returns {string|object} Resolved value.
@@ -41,7 +58,22 @@ function resolveTemplate(str) {
   // If the entire string is a single ${...} expression, return the inner expression directly
   const singleExprMatch = result.match(/^\$\{([^}]+)\}$/);
   if (singleExprMatch) {
-    return { __expr: singleExprMatch[1] };
+    const expr = singleExprMatch[1];
+    // Allow process.env.XXX (already resolved by resolveEnvRefs) but block other unsafe expressions
+    if (!expr.startsWith('process.env.') && !isSafeTemplateExpr(expr)) {
+      throw new Error(`Unsafe template expression rejected: \${${expr}}. Only simple variable references are allowed.`);
+    }
+    return { __expr: expr };
+  }
+
+  // Validate all embedded expressions in the template
+  const exprPattern = /\$\{([^}]+)\}/g;
+  let match;
+  while ((match = exprPattern.exec(result)) !== null) {
+    const expr = match[1];
+    if (!expr.startsWith('process.env.') && !isSafeTemplateExpr(expr)) {
+      throw new Error(`Unsafe template expression rejected: \${${expr}}. Only simple variable references are allowed.`);
+    }
   }
 
   // Otherwise it's a template literal with embedded expressions

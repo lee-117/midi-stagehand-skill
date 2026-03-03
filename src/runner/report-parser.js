@@ -40,6 +40,9 @@ const ERROR_PATTERNS = [
   [/ERR_INTERNET_DISCONNECTED|ECONNRESET|ECONNREFUSED|ERR_CONNECTION_REFUSED|ERR_NETWORK_CHANGED/i, 'network_failure',
     '网络连接失败。检查网络状态和代理配置（MIDSCENE_MODEL_HTTP_PROXY）',
     'fatal'],
+  [/ERR_CERT|UNABLE_TO_VERIFY_LEAF_SIGNATURE|SSL_ERROR|certificate.*error|CERT_HAS_EXPIRED/i, 'ssl_certificate',
+    'SSL/TLS 证书错误。检查目标网站证书是否有效；开发环境可设置 acceptInsecureCerts: true（仅开发环境）',
+    'recoverable'],
   [/navigation|navigate|ERR_NAME_NOT_RESOLVED|net::/i, 'navigation',
     '检查 URL 是否正确且可访问。确认目标网站正在运行且网络可用',
     'recoverable'],
@@ -104,7 +107,7 @@ function extractTaskDetails(tasks) {
 
   const failedTasks = [];
   const taskDetails = [];
-  const aiQueryResults = {};
+  const aiQueryResults = Object.create(null);
   let totalDuration = 0;
 
   for (const task of tasks) {
@@ -132,11 +135,17 @@ function extractTaskDetails(tasks) {
     }
 
     // Extract aiQuery results from task output/results
+    // Filter out prototype pollution keys before merging
+    const BANNED_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
     if (task.output && typeof task.output === 'object') {
-      Object.assign(aiQueryResults, task.output);
+      for (const key of Object.keys(task.output)) {
+        if (!BANNED_KEYS.has(key)) aiQueryResults[key] = task.output[key];
+      }
     }
     if (task.results && typeof task.results === 'object') {
-      Object.assign(aiQueryResults, task.results);
+      for (const key of Object.keys(task.results)) {
+        if (!BANNED_KEYS.has(key)) aiQueryResults[key] = task.results[key];
+      }
     }
   }
 
@@ -225,7 +234,7 @@ function parse(reportDir) {
   const reports = [];
   const allFailedTasks = [];
   const allTaskDetails = [];
-  const allAiQueryResults = {};
+  const allAiQueryResults = Object.create(null);
   const htmlReports = [];
   let totalDuration = 0;
 
@@ -243,7 +252,11 @@ function parse(reportDir) {
         // Aggregate details
         allFailedTasks.push(...details.failedTasks);
         allTaskDetails.push(...details.taskDetails);
-        Object.assign(allAiQueryResults, details.aiQueryResults);
+        if (details.aiQueryResults) {
+          for (const key of Object.keys(details.aiQueryResults)) {
+            allAiQueryResults[key] = details.aiQueryResults[key];
+          }
+        }
         totalDuration += details.totalDuration;
       } catch (parseErr) {
         reports.push({ file: path.relative(resolvedDir, file), type: 'json', error: 'Parse error: ' + (parseErr.message || 'unknown') });

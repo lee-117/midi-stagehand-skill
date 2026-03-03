@@ -553,6 +553,24 @@ describe('classifyError', () => {
     assert.equal(result.category, 'memory_exhaustion');
     assert.equal(result.severity, 'fatal');
   });
+
+  it('classifies ERR_CERT as ssl_certificate', () => {
+    const result = classifyError('net::ERR_CERT_AUTHORITY_INVALID');
+    assert.equal(result.category, 'ssl_certificate');
+    assert.equal(result.severity, 'recoverable');
+  });
+
+  it('classifies CERT_HAS_EXPIRED as ssl_certificate', () => {
+    const result = classifyError('Error: CERT_HAS_EXPIRED');
+    assert.equal(result.category, 'ssl_certificate');
+    assert.equal(result.severity, 'recoverable');
+  });
+
+  it('classifies UNABLE_TO_VERIFY_LEAF_SIGNATURE as ssl_certificate', () => {
+    const result = classifyError('UNABLE_TO_VERIFY_LEAF_SIGNATURE');
+    assert.equal(result.category, 'ssl_certificate');
+    assert.equal(result.severity, 'recoverable');
+  });
 });
 
 // ---------------------------------------------------------------------------

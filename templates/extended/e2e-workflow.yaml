@@ -70,11 +70,13 @@ tasks:
             - aiQuery:
                 query: "页面是否显示了错误信息？如果是，错误内容是什么？"
                 name: "errorInfo"
+    output:
+      filePath: "./midscene-output/collected-data.json"
+      dataName: "pageData"
 
   # ========== 阶段 3: 数据处理 ==========
-  # 注意: 此任务引用了"采集数据"任务中 aiQuery 定义的 ${pageData} 变量。
-  # 跨任务变量共享需要 output: { filePath, dataName } 将数据导出为 JSON 文件，
-  # 然后在后续任务中通过 import 或文件读取获取。此处为演示简化写法。
+  # 注意: 此任务使用上一任务通过 output 导出的 pageData 变量。
+  # 在实际运行中，跨任务数据通过 output: { filePath, dataName } 导出为 JSON 文件。
   - name: 处理采集数据
     flow:
       - data_transform:
@@ -91,9 +93,8 @@ tasks:
           name: "sortedItems"
 
   # ========== 阶段 4: 结果上报 ==========
-  # 注意: 此任务引用了"处理采集数据"任务中 data_transform 定义的 ${sortedItems} 变量。
-  # 跨任务变量共享需要 output: { filePath, dataName } 将数据导出为 JSON 文件。
-  # 本任务末尾的 output 配置即为导出示例。
+  # 注意: 此任务使用上一任务中 data_transform 产生的 ${sortedItems} 变量。
+  # 本任务末尾的 output 配置将最终结果导出为 JSON 文件。
   - name: 上报结果
     flow:
       - try:

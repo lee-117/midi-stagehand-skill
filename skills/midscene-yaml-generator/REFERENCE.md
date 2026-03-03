@@ -9,7 +9,7 @@
 | "打开/访问/进入 XXX 网站" | `web: { url: "XXX" }` | 平台配置 |
 | "自动规划并执行 XXX" | `ai: "XXX"` | AI 自动拆解为多步骤执行；`aiAct` 为推荐名称（`ai`/`aiAction` 亦有效）；可选 `fileChooserAccept: "path"` 处理文件上传。⚠️ `deepLocate` 为实验性功能，Schema 未正式支持 |
 | "点击/按/选择 XXX" | `aiTap: "XXX"` | 通用选项 `deepThink: true\|false`；`xpath`、`cacheable`（默认 true）；支持 `locate` 对象; 支持 `fileChooserAccept: "path"` |
-| "悬停/移到 XXX 上" | `aiHover: "XXX"` | 触发下拉菜单或 tooltip；支持 `locate` 对象 |
+| "悬停/移到 XXX 上" | `aiHover: "XXX"` | 触发下拉菜单或 tooltip（Web only）；支持 `locate` 对象 |
 | "在 XXX 输入 YYY" | `aiInput: "XXX"` + `value: "YYY"` | 扁平兄弟格式；`mode: "replace"(默认)\|"clear"\|"typeOnly"`；支持 `locate` 对象；支持 `images` 图片辅助定位 |
 | "按键盘 XXX 键" | `aiKeyboardPress: "XXX"` | 支持组合键如 "Control+A"；`keyName` 可作为替代参数；支持 `xpath`、`locate` 对象 |
 | "向下/上/左/右滚动" | `aiScroll: "目标区域"` + `direction: "down"` | 可选 `distance`（整数或 null）、`scrollType`；支持 `xpath`、`locate` 对象 |
@@ -49,12 +49,24 @@
 - `cacheable`: ai, aiAct, aiAction, aiTap, aiHover, aiDoubleClick, aiRightClick, aiInput, aiScroll, aiDragAndDrop, aiClearInput, aiLongPress, aiLocate, aiAssert, aiWaitFor, aiQuery, aiKeyboardPress
 - `locate` 对象: aiTap, aiHover, aiDoubleClick, aiRightClick, aiDragAndDrop, aiLongPress, aiInput, aiKeyboardPress, aiScroll, aiLocate
 - `fileChooserAccept`: ai, aiAct, aiAction, aiTap
+- `planningStrategy`: ai, aiAct, aiAction — 自定义 AI 规划策略（字符串）
 
 ### aiInput mode 参数
 
 - `replace`（默认）— 先清空输入框内容，再输入新值
 - `clear` — 仅清空输入框，不输入新值。等效于 `aiClearInput`
 - `typeOnly` — 直接在当前光标位置追加输入，不清空已有内容
+
+### aiInput autoDismissKeyboard
+
+`aiInput` 支持动作级 `autoDismissKeyboard: true/false` 覆盖平台配置。用于移动端输入后需保持键盘打开（如连续输入多个字段）或强制关闭键盘的场景。
+
+### API 名称映射
+
+| Midscene API (TypeScript) | YAML 关键字 | 说明 |
+|--------------------------|------------|------|
+| `evaluateJavaScript()` | `javascript:` | 执行 JavaScript 代码 |
+| `cacheId` | `cache: { id: "..." }` | agent 配置中的缓存标识 |
 
 ## Extended 控制流映射
 
@@ -161,6 +173,7 @@
 | 特性 | Web | Android | iOS | Computer |
 |------|-----|---------|-----|----------|
 | `xpath` | ✅ | ❌ | ❌ | ❌ |
+| `aiHover` | ✅ | ❌ | ❌ | ❌ |
 | `aiRightClick` | ✅ | ❌ | ❌ | ✅ |
 | `enableTouchEventsInActionSpace` | 需显式启用 | 默认触摸 | 默认触摸 | ❌ |
 | `forceSameTabNavigation` | ✅ | N/A | N/A | N/A |
@@ -280,7 +293,7 @@ agent:
 - `cache`: 开发用 `read-write`, CI 用 `false` 或 `write-only`
 - `cacheable`（动作级）vs `cache`（agent 级）: 动作级控制单个步骤缓存，agent 级控制全局策略
 - `screenshotShrinkFactor`: 1=100%面积, 2=25%面积, 3=11%面积；移动端推荐 2
-- `deepThink`: 默认不用 → 定位失败时单步启用 → 仍失败用 xpath；启用约 2-3x 耗时
+- `deepThink`: 默认不用 → 定位失败时单步启用 → 仍失败用 xpath；启用约 2-3x 耗时。**注意**: Qwen3.5/Doubao Seed/GLM-V 默认启用 deepThink，Qwen3-VL 默认禁用
 - `domIncluded`: `true`=发送完整 DOM（高 token）, `visible-only`=仅可见（最优）, `false`=仅截图
 - `waitAfterAction`: 慢速网站调大, 本地应用调小
 - `waitForNetworkIdle`: SPA 设 `{ timeout: 0 }` 避免无意义等待

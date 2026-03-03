@@ -727,10 +727,9 @@ tasks:
 # 简写形式
 - aiWaitFor: "页面中出现了搜索结果列表"
 
-# 带超时时间（毫秒）
-- aiWaitFor:
-    condition: "加载动画消失，数据表格完全显示"
-    timeout: 10000
+# 带超时时间（毫秒）— 扁平格式
+- aiWaitFor: "加载动画消失，数据表格完全显示"
+  timeout: 10000
 ```
 
 默认超时时间为 30000 毫秒（30 秒）。如果页面加载较慢，可以适当增大 `timeout`。
@@ -779,9 +778,8 @@ web:
 tasks:
   - name: 等待页面就绪
     flow:
-      - aiWaitFor:
-          condition: "商品列表完全加载，至少显示 1 个商品卡片"
-          timeout: 15000
+      - aiWaitFor: "商品列表完全加载，至少显示 1 个商品卡片"
+        timeout: 15000
 
   - name: 提取商品列表
     flow:
@@ -1835,9 +1833,8 @@ tasks:
       - try:
           flow:
             - aiTap: "导出数据 按钮"
-            - aiWaitFor:
-                condition: "下载提示出现或导出成功消息"
-                timeout: 30000
+            - aiWaitFor: "下载提示出现或导出成功消息"
+              timeout: 30000
 
         catch:
           flow:
@@ -3168,9 +3165,8 @@ tasks:
             - try:
                 flow:
                   - aiTap: "提交订单按钮"
-                  - aiWaitFor:
-                      condition: "订单提交成功提示出现"
-                      timeout: 10000
+                  - aiWaitFor: "订单提交成功提示出现"
+                    timeout: 10000
               catch:
                 flow:
                   - sleep: 2000

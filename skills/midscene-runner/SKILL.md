@@ -13,8 +13,10 @@ allowed-tools:
   - Grep
 ---
 
-你是 Midscene Runner，负责执行、验证、调试和解读 Midscene YAML 自动化文件。
-你遵循严格的 6 步工作流，绝不跳过预验证步骤。
+你是 Midscene Runner，负责执行、验证、调试和解读 Midscene YAML 自动化文件。根据用户输入语言回复。
+你遵循严格的 5 步工作流，绝不跳过预验证步骤。
+
+> **术语**: **Native** = 基础模式，YAML 直接执行 | **Extended** = 扩展模式，先转译为 TS | **dry-run** = 仅验证不执行 | **transpile** = YAML → TypeScript 转换
 
 # Midscene Runner
 
@@ -87,12 +89,12 @@ node scripts/health-check.js
 **模型未配置？** 在项目根目录创建 `.env` 文件，配置以下三个变量（任选一组模型，互斥，每次仅保留一组有效 Key）：
 
 ```env
-# 千问 VL（推荐国内）
-MIDSCENE_MODEL_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+# Doubao Seed 2.0（推荐，deepThink 默认启用）
+MIDSCENE_MODEL_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 MIDSCENE_MODEL_API_KEY=sk-your-key
-MIDSCENE_MODEL_NAME=qwen-vl-max-latest
+MIDSCENE_MODEL_NAME=doubao-seed-2.0
 
-# 其他可选：Gemini / GLM-V / Doubao — 详见 midscenejs.com/zh/model-common-config.html
+# 其他推荐：Qwen3.5 / Gemini-3-Pro / GLM-V — 详见 midscenejs.com/zh/model-common-config.html
 # ⚠️ GPT-4o 规划能力已废弃。使用 UI-TARS 时 replanningCycleLimit 默认 40
 ```
 
@@ -101,8 +103,9 @@ MIDSCENE_MODEL_NAME=qwen-vl-max-latest
 - `DEBUG=midscene:*` — 完整日志；`midscene:ai:call`(API)；`midscene:ai:profile:stats`(性能)
 - `MIDSCENE_INSIGHT_MODEL_*` / `MIDSCENE_PLANNING_MODEL_*` — 分阶段模型配置
 - `MIDSCENE_MODEL_HTTP_PROXY` — AI API 代理；`MIDSCENE_PREFERRED_LANGUAGE` — 响应语言
-- `MIDSCENE_MODEL_REASONING_EFFORT` — 推理强度（如 `medium`/`high`）；`MIDSCENE_MODEL_REASONING_ENABLED` — 启用推理；`MIDSCENE_MODEL_REASONING_BUDGET` — 推理 token 预算
-- `MIDSCENE_MODEL_FAMILY` — 模型族：`openai`、`anthropic`、`gemini`、`qwen`、`doubao`、`glm`、`custom`（⚠️ GPT-4o 规划能力已废弃，建议切换为 qwen-vl-max 或 Gemini 2.5）
+- `MIDSCENE_MODEL_REASONING_ENABLED` — 启用推理；`MIDSCENE_MODEL_REASONING_BUDGET` — 推理 token 预算
+- `MIDSCENE_MODEL_FAMILY` — 模型族：`doubao-seed`、`qwen3.5`、`qwen3-vl`、`qwen2.5-vl`、`glm-v`、`auto-glm`、`gemini`、`vlm-ui-tars`、`custom`（⚠️ GPT-4o 规划能力已废弃，推荐 Doubao Seed 2.0 / Qwen3.5 / Gemini-3-Pro）
+- `MIDSCENE_MODEL_REASONING_EFFORT` — 推理强度：`low` / `medium` / `high`
 
 **首次使用？** 运行 `npm run setup`（自动安装依赖、预热缓存、检测 Chrome）。
 
@@ -159,38 +162,13 @@ node scripts/midscene-run.js "tests/**/*.yaml"
 ```
 > 注意：批量执行使用 `fs.globSync()`，需要 Node.js >= 22。
 
-**方式 2: 直接使用 Midscene CLI**
+**方式 2: 直接使用 Midscene CLI**（外部项目，无 `scripts/midscene-run.js`）
 
-如果在外部项目中（没有 `scripts/midscene-run.js`），直接使用 `@midscene/web`：
 ```bash
-# 安装（仅首次）
-npm install @midscene/web dotenv
-
-# 执行（--headed 表示有界面）
-npx @midscene/web <yaml-file> --headed
-
-# 批量执行（官方 CLI 选项）
-npx @midscene/web "tests/**/*.yaml" --concurrent --continue-on-error
+npm install @midscene/web dotenv && npx @midscene/web <yaml-file> --headed
 ```
 
-**官方 Midscene CLI 完整选项**（方式 2）：
-- `--headed` — 显示浏览器窗口（调试用）
-- `--keep-window` — 执行后保持浏览器窗口打开
-- `--concurrent <n>` — 并行执行文件数（默认 1）
-- `--continue-on-error` — 失败后继续执行后续文件
-- `--share-browser-context` — （官方 CLI）跨文件共享浏览器上下文（Cookie/localStorage），适合需要维持登录态的多文件测试
-- `--summary <path>` — （官方 CLI）JSON 格式的执行汇总报告路径，包含每个文件的通过/失败状态，适合 CI 自动化解析
-- `--config <file>` — 参数配置文件
-- `--dotenv-debug` — 调试 dotenv 加载
-- `--dotenv-override` — 允许 .env 覆盖系统环境变量
-- `--web.userAgent <ua>` — 覆盖 User-Agent
-- `--web.viewportWidth <n>` / `--web.viewportHeight <n>` — 覆盖视口尺寸
-- `--android.deviceId <id>` — 覆盖 Android 设备 ID
-- `--ios.wdaPort <port>` / `--ios.wdaHost <host>` — 覆盖 iOS WDA 配置
-
-> **注意**: 包名是 `@midscene/web`（不是 `@midscene/cli`）。
-
-**项目 CLI vs 官方 CLI 对比**：项目 CLI（方式 1）用于开发调试，含验证+转译+报告解析；官方 CLI（方式 2）用于 CI 并行执行，支持 `--concurrent`/`--continue-on-error`。
+> 支持 `--concurrent`/`--continue-on-error`/`--summary`/`--share-browser-context` 等选项。包名是 `@midscene/web`（不是 `@midscene/cli`）。项目 CLI 用于开发调试（验证+转译+报告解析），官方 CLI 用于 CI 并行执行。
 
 **可用选项**（方式 1）：
 - `--dry-run` — 仅验证和转换，不实际执行（注意：不检测模型配置，AI 操作需配置 `MIDSCENE_MODEL_API_KEY`）
@@ -291,8 +269,6 @@ node scripts/midscene-run.js test.yaml --output-ts ./debug-output.ts
    ```
    升级场景：定位策略根本性失败、操作顺序设计错误、缺少关键步骤、选错执行模式
 
-   > **确认令牌**: Generator 响应 ESCALATE 时，必须在回复中包含 `[FIX_FOR] <file>.yaml` 确认已处理目标文件。Runner 验证此令牌后才继续执行。
-
    > **迭代上限**: Runner 最多进行 2 轮自修复+重试。2 轮均失败后，输出综合摘要而非单次错误，便于 Generator 一次性修复：
 
    > **修复历史格式**:
@@ -372,18 +348,11 @@ computer: { launch: "/path/to/app" }      # headless + xvfbResolution 用于 CI
 
 报告截图可能含敏感数据，CI/CD 中标记为私有 artifact。API Key 通过 CI secrets 管理，`.env` 确保在 `.gitignore` 中。
 
-## CI/CD 集成（CI/CD 专用配置，交互式用户可跳过）
+## CI/CD 集成
 
-- **批量执行**: 项目 CLI 串行 `node scripts/midscene-run.js "tests/**/*.yaml"`；官方 CLI 并行 `npx @midscene/web "tests/**/*.yaml" --concurrent 4 --continue-on-error`
-- **汇总报告**: `--summary report.json` 输出 JSON 格式执行汇总（每文件通过/失败状态），适合 CI 自动解析
-- **Docker 基础配置**: 基础镜像需 Chrome + CJK 字体。示例 `Dockerfile` 片段：
-  ```dockerfile
-  FROM node:22-slim
-  RUN apt-get update && apt-get install -y chromium fonts-noto-cjk --no-install-recommends \
-      && rm -rf /var/lib/apt/lists/*
-  ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-  ```
-  容器内需 `chromeArgs: ['--no-sandbox']`（仅受信环境）+ `headless: true`
+- **批量**: 串行 `node scripts/midscene-run.js "tests/**/*.yaml"`；并行 `npx @midscene/web "..." --concurrent 4 --continue-on-error`
+- **汇总**: `--summary report.json`（JSON 格式，适合 CI 解析）
+- **Docker**: `node:22-slim` + `chromium` + `fonts-noto-cjk`；容器内需 `chromeArgs: ['--no-sandbox']` + `headless: true`
 
 ## 注意事项
 
