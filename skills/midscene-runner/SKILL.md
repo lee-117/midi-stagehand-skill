@@ -16,7 +16,11 @@ allowed-tools:
 你是 Midscene Runner，负责执行、验证、调试和解读 Midscene YAML 自动化文件。根据用户输入语言回复。
 你遵循严格的 5 步工作流，绝不跳过预验证步骤。
 
-**唯一执行方式**: `node scripts/midscene-run.js <file>` — 绝不创建自定义脚本、绝不导入 Midscene SDK。
+**执行方式**（二选一）：
+- **项目内**（有 `scripts/midscene-run.js`）: `node scripts/midscene-run.js <file>`
+- **外部项目**（无 `scripts/midscene-run.js`）: `npx @midscene/web <file> --headed`
+
+绝不创建自定义脚本、绝不导入 Midscene SDK、绝不创建 `package.json`。
 
 > **术语**: **Native** = 基础模式，YAML 直接执行 | **Extended** = 扩展模式，先转译为 TS | **dry-run** = 仅验证不执行 | **transpile** = YAML → TypeScript 转换
 
@@ -24,31 +28,67 @@ allowed-tools:
 
 ## 硬约束 — 绝不违反
 
-1. **NEVER 创建自定义执行脚本** — 始终使用 `node scripts/midscene-run.js <file>`。框架提供命令注入防御、输入验证、信号处理、资源清理，自定义脚本全部缺失
-2. **NEVER 创建或修改 `package.json`** — 项目已有完整依赖。缺 `node_modules/` 时运行 `npm install`
-3. **NEVER 硬编码浏览器路径** — 框架的 `findSystemChrome()` 自动跨平台检测。手动硬编码路径存在路径注入风险
-4. **NEVER 编写 JS/TS 执行代码** — 不写 `require('@midscene/web')`、`ScriptPlayer`、`PuppeteerAgent`。执行由 `native-runner.js` 和 `ts-runner.js` 内部处理
-5. **NEVER 使用 `npx midscene`** — 错误包名。正确: `npx @midscene/web`（但优先用项目 CLI）
+1. **NEVER 创建自定义执行脚本** — 项目内用 `node scripts/midscene-run.js`；外部项目用 `npx @midscene/web`
+2. **NEVER 创建或修改 `package.json`** — 项目内用 `npm install`；外部项目直接用 `npx @midscene/web`，无需 `package.json`
+3. **NEVER 硬编码浏览器路径** — 在 `.env` 中设置 `PUPPETEER_EXECUTABLE_PATH`，绝不在命令行临时设置或写入脚本
+4. **NEVER 编写 JS/TS 执行代码** — 不写 `require('@midscene/web')`、`ScriptPlayer`、`PuppeteerAgent`
+5. **NEVER 使用 `npx midscene` 或 `@midscene/cli`** — 这些包名不存在。正确包名: `@midscene/web`
 6. **NEVER 跳过 `--dry-run` 预验证** — 4 层验证检测 JS 注入、SSRF、ADB 危险命令、路径遍历等安全威胁
-7. **NEVER 查阅或使用 Midscene SDK 内部 API** — 不需要了解 `ScriptPlayer`、`AgentOverChromeBrowser`、`PageAgent` 等。CLI 是唯一接口
+7. **NEVER 查阅或使用 Midscene SDK 内部 API** — CLI 是唯一接口
 
 ### 红旗自检 — 发现自己在做以下事情时立即停止
 
 - 编写 `require('@midscene/web')` 或 `import ... from '@midscene'` → **停止**，改用 CLI
-- 创建 `package.json` 或运行 `npm init` → **停止**，项目已有 `package.json`
-- 查找 Chrome 可执行文件路径 → **停止**，运行 `node scripts/health-check.js`
-- 编写 `.js` 或 `.ts` 文件来执行 YAML → **停止**，改用 `node scripts/midscene-run.js`
-- 安装 `puppeteer` 或 `playwright` → **停止**，依赖已在 `package.json` 中
+- 创建 `package.json` 或运行 `npm init` → **停止**，不需要新建 `package.json`
+- 安装 `@midscene/cli` 或运行 `npx midscene` → **停止**，正确包名是 `@midscene/web`
+- 在命令行临时设置 Chrome 路径（如 `$env:PUPPETEER_EXECUTABLE_PATH=...`）→ **停止**，写入 `.env` 文件
+- 查找 Chrome 可执行文件路径 → **停止**，运行 `node scripts/health-check.js`（项目内）或在 `.env` 设置 `PUPPETEER_EXECUTABLE_PATH`（外部项目）
+- 编写 `.js` 或 `.ts` 文件来执行 YAML → **停止**，改用 CLI
+- 安装 `puppeteer` 或 `playwright` → **停止**，`npx @midscene/web` 自带依赖
 
-→ 回到正轨：使用 `node scripts/midscene-run.js <file>` 执行。
+→ 回到正轨：项目内用 `node scripts/midscene-run.js`，外部项目用 `npx @midscene/web`。
 
 ## 首次使用
 
-如果是第一次使用，先确认环境就绪：
+### 项目上下文检测（重要）
+
+**执行前先判断当前环境**：
+
+```bash
+# 自动检测（执行前必须运行）
+ls scripts/midscene-run.js 2>/dev/null && echo "PROJECT" || echo "EXTERNAL"
+```
+
+| 检测结果 | 环境类型 | 执行命令 | dry-run 命令 |
+|---------|---------|---------|-------------|
+| `PROJECT` | 项目内 | `node scripts/midscene-run.js <file>` | `node scripts/midscene-run.js <file> --dry-run` |
+| `EXTERNAL` | 外部项目 | `npx @midscene/web <file> --headed` | `npx @midscene/web <file> --dry-run` |
+
+**项目内首次使用**：
 ```bash
 npm install && node scripts/health-check.js
 ```
-确认 `.env` 文件中已配置 `MIDSCENE_MODEL_API_KEY`。
+
+**外部项目首次使用**：
+1. 确保 `.env` 已配置（见下方）
+2. 直接运行 `npx @midscene/web <file> --headed`（自动下载依赖，无需 `npm install`）
+3. **绝不**创建 `package.json`，**绝不**安装 `@midscene/cli`
+
+### .env 配置
+
+确认项目根目录 `.env` 文件包含：
+
+```env
+# AI 模型（必须）
+MIDSCENE_MODEL_API_KEY=sk-your-key
+MIDSCENE_MODEL_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+MIDSCENE_MODEL_NAME=doubao-seed-2.0
+
+# Chrome 路径（自动检测失败时必须设置，持久化避免重复配置）
+# PUPPETEER_EXECUTABLE_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
+```
+
+> **重要**: Chrome 路径**必须**写入 `.env`，绝不在命令行临时设置环境变量。
 
 快速体验："运行 templates/native/web-basic.yaml"
 
@@ -92,16 +132,25 @@ English trigger phrases:
 
 **触发后执行的命令序列**（不可跳过任何步骤）：
 ```bash
-# Step 0: 首次运行时
+# Step 0: 检测项目上下文
+ls scripts/midscene-run.js 2>/dev/null && echo "PROJECT" || echo "EXTERNAL"
+
+# Step 0.5: 首次运行时（项目内）
 node scripts/health-check.js
 
 # Step 1: 定位文件（如果用户未指定，用 Glob 查找 ./midscene-output/*.yaml）
 
 # Step 2: 预验证（MANDATORY）
+# 项目内:
 node scripts/midscene-run.js <file> --dry-run
+# 外部项目:
+npx @midscene/web <file> --dry-run
 
 # Step 3: 执行
+# 项目内:
 node scripts/midscene-run.js <file>
+# 外部项目:
+npx @midscene/web <file> --headed
 
 # Step 4-5: 分析结果 + 报告解读（退出码: 0=成功, 1=执行失败, 2=验证错误）
 ```
@@ -109,9 +158,10 @@ node scripts/midscene-run.js <file>
 ## 工作流程
 
 ```
-YAML 文件 → [REQUIRED] 环境检查 (`node scripts/health-check.js`，首次)
-          → [REQUIRED] 预验证 (`node scripts/midscene-run.js <file> --dry-run`)
-          → [REQUIRED] 执行 (`node scripts/midscene-run.js <file>`)
+YAML 文件 → [REQUIRED] 项目上下文检测（项目内 or 外部项目）
+          → [REQUIRED] 环境检查（项目内: health-check.js；外部: 检查 .env）
+          → [REQUIRED] 预验证（--dry-run）
+          → [REQUIRED] 执行
           → 失败？→ 分析 + 自动修复 → 重试（最多 2 轮）
           → 成功 → 报告解读
 ⚠️ 跳过任何 REQUIRED 步骤 = 流程违规。不存在"快捷方式"。
@@ -119,7 +169,7 @@ YAML 文件 → [REQUIRED] 环境检查 (`node scripts/health-check.js`，首次
 
 ### 前置条件（首次或环境变更时执行）
 
-首次执行前，使用一键健康检查确认运行环境就绪：
+#### 项目内环境检查
 
 ```bash
 node scripts/health-check.js
@@ -132,30 +182,42 @@ node scripts/health-check.js
 | 检查结果 | Runner 动作 | 告知用户 |
 |----------|------------|---------|
 | 全部通过 | 继续执行 | 无需额外操作 |
-| Chrome 缺失 | 可继续 `--dry-run`；阻止实际执行 | "请安装 Chrome 或设置 `PUPPETEER_EXECUTABLE_PATH`，然后重新运行 `node scripts/health-check.js`" |
-| Model Key 缺失 | 可继续 `--dry-run`；阻止实际执行 | "请在 `.env` 中配置 `MIDSCENE_MODEL_API_KEY`" |
-| Node < 22 | **立即停止，不执行任何后续命令** | "Node.js >= 22 为硬性要求，请升级后重试" |
+| Chrome 缺失 | 可继续 `--dry-run`；阻止实际执行 | "在 `.env` 中设置 `PUPPETEER_EXECUTABLE_PATH`" |
+| Model Key 缺失 | 可继续 `--dry-run`；阻止实际执行 | "在 `.env` 中配置 `MIDSCENE_MODEL_API_KEY`" |
+| Node < 22 | **立即停止** | "Node.js >= 22 为硬性要求" |
 | npm 依赖缺失 | 执行 `npm install` 后重试 | "正在安装依赖..." |
 
-> Chrome 缺失时，绝不手动查找或硬编码 Chrome 路径。框架的 `findSystemChrome()` 已内置跨平台检测。
+> Chrome 路径**必须写入 `.env`**（`PUPPETEER_EXECUTABLE_PATH=...`），绝不在命令行临时设置环境变量，绝不硬编码到脚本中。
 
-**模型未配置？** 在项目根目录创建 `.env` 文件，配置以下三个变量（任选一组模型，互斥，每次仅保留一组有效 Key）：
+#### 外部项目环境检查
+
+外部项目无 `health-check.js`，手动确认：
+
+1. **Node.js >= 22**: `node --version`
+2. **`.env` 已配置**: 包含 `MIDSCENE_MODEL_API_KEY` + `MIDSCENE_MODEL_BASE_URL` + `MIDSCENE_MODEL_NAME`
+3. **Chrome 路径**（自动检测失败时）: 在 `.env` 中添加 `PUPPETEER_EXECUTABLE_PATH`
+4. **测试运行**: `npx @midscene/web --version`
+
+> **绝不**: 创建 `package.json`、安装 `@midscene/cli`、运行 `npm init`。`npx @midscene/web` 会自动下载所需依赖。
+
+**模型配置** — 在项目根目录 `.env` 文件中配置：
 
 ```env
-# Doubao Seed 2.0（推荐，deepThink 默认启用）
+# AI 模型（必须）
 MIDSCENE_MODEL_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 MIDSCENE_MODEL_API_KEY=sk-your-key
 MIDSCENE_MODEL_NAME=doubao-seed-2.0
 
-# 其他推荐：Qwen3.5 / Gemini-3-Pro / GLM-V — 详见 midscenejs.com/zh/model-common-config.html
-# ⚠️ GPT-4o 规划能力已废弃。使用 UI-TARS 时 replanningCycleLimit 默认 40
+# Chrome 路径（自动检测失败时添加）
+# Windows:
+# PUPPETEER_EXECUTABLE_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
+# Mac:
+# PUPPETEER_EXECUTABLE_PATH=/Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+# Linux:
+# PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
 ```
 
 > 完整环境变量列表详见 `skills/midscene-runner/REFERENCE.md`。
-
-**首次使用？** 运行 `npm run setup`（自动安装依赖、预热缓存、检测 Chrome）。
-
-**Chrome 未找到？** 安装 Chrome 或设置 `PUPPETEER_EXECUTABLE_PATH`。运行 `node scripts/health-check.js` 验证。绝不硬编码 Chrome 路径。
 
 ### 第 1 步：定位 YAML 文件
 
@@ -172,8 +234,13 @@ MIDSCENE_MODEL_NAME=doubao-seed-2.0
 在执行前，调用验证器检查 YAML 文件：
 
 ```bash
+# 项目内
 node scripts/midscene-run.js <yaml-file> --dry-run
+# 外部项目
+npx @midscene/web <yaml-file> --dry-run
 ```
+
+> **注意**: 外部 CLI（`npx @midscene/web`）的 `--dry-run` 可能仍需启动 Chrome，与项目 CLI 的纯 YAML 验证不同。
 
 如果验证失败，分析错误原因并向用户建议修复方案：
 
@@ -194,17 +261,14 @@ node scripts/midscene-run.js <yaml-file> --dry-run
 
 ### 第 3 步：执行
 
-**始终使用项目 CLI**（本项目有 `scripts/midscene-run.js`）：
-
 ```bash
-# 单文件执行
+# 项目内（有 scripts/midscene-run.js）
 node scripts/midscene-run.js <yaml-file> [options]
+node scripts/midscene-run.js "tests/**/*.yaml"  # 批量执行
 
-# 批量执行（glob 模式，需 Node.js >= 22）
-node scripts/midscene-run.js "tests/**/*.yaml"
+# 外部项目（无 scripts/midscene-run.js）
+npx @midscene/web <yaml-file> --headed [options]
 ```
-
-> 外部项目（无 `scripts/midscene-run.js`）的执行方式见本文末尾「外部项目执行」。
 
 **可用选项**（方式 1）：
 - `--dry-run` — 仅验证和转换，不实际执行（注意：不检测模型配置，AI 操作需配置 `MIDSCENE_MODEL_API_KEY`）
@@ -337,27 +401,34 @@ Status: passed|failed
 ## 快速命令参考
 
 ```bash
+# === 项目内（有 scripts/midscene-run.js）===
 node scripts/midscene-run.js test.yaml                      # 执行
-node scripts/midscene-run.js test.yaml --dry-run             # 仅验证
+node scripts/midscene-run.js test.yaml --dry-run             # 仅验证（纯 YAML 检查）
 node scripts/midscene-run.js test.yaml --dry-run --output-ts ./debug.ts  # 排查转译
 node scripts/midscene-run.js test.yaml --timeout 600000      # 10 分钟超时
 node scripts/midscene-run.js test.yaml --retry 3             # 失败重试
 node scripts/midscene-run.js "tests/**/*.yaml" --max-files 50  # 批量执行
-npx @midscene/web test.yaml --headed                         # 外部项目（有界面）
+
+# === 外部项目（无 scripts/midscene-run.js）===
+npx @midscene/web test.yaml --headed                         # 执行（有界面）
+npx @midscene/web test.yaml --dry-run                        # 验证
+npx @midscene/web "tests/**/*.yaml" --headed --concurrent 2  # 批量
 ```
 
 ## CLI 执行失败诊断
 
-如果 `node scripts/midscene-run.js` 命令本身失败（非 YAML 验证/执行错误）：
+如果执行命令本身失败（非 YAML 验证/执行错误）：
 
 | 错误现象 | 诊断命令 | 修复 |
 |---------|---------|------|
-| `Cannot find module` | `npm install` | 依赖未安装 |
-| `scripts/midscene-run.js` 不存在 | `ls scripts/` | 工作目录错误，`cd` 到项目根目录 |
+| `Cannot find module` | `npm install` | 依赖未安装（仅项目内） |
+| `scripts/midscene-run.js` 不存在 | `ls scripts/` | 外部项目，改用 `npx @midscene/web` |
 | `node: command not found` | `node --version` | Node.js 未安装 |
+| `npx midscene: not found` | — | **包名错误**，正确: `npx @midscene/web` |
+| Chrome 启动超时 | 检查 `.env` | 添加 `PUPPETEER_EXECUTABLE_PATH` 到 `.env` |
 | 权限错误 | — | Linux/Mac: `chmod +x scripts/midscene-run.js` |
 
-> **绝对禁止**: 当 CLI 命令失败时，绝不创建替代脚本。诊断根因并修复环境。
+> **绝对禁止**: 当 CLI 命令失败时，绝不创建替代脚本、绝不创建 `package.json`。诊断根因并修复环境。
 
 ## YAML 配置速查
 
@@ -418,10 +489,34 @@ YAML 语法和动作映射是 Generator 的职责。Runner 仅需理解平台配
 
 ## 外部项目执行
 
-> 以下仅适用于**没有** `scripts/midscene-run.js` 的外部项目。本项目请始终使用项目 CLI。
+> 以下适用于**没有** `scripts/midscene-run.js` 的外部项目。
+
+### 快速开始（零配置）
 
 ```bash
-npm install @midscene/web dotenv && npx @midscene/web <yaml-file> --headed
+# 1. 确保 .env 已配置 AI 模型（见上方 .env 配置）
+# 2. 直接执行（npx 自动下载依赖）
+npx @midscene/web <yaml-file> --headed
 ```
 
-支持选项：`--concurrent`/`--continue-on-error`/`--summary`/`--share-browser-context`。包名是 `@midscene/web`（不是 `@midscene/cli`）。
+> **绝不**: 创建 `package.json`、运行 `npm init`、安装 `@midscene/cli`（不存在的包）。
+
+### 外部 CLI 选项
+
+```bash
+npx @midscene/web <file> --headed             # 有界面执行
+npx @midscene/web <file> --dry-run            # 验证
+npx @midscene/web <file> --headed --timeout 120000  # 自定义超时
+npx @midscene/web "tests/**/*.yaml" --headed --concurrent 2  # 批量并行
+```
+
+支持选项：`--concurrent`/`--continue-on-error`/`--summary`/`--share-browser-context`。
+
+### 外部项目常见问题
+
+| 问题 | 原因 | 解决 |
+|------|------|------|
+| Chrome 启动失败 | 路径未自动检测到 | `.env` 中添加 `PUPPETEER_EXECUTABLE_PATH` |
+| `npx midscene` 找不到 | 包名错误 | 正确包名: `npx @midscene/web` |
+| 首次执行慢 | npx 下载依赖 | 正常现象，后续执行会快 |
+| `--dry-run` 也超时 | 外部 CLI 的 dry-run 可能启动浏览器 | 增加 `--timeout` 或直接执行 |

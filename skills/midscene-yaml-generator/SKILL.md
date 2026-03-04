@@ -16,7 +16,11 @@ allowed-tools:
 
 你是 Midscene YAML 自动化专家。你的职责是将自然语言浏览器自动化需求转换为有效的、生产级的 Midscene YAML 文件。根据用户输入语言回复（中文输入用中文回复，英文输入用英文回复）。
 
-**你只输出 YAML 文件**（到 `./midscene-output/`）。验证: `node scripts/midscene-run.js <file> --dry-run`。执行: `node scripts/midscene-run.js <file>`。绝不创建 JS/TS 执行脚本。
+**你只输出 YAML 文件**（到 `./midscene-output/`）。绝不创建 JS/TS 执行脚本、绝不创建 `package.json`。
+
+**执行方式**（二选一）：
+- **项目内**（有 `scripts/midscene-run.js`）: `node scripts/midscene-run.js <file>`
+- **外部项目**（无 `scripts/midscene-run.js`）: `npx @midscene/web <file> --headed`
 
 > **术语**: **Native** = 基础模式，YAML 直接执行 | **Extended** = 扩展模式，含变量/循环/条件，先转译为 TS | **dry-run** = 仅验证不执行 | **transpile** = YAML → TypeScript 转换
 
@@ -24,20 +28,22 @@ allowed-tools:
 
 ## 硬约束 — 绝不违反
 
-1. **NEVER 创建自定义执行脚本** — 不写 `ScriptPlayer`、`PuppeteerAgent`、任何 `.js`/`.ts` runner。项目有 `node scripts/midscene-run.js` 处理一切
-2. **NEVER 创建或修改 `package.json`** — 项目已有完整依赖。缺 `node_modules/` 时运行 `npm install`
-3. **NEVER 跳过 dry-run 验证** — 每个生成的 YAML 必须通过 `node scripts/midscene-run.js <file> --dry-run`
+1. **NEVER 创建自定义执行脚本** — 不写 `ScriptPlayer`、`PuppeteerAgent`、任何 `.js`/`.ts` runner
+2. **NEVER 创建或修改 `package.json`** — 项目内用 `npm install`；外部项目直接用 `npx @midscene/web`，无需创建 `package.json`
+3. **NEVER 跳过 dry-run 验证** — 项目内: `node scripts/midscene-run.js <file> --dry-run`；外部项目: `npx @midscene/web <file> --dry-run`
 4. **NEVER 直接导入 Midscene SDK** — 不写 `require('@midscene/web')`、`require('@midscene/core')`。YAML 由 CLI 执行，不需要自定义代码
+5. **NEVER 使用 `npx midscene` 或 `@midscene/cli`** — 这些包名不存在。正确包名: `@midscene/web`
 
 ### 红旗自检 — 发现自己在做以下事情时立即停止
 
 - 编写 `require('@midscene/web')` 或 `import ... from '@midscene'` → **停止**，改用 CLI
-- 创建 `package.json` 或运行 `npm init` → **停止**，项目已有 `package.json`
-- 查找 Chrome 可执行文件路径 → **停止**，运行 `node scripts/health-check.js`
-- 编写 `.js` 或 `.ts` 文件来执行 YAML → **停止**，改用 `node scripts/midscene-run.js`
+- 创建 `package.json` 或运行 `npm init` → **停止**，项目已有依赖或不需要 `package.json`（外部项目用 `npx @midscene/web`）
+- 安装 `@midscene/cli` 或 `npx midscene` → **停止**，正确包名是 `@midscene/web`
+- 查找 Chrome 可执行文件路径 → **停止**，在 `.env` 中设置 `PUPPETEER_EXECUTABLE_PATH` 或运行 `node scripts/health-check.js`
+- 编写 `.js` 或 `.ts` 文件来执行 YAML → **停止**，改用 CLI
 - 安装 `puppeteer` 或 `playwright` → **停止**，依赖已在 `package.json` 中
 
-→ 回到正轨：生成 `.yaml` 文件，用 `node scripts/midscene-run.js <file>` 执行。
+→ 回到正轨：生成 `.yaml` 文件，用 CLI 执行。
 
 ## 关键规则（必读）
 
@@ -55,18 +61,52 @@ allowed-tools:
 
 ## 首次使用
 
-**前置条件**: Node.js >= 22、`npm install` 已完成、`.env` 已配置。
+**前置条件**: Node.js >= 22、`.env` 已配置。
 
-如果是第一次使用，先运行环境健康检查：
+### 项目上下文检测（重要）
+
+**生成 YAML 前先判断当前环境**：
+
+| 检测条件 | 环境类型 | 执行命令 |
+|---------|---------|---------|
+| 当前目录有 `scripts/midscene-run.js` | **项目内** | `node scripts/midscene-run.js <file>` |
+| 当前目录无 `scripts/midscene-run.js` | **外部项目** | `npx @midscene/web <file> --headed` |
+
 ```bash
-node scripts/health-check.js
+# 检测方式（生成前自动执行）
+ls scripts/midscene-run.js 2>/dev/null && echo "PROJECT" || echo "EXTERNAL"
 ```
 
-最小 `.env` 配置（项目根目录）：
+**外部项目注意**：
+- 无需创建 `package.json`，`npx @midscene/web` 会自动下载
+- 无需 `npm install`，无需安装任何额外依赖
+- 包名是 `@midscene/web`（**不是** `@midscene/cli`，**不是** `midscene`）
+- dry-run: `npx @midscene/web <file> --dry-run`（注意：外部 CLI 的 dry-run 可能仍需 Chrome）
+
+### .env 配置
+
+在项目根目录创建 `.env` 文件：
+
 ```env
+# AI 模型（必须）
 MIDSCENE_MODEL_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 MIDSCENE_MODEL_API_KEY=sk-your-key
 MIDSCENE_MODEL_NAME=doubao-seed-2.0
+
+# Chrome 路径（可选，自动检测失败时设置）
+# Windows 示例:
+# PUPPETEER_EXECUTABLE_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
+# Mac 示例:
+# PUPPETEER_EXECUTABLE_PATH=/Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+# Linux 示例:
+# PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
+```
+
+> **重要**: Chrome 路径务必写入 `.env` 而非临时设置环境变量，避免每次重复配置。
+
+如果在项目内，运行健康检查：
+```bash
+node scripts/health-check.js
 ```
 
 快速体验："生成一个在 example.com 搜索 Midscene 的 YAML"
@@ -74,7 +114,8 @@ MIDSCENE_MODEL_NAME=doubao-seed-2.0
 ## 典型工作流
 
 ```
-用户需求 → [Generator] 生成 YAML
+用户需求 → 检测项目上下文（项目内 or 外部项目）
+         → [Generator] 生成 YAML
          → [Generator] 自动 dry-run 验证
          → 验证失败？→ [Generator] 自动修复
          → [Runner] 执行
@@ -393,19 +434,25 @@ tasks:
 - 或基于首个 task name 生成（如 `login-flow.yaml`）
 - 避免中文文件名，使用英文 kebab-case
 
-> **REMINDER**: 你只输出 `.yaml` 文件到 `./midscene-output/`。验证用 `node scripts/midscene-run.js <file> --dry-run`。绝不创建 JS/TS/package.json。
+> **REMINDER**: 你只输出 `.yaml` 文件到 `./midscene-output/`。绝不创建 JS/TS/package.json。验证: 项目内 `node scripts/midscene-run.js <file> --dry-run`，外部项目 `npx @midscene/web <file> --dry-run`。
 
 ### 第 6 步：验证并输出
 
 1. 输出文件到 `./midscene-output/` 目录
 2. 调用验证器确认 YAML 有效：
    ```bash
+   # 项目内
    node scripts/midscene-run.js <file> --dry-run
+   # 外部项目
+   npx @midscene/web <file> --dry-run
    ```
 3. 如果验证失败，分析错误原因并自动修复
 4. 验证通过后，提示用户执行（注意：dry-run 仅验证 YAML 结构，不检测 API Key/Chrome/网络）：
    ```bash
+   # 项目内
    node scripts/midscene-run.js <file>
+   # 外部项目（--headed 显示浏览器窗口）
+   npx @midscene/web <file> --headed
    ```
 
 ## AI 指令编写要点
@@ -488,11 +535,14 @@ tasks:
 [GENERATED] ./midscene-output/<filename>.yaml
 [MODE] native|extended
 [FEATURES] loop, logic, ...  (仅 extended 模式)
-[NEXT] 要执行此文件，使用 /midscene-runner ./midscene-output/<filename>.yaml。新会话中需提供完整路径。
+[CONTEXT] project|external
+[NEXT] 项目内: node scripts/midscene-run.js ./midscene-output/<filename>.yaml
+       外部项目: npx @midscene/web ./midscene-output/<filename>.yaml --headed
 ```
 
 1. **生成的文件路径**: `./midscene-output/<filename>.yaml`
 2. **执行模式**: native 或 extended
 3. **使用的特性**: 仅 extended 模式列出
-4. **建议的下一步命令**: `node scripts/midscene-run.js <path> --dry-run`
-5. 如果 dry-run 验证失败，自动分析错误并修复 YAML，重新验证
+4. **项目上下文**: project（有 `scripts/midscene-run.js`）或 external（外部项目）
+5. **建议的下一步命令**: 根据上下文给出正确的执行命令
+6. 如果 dry-run 验证失败，自动分析错误并修复 YAML，重新验证

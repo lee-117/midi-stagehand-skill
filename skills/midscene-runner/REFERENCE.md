@@ -2,6 +2,23 @@
 
 > 按需加载参考。Runner SKILL.md 中通过 `Read` 指令引用本文件。
 
+## 外部项目快速开始
+
+> 当前目录无 `scripts/midscene-run.js` 时，使用外部项目模式。
+
+**零配置执行**（仅需 `.env`）：
+```bash
+# 1. 创建 .env（见下方环境变量详情）
+# 2. 直接执行（npx 自动下载，无需 package.json）
+npx @midscene/web <file> --headed
+```
+
+**常见错误避免**：
+- ❌ `npx midscene` → ✅ `npx @midscene/web`（包名不同）
+- ❌ `npm install @midscene/cli` → ✅ 直接用 `npx @midscene/web`（无需安装）
+- ❌ 创建 `package.json` → ✅ `npx` 自动处理依赖
+- ❌ `$env:PUPPETEER_EXECUTABLE_PATH=...`（临时变量） → ✅ 写入 `.env` 文件
+
 ## 环境变量详情
 
 | 变量 | 说明 | 默认值 |
@@ -18,10 +35,27 @@
 | `MIDSCENE_MODEL_REASONING_ENABLED` | 启用推理 | — |
 | `MIDSCENE_MODEL_REASONING_BUDGET` | 推理 token 预算 | — |
 | `MIDSCENE_MODEL_REASONING_EFFORT` | 推理强度: `low` / `medium` / `high` | — |
-| `PUPPETEER_EXECUTABLE_PATH` | Chrome 路径覆盖 | 自动检测 |
+| `PUPPETEER_EXECUTABLE_PATH` | Chrome 路径覆盖（**必须写入 `.env`**，不要临时设置） | 自动检测 |
 | `CHROME_BIN` / `CHROMIUM_BIN` | Chrome/Chromium 路径覆盖（标准） | 自动检测 |
 
 > GPT-4o 规划能力已废弃。推荐 Doubao Seed 2.0 / Qwen3.5 / Gemini-3-Pro。
+
+### .env 完整模板
+
+```env
+# === AI 模型（必须）===
+MIDSCENE_MODEL_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+MIDSCENE_MODEL_API_KEY=sk-your-key
+MIDSCENE_MODEL_NAME=doubao-seed-2.0
+
+# === Chrome 路径（自动检测失败时取消注释）===
+# Windows:
+# PUPPETEER_EXECUTABLE_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
+# Mac:
+# PUPPETEER_EXECUTABLE_PATH=/Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+# Linux:
+# PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
+```
 
 ## 平台配置最小示例
 
